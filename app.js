@@ -291,10 +291,17 @@ let pillRatingsSummaryByPillId = {};
 let myPillRatingByPillId = {};
 let pillsAnswerLocked = false;
 let pillsTouchStartX = 0;
+let pillsTouchStartY = 0;
 let pillsTouchDeltaX = 0;
+let pillsTouchDeltaY = 0;
+/** Última posición del puntero/dedo (para soltar en desktop). */
+let pillsLastPointerClientX = 0;
+let pillsLastPointerClientY = 0;
 let pillsTouchDragging = false;
 let pillsSwipePointerId = null;
 const PILLS_SWIPE_THRESHOLD = 90;
+/** Desktop: cuánto hay que arrastrar hacia abajo para confirmar (hacia los botones). */
+const PILLS_SWIPE_THRESHOLD_DESKTOP_Y = 76;
 
 function isPillsSwipeViewportMobile() {
     return window.matchMedia('(max-width: 767px)').matches;
@@ -324,23 +331,76 @@ function getPillSessionRandomizedPool(pool, pillId) {
     return best;
 }
 
-function pillsApplySwipeVisual(clientX) {
+const PILLS_HINT_DEAD_PX = 14;
+
+function pillsClearCardDirectionHints(card) {
+    if (!card) return;
+    card.classList.remove(
+        'pills-question-card--towards-false',
+        'pills-question-card--towards-true'
+    );
+}
+
+/** Escritorio: tinte según posición del cursor respecto al centro del layout V/F */
+function pillsApplyDragHintFromClientX(clientX) {
+    const card = document.getElementById('pills-question-card');
+    const layout = document.querySelector('.pills-tf-layout');
+    if (!card || !layout || typeof clientX !== 'number') return;
+    const lr = layout.getBoundingClientRect();
+    const mid = lr.left + lr.width / 2;
+    const band = Math.min(40, lr.width * 0.07);
+    card.classList.toggle('pills-question-card--towards-false', clientX < mid - band);
+    card.classList.toggle('pills-question-card--towards-true', clientX > mid + band);
+    if (clientX >= mid - band && clientX <= mid + band) {
+        pillsClearCardDirectionHints(card);
+    }
+}
+
+function pillsApplySwipeVisual(clientX, clientY) {
     const card = document.getElementById('pills-question-card');
     if (!card) return;
+    pillsLastPointerClientX = clientX;
+    pillsLastPointerClientY = typeof clientY === 'number' ? clientY : pillsTouchStartY;
     pillsTouchDeltaX = clientX - pillsTouchStartX;
+    pillsTouchDeltaY = pillsLastPointerClientY - pillsTouchStartY;
+
+    if (isPillsSwipeViewportMobile()) {
+        const dx = pillsTouchDeltaX;
+        const rot = Math.max(Math.min(dx * 0.06, 8), -8);
+        const opacity = Math.min(Math.abs(dx) / 90, 1);
+        card.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+        card.style.setProperty('--swipe-opacity', String(opacity));
+        card.classList.toggle('pills-question-card--swiping-left', dx < -8);
+        card.classList.toggle('pills-question-card--swiping-right', dx > 8);
+        card.classList.toggle('pills-question-card--towards-false', dx < -PILLS_HINT_DEAD_PX);
+        card.classList.toggle('pills-question-card--towards-true', dx > PILLS_HINT_DEAD_PX);
+        if (Math.abs(dx) <= PILLS_HINT_DEAD_PX) {
+            pillsClearCardDirectionHints(card);
+        }
+        return;
+    }
+
+    /* Desktop / tablet ancho: arrastre hacia abajo hacia los botones; X elige Falso / Verdadero */
+    const dyDown = Math.max(0, pillsTouchDeltaY);
     const dx = pillsTouchDeltaX;
-    const rot = Math.max(Math.min(dx * 0.06, 8), -8);
-    const opacity = Math.min(Math.abs(dx) / 90, 1);
-    card.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+    const rot = Math.max(Math.min(dx * 0.045, 7), -7);
+    const pullY = Math.min(dyDown, 200);
+    const opacity = Math.min(dyDown / 100, 1);
+    card.style.transform = `translate(${dx * 0.22}px, ${pullY}px) rotate(${rot}deg)`;
     card.style.setProperty('--swipe-opacity', String(opacity));
-    card.classList.toggle('pills-question-card--swiping-left', dx < -8);
-    card.classList.toggle('pills-question-card--swiping-right', dx > 8);
+    card.classList.remove('pills-question-card--swiping-left', 'pills-question-card--swiping-right');
+    if (dyDown > 12) {
+        pillsApplyDragHintFromClientX(clientX);
+    } else {
+        pillsClearCardDirectionHints(card);
+    }
 }
 
 function pillsUpdateCardDraggable() {
     const card = document.getElementById('pills-question-card');
     if (!card) return;
-    card.draggable = !isPillsSwipeViewportMobile();
+    // Usamos interaccion por pointer/touch; desactivamos drag nativo del navegador.
+    card.draggable = false;
 }
 
 // --- USER PROFILE DATA (loaded from Supabase on login) ---
@@ -995,42 +1055,6 @@ window.handleAvatarUpload = function(event) {
     reader.readAsDataURL(file);
 }
 
-window.toggleEditNickname = function() {
-    const form = document.getElementById('edit-nickname-form');
-    const displayContainer = document.querySelector('.nickname-container');
-    const input = document.getElementById('nickname-input');
-    
-    if (form.classList.contains('hidden')) {
-        form.classList.remove('hidden');
-        displayContainer.classList.add('hidden');
-        input.value = userProfile.nickname || userName;
-        input.focus();
-    } else {
-        form.classList.add('hidden');
-        displayContainer.classList.remove('hidden');
-    }
-}
-
-window.saveNickname = function() {
-    const input = document.getElementById('nickname-input');
-    const newName = input.value.trim();
-    const MAX_NICKNAME_LENGTH = 40;
-
-    if (newName && newName.length <= MAX_NICKNAME_LENGTH) {
-        userProfile.nickname = newName;
-        document.getElementById('profile-nickname').innerText = newName;
-        // Also update navbar greeting
-        const firstName = newName.split(' ')[0];
-        document.getElementById('nav-greeting').innerText = `Hola, ${firstName}`;
-        
-        // TODO: Update in Supabase
-        // const userRef = doc(db, "ranking_user", userDocId);
-        // await updateDoc(userRef, { nombre: newName });
-    }
-    
-    toggleEditNickname();
-}
-
 window.continueFromProfile = function() {
     // Flujo simplificado: acceso directo a Práctica sin pantalla intermedia de modos.
     window.openModeFromProfile('practice');
@@ -1146,6 +1170,13 @@ function validateEmailFormat() {
     if (btnCheck) btnCheck.disabled = !emailRegex.test(email);
 }
 
+/** Tras "Verificando…" o al volver al paso email: texto Continuar + disabled según el input. */
+function resetLoginEmailButtonState() {
+    const btnCheck = document.getElementById('btn-check-email');
+    if (btnCheck) btnCheck.innerHTML = 'Continuar';
+    validateEmailFormat();
+}
+
 function validatePasswordFormat() {
     const passInput = document.getElementById('user-password');
     const btnLogin = document.getElementById('btn-do-login');
@@ -1157,6 +1188,7 @@ window.backToEmailStep = function () {
     document.getElementById('login-step-email').classList.remove('hidden');
     document.getElementById('login-title').textContent = 'Ingresa tu correo electrónico';
     document.getElementById('user-password').value = '';
+    resetLoginEmailButtonState();
 };
 
 // PASO 1: Verificar que el correo existe en ranking_user (sin autenticar)
@@ -1191,10 +1223,11 @@ async function verifyEmail() {
         document.getElementById('login-step-password').classList.remove('hidden');
         document.getElementById('user-password').focus();
 
+        resetLoginEmailButtonState();
+
     } catch (e) {
         console.warn('verifyEmail error:', e);
-        btnCheck.innerHTML = 'Continuar';
-        btnCheck.disabled = false;
+        resetLoginEmailButtonState();
         showAppAlert({
             title: "Error de conexión",
             message: "No se pudo verificar el correo. Intenta de nuevo.",
@@ -1511,9 +1544,7 @@ window.logout = function () {
         document.getElementById('login-step-email').classList.remove('hidden');
         document.getElementById('login-step-password').classList.add('hidden');
         document.getElementById('login-title').textContent = 'Ingresa tu correo electrónico';
-        const btnCheck = document.getElementById('btn-check-email');
-        btnCheck.innerHTML = 'Continuar';
-        btnCheck.disabled = true;
+        resetLoginEmailButtonState();
 
         // Hide Navbar
         document.getElementById('main-header').classList.add('hidden');
@@ -2063,6 +2094,26 @@ function getPillAverageText(pillId) {
     return `${avg.toFixed(1)}`;
 }
 
+function flashPillRatingSavedCheck(pillIdAttr) {
+    const id = String(pillIdAttr || '').trim();
+    if (!id) return;
+    const safe = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"');
+    requestAnimationFrame(() => {
+        const wrap = document.querySelector(`[data-pill-id="${safe}"] .pills-rating__stars`);
+        if (!wrap) return;
+        const tick = document.createElement('span');
+        tick.className = 'pills-rating__saved-check';
+        tick.setAttribute('aria-hidden', 'true');
+        tick.innerHTML = '<i class="fas fa-check"></i>';
+        wrap.appendChild(tick);
+        requestAnimationFrame(() => tick.classList.add('pills-rating__saved-check--visible'));
+        setTimeout(() => {
+            tick.classList.remove('pills-rating__saved-check--visible');
+            setTimeout(() => tick.remove(), 380);
+        }, 950);
+    });
+}
+
 async function savePillRating(pillId, rating) {
     if (!supabase || !supabaseSession?.user?.id) {
         showAppAlert({
@@ -2090,6 +2141,7 @@ async function savePillRating(pillId, rating) {
         if (error) throw error;
         await loadPillRatingsForList([pid]);
         await renderPillsList();
+        flashPillRatingSavedCheck(pid);
     } catch (e) {
         console.warn('savePillRating error:', e);
         showAppAlert({
@@ -2125,6 +2177,7 @@ async function renderPillsList() {
     sorted.forEach((pill) => {
         const card = document.createElement('div');
         card.className = 'pills-category-card';
+        if (pill.id != null && pill.id !== '') card.setAttribute('data-pill-id', String(pill.id));
         const content = document.createElement('div');
         content.className = 'pills-category-card__content';
 
@@ -2173,7 +2226,7 @@ async function renderPillsList() {
 
         const btnPreview = document.createElement('button');
         btnPreview.type = 'button';
-        btnPreview.className = 'btn-outline-blue pills-btn-preview';
+        btnPreview.className = 'btn-outline-blue pills-btn-preview pills-card-action-btn';
         btnPreview.textContent = 'Ver pill';
         const link = getPillMediaLink(pill);
         if (link) {
@@ -2185,7 +2238,7 @@ async function renderPillsList() {
 
         const btnStart = document.createElement('button');
         btnStart.type = 'button';
-        btnStart.className = 'btn-cta pills-btn-start';
+        btnStart.className = 'btn-cta pills-btn-start pills-card-action-btn';
         btnStart.textContent = 'Contestar preguntas';
         btnStart.addEventListener('click', () => window.startPillsQuiz(pill.id));
 
@@ -2300,23 +2353,6 @@ function loadPillsQuestion() {
     document.getElementById('pills-current-q-num').innerText = String(currentIndex + 1);
     document.getElementById('pills-q-total').innerText = `/${currentSession.length}`;
 
-    const badge = document.getElementById('pills-topic-badge');
-    const categoryClass = {
-        'UX Writing': 'badge--ux-writing',
-        'UX Research': 'badge--ux-research',
-        'UX Researcher': 'badge--ux-research',
-        'UI Design': 'badge--ui-design',
-        'Product Strategy': 'badge--product-strategy',
-        'Casos Prácticos': 'badge--casos-practicos'
-    };
-    const cat = q.category || selectedPillMeta.category || selectedPillMeta.name || 'Pill';
-    badge.innerText = cat;
-    const badgeMod =
-        categoryClass[cat] ||
-        (isUiDesignCategory(cat) ? 'badge--ui-design' : '') ||
-        (isUxResearchFamilyLabel(cat) ? 'badge--ux-research' : '');
-    badge.className = `topic-badge ${badgeMod}`;
-
     document.getElementById('pills-question-text').innerText = q.question || '';
 
     document.getElementById('feedback-panel').classList.add('hidden');
@@ -2335,8 +2371,11 @@ function loadPillsQuestion() {
         card.setAttribute('aria-grabbed', 'false');
         card.classList.remove('pills-question-card--dragging');
         card.classList.remove('pills-question-card--swiping-left', 'pills-question-card--swiping-right');
+        pillsClearCardDirectionHints(card);
         card.style.transform = '';
         card.style.setProperty('--swipe-opacity', '0');
+        pillsTouchDeltaX = 0;
+        pillsTouchDeltaY = 0;
         pillsUpdateCardDraggable();
     }
 }
@@ -2350,6 +2389,7 @@ function handlePillsAnswer(userBool) {
     const card = document.getElementById('pills-question-card');
     if (card) {
         card.classList.remove('pills-question-card--swiping-left', 'pills-question-card--swiping-right');
+        pillsClearCardDirectionHints(card);
         card.style.transform = '';
         card.style.setProperty('--swipe-opacity', '0');
     }
@@ -2413,6 +2453,8 @@ function showFeedbackPills(isCorrect, q, userAnswer) {
             ${expl ? `<p><strong>Recomendación:</strong> ${esc(expl)}</p>` : ''}`;
         if (nextBtn) nextBtn.innerText = 'SIGUIENTE';
     }
+
+    focusFeedbackNextButton();
 }
 
 function onPillsTouchStart(e) {
@@ -2421,13 +2463,18 @@ function onPillsTouchStart(e) {
     if (!e.touches || e.touches.length !== 1) return;
     pillsTouchDragging = true;
     pillsTouchStartX = e.touches[0].clientX;
+    pillsTouchStartY = e.touches[0].clientY;
     pillsTouchDeltaX = 0;
+    pillsTouchDeltaY = 0;
+    pillsLastPointerClientX = pillsTouchStartX;
+    pillsLastPointerClientY = pillsTouchStartY;
 }
 
 function onPillsTouchMove(e) {
     if (!pillsTouchDragging) return;
     if (!e.touches || e.touches.length !== 1) return;
-    pillsApplySwipeVisual(e.touches[0].clientX);
+    const t = e.touches[0];
+    pillsApplySwipeVisual(t.clientX, t.clientY);
 }
 
 function onPillsSwipeEnd() {
@@ -2436,30 +2483,51 @@ function onPillsSwipeEnd() {
     const card = document.getElementById('pills-question-card');
     if (!card) return;
 
-    const dx = pillsTouchDeltaX;
-    const abs = Math.abs(dx);
-    const answer = dx > 0;
-    if (abs >= PILLS_SWIPE_THRESHOLD) {
-        const outX = answer ? 280 : -280;
-        const rot = answer ? 10 : -10;
-        card.style.transform = `translateX(${outX}px) rotate(${rot}deg)`;
-        setTimeout(() => handlePillsAnswer(answer), 120);
-        return;
+    if (isPillsSwipeViewportMobile()) {
+        const dx = pillsTouchDeltaX;
+        const abs = Math.abs(dx);
+        const answer = dx > 0;
+        if (abs >= PILLS_SWIPE_THRESHOLD) {
+            const outX = answer ? 280 : -280;
+            const rot = answer ? 10 : -10;
+            card.style.transform = `translateX(${outX}px) rotate(${rot}deg)`;
+            setTimeout(() => handlePillsAnswer(answer), 120);
+            return;
+        }
+    } else {
+        const dyDown = Math.max(0, pillsLastPointerClientY - pillsTouchStartY);
+        if (dyDown >= PILLS_SWIPE_THRESHOLD_DESKTOP_Y) {
+            const layout = document.querySelector('.pills-tf-layout');
+            const mid = layout
+                ? layout.getBoundingClientRect().left + layout.getBoundingClientRect().width / 2
+                : pillsTouchStartX;
+            const answer = pillsLastPointerClientX >= mid;
+            const outDx = (answer ? 1 : -1) * 40;
+            card.style.transform = `translate(${outDx}px, 240px) rotate(${answer ? 8 : -8}deg)`;
+            setTimeout(() => handlePillsAnswer(answer), 120);
+            return;
+        }
     }
 
     card.style.transform = '';
     card.classList.remove('pills-question-card--swiping-left', 'pills-question-card--swiping-right');
+    pillsClearCardDirectionHints(card);
     card.style.setProperty('--swipe-opacity', '0');
 }
 
 function onPillsPointerDown(e) {
-    if (!isPillsSwipeViewportMobile() || e.pointerType !== 'mouse') return;
+    if (e.pointerType !== 'mouse') return;
     const pillsSection = document.getElementById('pills-quiz-interface');
     if (pillsSection.classList.contains('hidden') || pillsAnswerLocked) return;
+    if (e.button !== 0) return;
     e.preventDefault();
     pillsTouchDragging = true;
     pillsTouchStartX = e.clientX;
+    pillsTouchStartY = e.clientY;
     pillsTouchDeltaX = 0;
+    pillsTouchDeltaY = 0;
+    pillsLastPointerClientX = e.clientX;
+    pillsLastPointerClientY = e.clientY;
     pillsSwipePointerId = e.pointerId;
     const card = document.getElementById('pills-question-card');
     if (card) card.setPointerCapture(e.pointerId);
@@ -2467,7 +2535,7 @@ function onPillsPointerDown(e) {
 
 function onPillsPointerMove(e) {
     if (!pillsTouchDragging || pillsSwipePointerId !== e.pointerId) return;
-    pillsApplySwipeVisual(e.clientX);
+    pillsApplySwipeVisual(e.clientX, e.clientY);
 }
 
 function onPillsPointerUp(e) {
@@ -2513,15 +2581,33 @@ function initPillsQuizInteractions() {
         });
     });
 
+    const blankDragImg = (() => {
+        const c = document.createElement('canvas');
+        c.width = 1;
+        c.height = 1;
+        return c;
+    })();
+
     card.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/plain', 'pill');
         e.dataTransfer.effectAllowed = 'move';
+        try {
+            e.dataTransfer.setDragImage(blankDragImg, 0, 0);
+        } catch (_) {
+            /* ignore */
+        }
         card.classList.add('pills-question-card--dragging');
         card.setAttribute('aria-grabbed', 'true');
+    });
+    card.addEventListener('drag', (ev) => {
+        if (typeof ev.clientX === 'number' && ev.clientX !== 0) {
+            pillsApplyDragHintFromClientX(ev.clientX);
+        }
     });
     card.addEventListener('dragend', () => {
         card.classList.remove('pills-question-card--dragging');
         card.setAttribute('aria-grabbed', 'false');
+        pillsClearCardDirectionHints(card);
     });
     card.addEventListener('touchstart', onPillsTouchStart, { passive: true });
     card.addEventListener('touchmove', onPillsTouchMove, { passive: true });
@@ -2769,6 +2855,9 @@ function handleDontKnow() {
 }
 
 function handleAnswer(isCorrect, btn, isTimeout = false) {
+    const feedbackOpen = document.getElementById('feedback-panel');
+    if (feedbackOpen && !feedbackOpen.classList.contains('hidden')) return;
+
     stopQuestionTimer();
     const container = document.getElementById('options-container');
     container.style.pointerEvents = 'none';
@@ -2841,6 +2930,18 @@ function showFeedback(isCorrect, q, isTimeout = false) {
             if (nextBtn) nextBtn.innerText = 'SIGUIENTE';
         }
     }
+
+    focusFeedbackNextButton();
+}
+
+function focusFeedbackNextButton() {
+    const nextBtn = document.getElementById('btn-next-question');
+    const ae = document.activeElement;
+    if (ae instanceof HTMLElement) {
+        if (ae.closest('#options-container')) ae.blur();
+        if (ae.closest('#pills-quiz-interface')) ae.blur();
+    }
+    nextBtn?.focus({ preventScroll: true });
 }
 
 // ===== MOTOR DE PARTÍCULAS (Canvas, ~0KB extra) =====
@@ -3743,15 +3844,6 @@ function closeLeaderboard() {
     document.getElementById('leaderboard-modal').classList.add('hidden');
 }
 
-function getLevelInfo(pts) {
-    const pct = (pts / currentSession.length) * 100;
-    if (pct === 100) return { level: "Customer Experience", next: "¡Nivel Máximo!" };
-    if (pct >= 85) return { level: "Product Designer", next: "Customer Experience" };
-    if (pct >= 65) return { level: "Senior", next: "Product Designer" };
-    if (pct >= 40) return { level: "Medium", next: "Senior" };
-    return { level: "Junior", next: "Medium" };
-}
-
 function animateEvaluationDonut({ donut, correctCountEl, correctTextEl, incorrectTextEl, totalAnswered, correctCount, incorrectCount }) {
     if (!donut) return;
 
@@ -3792,13 +3884,48 @@ function animateEvaluationDonut({ donut, correctCountEl, correctTextEl, incorrec
     requestAnimationFrame(tick);
 }
 
+window.goToPillsHomeFromResults = async function goToPillsHomeFromResults() {
+    currentQuizMode = 'pills';
+    isEvaluationSessionActive = false;
+
+    if (pillsCatalog.length === 0) {
+        beginGlobalLoading('Preparando contenido...');
+        try {
+            await loadPillsCatalog();
+        } finally {
+            endGlobalLoading();
+        }
+    }
+
+    switchSection('landing-page', () => {
+        document.getElementById('dashboard-view')?.classList.add('hidden');
+        document.getElementById('mode-selection-view')?.classList.add('hidden');
+        document.getElementById('evaluation-brief-view')?.classList.add('hidden');
+        document.getElementById('profile-view')?.classList.add('hidden');
+        document.getElementById('auth-card')?.classList.add('hidden');
+        document.getElementById('login-view')?.classList.add('hidden');
+
+        document.getElementById('pills-construction-view')?.classList.remove('hidden');
+        document.getElementById('pills-construction-view')?.classList.add('animate-fade-in');
+
+        document.getElementById('main-header')?.classList.remove('hidden');
+        const btnBack = document.getElementById('btn-back-header');
+        if (btnBack) btnBack.classList.add('hidden');
+
+        document.getElementById('feedback-panel')?.classList.add('hidden');
+        document.getElementById('feedback-overlay')?.classList.add('hidden');
+
+        renderPillsList();
+        window.scrollTo(0, 0);
+    });
+};
+
 async function showPillsResultsInScreen() {
     const resultsTitle = document.getElementById('results-title');
     const careerPath = document.querySelector('.career-path');
     const content = document.getElementById('results-content');
     const blockDefault = document.getElementById('results-block-default');
     const blockPills = document.getElementById('results-block-pills');
-    const reviewBtn = document.getElementById('btn-review-topics');
     const recordBadge = document.getElementById('new-record-badge');
 
     const totalAnswered = currentSession.length || 0;
@@ -3813,21 +3940,14 @@ async function showPillsResultsInScreen() {
     if (resultsTitle) resultsTitle.innerText = 'Resultado de la pill';
 
     const pillNameEl = document.getElementById('results-pills-pill-name');
-    const rankingSubEl = document.getElementById('results-pills-ranking-sub');
     const scoreNumEl = document.getElementById('results-pills-score-num');
     const scoreOfEl = document.getElementById('results-pills-score-of');
     const donutEl = document.getElementById('results-pills-donut');
     const stickerEl = document.getElementById('results-pills-sticker');
     const stickerImgEl = document.getElementById('results-pills-sticker-img');
     const stickerTextEl = document.getElementById('results-pills-sticker-text');
-    const revisitWrap = document.getElementById('results-pills-revisit-wrap');
-    const revisitBtn = document.getElementById('results-pills-revisit-btn');
-    const rankingToggleBtn = document.getElementById('results-pills-toggle-ranking');
-    const rankingPanel = document.getElementById('results-pills-ranking-panel');
-    const lbList = document.getElementById('results-pills-leaderboard-list');
 
     if (pillNameEl) pillNameEl.textContent = pillDisplayName;
-    if (rankingSubEl) rankingSubEl.textContent = `Pill: ${pillDisplayName}`;
     if (scoreNumEl) scoreNumEl.textContent = String(score);
     if (scoreOfEl) scoreOfEl.textContent = totalAnswered > 0 ? `de ${totalAnswered}` : '';
     if (donutEl) {
@@ -3850,7 +3970,7 @@ async function showPillsResultsInScreen() {
             prizeImg = MATERIAL.pillGeneral;
             prizeAlt = 'Intento adicional';
             prizeHtml =
-                'Este es un <strong>segundo intento o posterior</strong>. Mostramos un resultado genérico; el sticker solo cuenta en el primer intento.';
+                'Sigue participando en las pills y podrás ganar stickers.';
         } else if (errCountPill <= 1) {
             stickerEl.classList.add('results-pills-sticker--win');
             prizeImg = MATERIAL.pillGanaste;
@@ -3862,7 +3982,7 @@ async function showPillsResultsInScreen() {
             prizeImg = MATERIAL.pillPerder;
             prizeAlt = 'Sin premio en el primer intento';
             prizeHtml =
-                'En tu primer intento tuviste <strong>más de un error</strong>: no obtienes el sticker de esta pill. Repasa el material y vuelve a intentarlo.';
+                'Por el número de errores no obtienes el sticker de esta pill. Repasa el material y vuelve a intentarlo.';
         }
         if (stickerImgEl) {
             stickerImgEl.src = prizeImg;
@@ -3872,78 +3992,11 @@ async function showPillsResultsInScreen() {
         stickerEl.classList.remove('hidden');
     }
 
-    const showRevisit = errors.length > 0;
-    if (revisitWrap) revisitWrap.classList.toggle('hidden', !showRevisit);
-    if (revisitBtn) {
-        revisitBtn.onclick = () => {
-            const p = catalogPill || { id: selectedPillId, name: pillDisplayName };
-            const link = getPillMediaLink(p);
-            if (link) window.open(link, '_blank', 'noopener,noreferrer');
-            else openPillExperienceDialog(p);
-        };
-    }
-
-    if (reviewBtn) reviewBtn.classList.add('hidden');
     if (recordBadge) recordBadge.classList.add('hidden');
 
     const endTime = new Date();
     const timeTaken = Math.round((endTime - startTime) / 1000);
     await saveScoreToCloud(score, timeTaken);
-
-    if (lbList) {
-        lbList.innerHTML =
-            '<div class="leaderboard-loading"><i class="fas fa-circle-notch animate-spin"></i> Cargando ranking…</div>';
-        try {
-            const rows = await fetchLatestPillRankingRows(10);
-            lbList.innerHTML = '';
-            if (rows.length === 0) {
-                const p = document.createElement('p');
-                p.className = 'results-pills-lb-empty';
-                p.textContent =
-                    'Aún no hay calificaciones registradas para la pill actual (solo cuenta el primer intento en ranking_user).';
-                lbList.appendChild(p);
-            } else {
-                rows.forEach((row, index) => {
-                    const isMe =
-                        row.id === userEmail ||
-                        String(row.email || '').toLowerCase() === String(userEmail || '').toLowerCase();
-                    const sc = Number(row.pillsPoints || 0);
-                    const sec = Number(row.pillsRankTiempo ?? 0);
-                    const ptsLabel = sec > 0 ? `${sc} pts · ${sec}s` : `${sc} pts`;
-                    const div = document.createElement('div');
-                    div.className =
-                        'results-pills-lb-row' + (isMe ? ' results-pills-lb-row--me' : '');
-                    const rank = document.createElement('span');
-                    rank.className = 'results-pills-lb-rank';
-                    rank.textContent = `#${index + 1}`;
-                    const nameEl = document.createElement('span');
-                    nameEl.className = 'results-pills-lb-name';
-                    nameEl.textContent = row.nombre || 'Anónimo';
-                    const pts = document.createElement('span');
-                    pts.className = 'results-pills-lb-pts';
-                    pts.textContent = ptsLabel;
-                    div.appendChild(rank);
-                    div.appendChild(nameEl);
-                    div.appendChild(pts);
-                    lbList.appendChild(div);
-                });
-            }
-        } catch (e) {
-            const msg = e?.message || 'No se pudo cargar el ranking.';
-            lbList.innerHTML = `<p class="leaderboard-error">${esc(msg)}</p>`;
-        }
-    }
-
-    if (rankingToggleBtn && rankingPanel) {
-        rankingPanel.classList.add('hidden');
-        rankingToggleBtn.innerHTML = '<i class="fas fa-trophy" aria-hidden="true"></i> Ver calificaciones (primer intento)';
-        rankingToggleBtn.onclick = () => {
-            const nowHidden = rankingPanel.classList.toggle('hidden');
-            rankingToggleBtn.innerHTML = nowHidden
-                ? '<i class="fas fa-trophy" aria-hidden="true"></i> Ver calificaciones (primer intento)'
-                : '<i class="fas fa-trophy" aria-hidden="true"></i> Ocultar calificaciones';
-        };
-    }
 
     if (content) {
         content.classList.remove('hidden', 'opacity-0');
@@ -3976,7 +4029,6 @@ async function showResults() {
         const content = document.getElementById('results-content');
         const classicScoreBlock = document.getElementById('classic-score-block');
         const evaluationSummary = document.getElementById('evaluation-results-summary');
-        const nextLevelText = document.getElementById('next-level-text');
         const leaderboardBtn = document.getElementById('results-leaderboard-btn');
         const resultsDivider = document.getElementById('results-divider');
         const restartBtn = document.getElementById('results-restart-btn');
@@ -3998,9 +4050,6 @@ async function showResults() {
         }
         if (evaluationSummary) {
             evaluationSummary.classList.toggle('hidden', !isEvaluationResult);
-        }
-        if (nextLevelText) {
-            nextLevelText.classList.toggle('hidden', isEvaluationResult);
         }
         if (leaderboardBtn) {
             leaderboardBtn.classList.toggle('hidden', isEvaluationResult);
@@ -4050,16 +4099,6 @@ async function showResults() {
 
         content.classList.add('hidden', 'opacity-0');
         content.classList.remove('animate-slide-up');
-
-        const levelInfo = getLevelInfo(score);
-        document.getElementById('next-level').innerText = levelInfo.next;
-
-        const reviewBtn = document.getElementById('btn-review-topics');
-        if (errors.length > 0) {
-            reviewBtn.classList.remove('hidden');
-        } else {
-            reviewBtn.classList.add('hidden');
-        }
 
         // Guardar en Supabase
         const endTime = new Date();

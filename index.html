@@ -137,23 +137,6 @@
                             <div class="bento-identity-info">
                                 <div class="bento-nickname-row">
                                     <h1 id="profile-nickname" class="bento-nickname m-0">Usuario</h1>
-                                    <button onclick="toggleEditNickname()" class="bento-btn-edit"
-                                        title="Editar Nickname">
-                                        <i class="fas fa-pen text-sm"></i>
-                                    </button>
-                                </div>
-                                <div id="edit-nickname-form"
-                                    class="hidden flex items-center gap-2 mt-2 w-full max-w-xs transition-opacity duration-300">
-                                    <input type="text" id="nickname-input"
-                                        class="text-input py-2 px-3 text-sm h-10 flex-grow"
-                                        placeholder="Nuevo nickname" maxlength="40" autocomplete="off">
-                                    <button onclick="saveNickname()"
-                                        class="btn-primary flex-shrink-0 !w-auto !py-2 !px-4 h-10 text-sm"
-                                        style="margin-top: 16px; margin-bottom: 16px;">Guardar</button>
-                                    <button onclick="toggleEditNickname()"
-                                        class="btn-icon-cancel flex-shrink-0 h-10 w-10 text-gray-400 hover:text-red-500 transition-colors">
-                                        <i class="fas fa-times"></i>
-                                    </button>
                                 </div>
                                 <p id="profile-practice-rank" class="bento-role">Calculando ranking de práctica...</p>
                             </div>
@@ -365,9 +348,6 @@
                 <!-- EVALUATION BRIEF VIEW -->
                 <div id="evaluation-brief-view" class="hidden">
                     <h2 class="view-title">Modo Evaluación</h2>
-                    <button onclick="backToModes()" class="btn-text-back">
-                        <i class="fas fa-arrow-left"></i> Volver a elegir
-                    </button>
                     <p class="section-subtitle">Antes de empezar, revisa cómo funcionará esta sección.</p>
 
                     <div class="evaluation-brief-card evaluation-brief-card--summary">
@@ -401,15 +381,15 @@
                         <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled>
                             INICIAR EVALUACIÓN
                         </button>
+                        <button type="button" onclick="backToModes()" class="btn-text-back btn-text-back--tertiary">
+                            <i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a elegir
+                        </button>
                     </div>
                 </div>
 
                 <!-- PILLS: listado por categoría (cards rellenadas por JS desde colección `pills`) -->
                 <div id="pills-construction-view" class="hidden">
                     <h2 class="view-title">Modo Pills</h2>
-                    <button onclick="backToModes()" class="btn-text-back">
-                        <i class="fas fa-arrow-left"></i> Volver al inicio
-                    </button>
                     <p class="section-subtitle">Elige una pill y participa por un premio.</p>
 
                     <div id="pills-category-grid" class="pills-category-grid">
@@ -430,9 +410,6 @@
                     <div class="q-number-display pills-quiz-counter">
                         <span id="pills-current-q-num">1</span><span id="pills-q-total" class="q-total">/0</span>
                     </div>
-                    <div class="topic-badge-wrapper" style="margin-bottom: 0.5rem; display: flex; justify-content: center;">
-                        <div id="pills-topic-badge" class="topic-badge">Pill</div>
-                    </div>
                 </div>
                 <div class="pills-tf-layout">
                     <button type="button" id="pills-drop-false" class="pills-drop-zone pills-drop-zone--false" data-pill-answer="false" aria-label="Falso">
@@ -440,12 +417,12 @@
                         <span class="pills-drop-label">Falso</span>
                     </button>
                     <div class="pills-question-center">
-                        <div id="pills-question-card" class="pills-question-card" draggable="true" role="button" tabindex="0" aria-grabbed="false">
+                        <div id="pills-question-card" class="pills-question-card" draggable="false" role="button" tabindex="0" aria-grabbed="false">
                             <span class="pills-swipe-indicator pills-swipe-indicator--false" aria-hidden="true"><i class="fas fa-times"></i></span>
                             <span class="pills-swipe-indicator pills-swipe-indicator--true" aria-hidden="true"><i class="fas fa-check"></i></span>
                             <p id="pills-question-text" class="pills-question-text"></p>
                         </div>
-                        <p class="pills-drag-hint pills-drag-hint--desktop">Arrastra la tarjeta a los lados o sueltala en Falso / Verdadero</p>
+                        <p class="pills-drag-hint pills-drag-hint--desktop">Arrastra la tarjeta hacia abajo, hacia Falso o Verdadero (o elige la respuesta).</p>
                         <p class="pills-drag-hint pills-drag-hint--mobile">Desliza como en Tinder: izquierda = Falso, derecha = Verdadero. Tambien puedes tocar los iconos</p>
                     </div>
                     <button type="button" id="pills-drop-true" class="pills-drop-zone pills-drop-zone--true" data-pill-answer="true" aria-label="Verdadero">
@@ -560,9 +537,14 @@
                 <div id="results-content" class="hidden opacity-0">
                     <div id="results-block-default">
                         <div>
-                            <div id="classic-score-block">
-                                <span id="final-score">0</span>
-                                <span class="score-label">Aciertos</span>
+                            <div class="results-score-and-badge">
+                                <div id="classic-score-block">
+                                    <span id="final-score">0</span>
+                                    <span class="score-label">Aciertos</span>
+                                </div>
+                                <div id="new-record-badge" class="hidden animate-bounce">
+                                    <i class="fas fa-crown"></i> ¡Nuevo Récord Personal!
+                                </div>
                             </div>
 
                             <div id="evaluation-results-summary" class="hidden">
@@ -577,17 +559,6 @@
                                     <span id="evaluation-incorrect-text">Incorrectas: 0</span>
                                 </div>
                             </div>
-
-                            <button id="btn-review-topics" onclick="openReviewSheet()" class="hidden btn-text-review">
-                                Revisar temas a reforzar
-                            </button>
-
-                            <div id="new-record-badge" class="hidden animate-bounce">
-                                <i class="fas fa-crown"></i> ¡Nuevo Récord Personal!
-                            </div>
-                            <p id="next-level-text" class="next-level-text">Siguiente Nivel:
-                                <span id="next-level">---</span>
-                            </p>
 
                             <button id="results-leaderboard-btn" onclick="openLeaderboard()" class="btn-leaderboard btn-leaderboard--wide">
                                 <i class="fas fa-trophy"></i> Ver Ranking Global
@@ -613,32 +584,23 @@
                                 <div class="results-pills-donut__inner">
                                     <span id="results-pills-score-num" class="results-pills-score-num">0</span>
                                     <span class="results-pills-score-label">aciertos</span>
+                                    <span id="results-pills-score-of" class="results-pills-score-of"></span>
                                 </div>
-                            </div>
-                            <div class="results-pills-score-lines">
-                                <span id="results-pills-score-of" class="results-pills-score-of"></span>
                             </div>
                         </div>
                         <div id="results-pills-sticker" class="results-pills-sticker hidden">
                             <img id="results-pills-sticker-img" class="results-pills-sticker__img" src="" alt="" width="160" height="160" decoding="async" loading="lazy">
                             <p id="results-pills-sticker-text" class="results-pills-sticker__text"></p>
                         </div>
-                        <div id="results-pills-revisit-wrap" class="results-pills-revisit-wrap hidden">
-                            <p class="results-pills-revisit-hint">Repasa el material de la pill antes de volver a intentarlo.</p>
-                            <button type="button" id="results-pills-revisit-btn" class="btn-outline-blue results-pills-revisit-btn">
-                                Ver la pill de nuevo
-                            </button>
-                        </div>
                         <div class="results-pills-ranking-block">
-                            <button type="button" id="results-pills-toggle-ranking" class="btn-leaderboard btn-leaderboard--wide results-pills-toggle-ranking">
+                            <button type="button" onclick="openLeaderboard('pills')" class="btn-leaderboard btn-leaderboard--wide">
                                 <i class="fas fa-trophy" aria-hidden="true"></i> Ver calificaciones (primer intento)
                             </button>
-                            <div id="results-pills-ranking-panel" class="results-pills-ranking-panel hidden">
-                                <p id="results-pills-ranking-sub" class="results-pills-ranking-sub">Pill: —</p>
-                                <div id="results-pills-leaderboard-list" class="results-pills-leaderboard-list"></div>
-                            </div>
                         </div>
                         <div class="results-actions results-actions--pills">
+                            <button type="button" onclick="goToPillsHomeFromResults()" class="btn-primary">
+                                Regresar a inicio de pills
+                            </button>
                             <button type="button" onclick="handleHeaderClick()" class="btn-outline-blue">
                                 Volver al inicio
                             </button>
@@ -650,7 +612,7 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">v3.5.0</span>
+                <span class="footer-version">v3.6.0</span>
                 <span class="footer-tagline">
                     Una iniciativa <b>más</b> de <span class="footer-brand">UXquisitos</span>
                 </span>
@@ -819,6 +781,14 @@
         <script type="module" src="app.js"></script>
         <script>
             document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                const feedbackPanel = document.getElementById('feedback-panel');
+                const feedbackOpen = feedbackPanel && !feedbackPanel.classList.contains('hidden');
+                if (feedbackOpen && e.target.matches('[role="button"]') && !e.target.closest('#feedback-panel')) {
+                    e.preventDefault();
+                    document.getElementById('btn-next-question')?.click();
+                    return;
+                }
                 if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]')) {
                     e.preventDefault();
                     e.target.click();
