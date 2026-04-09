@@ -1,0 +1,33 @@
+# ─── Entorno y credenciales ───────────────────────────────────────────────────
+.env
+.env.*
+*.local
+
+# ─── Herramientas de administración (no deben ser públicas) ───────────────────
+_admin-tools/
+reset-passwords.html
+migrar.html
+
+# ─── IDEs y editores ──────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Sistema operativo ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Dependencias ─────────────────────────────────────────────────────────────
+node_modules/
+
+# ─── Herramientas de diseño / IA (configuración local) ───────────────────────
+.stitch/
+.claude/
+
+# ─── Archivos de documentación y scripts que no forman parte del deploy ───────
+spec.md
+profile_unified_ui.png
+supabase-setup.sql
+sql/
+scripts/

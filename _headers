@@ -1,0 +1,27 @@
+# ============================================================
+# UiX-lingo v2 — Security Headers para Cloudflare Pages
+# Este archivo es leído automáticamente por Cloudflare Pages
+# en cada deploy. No requiere configuración extra.
+# ============================================================
+
+/*
+  # Bloquea que la app sea embebida en iframes de otros dominios (clickjacking)
+  X-Frame-Options: DENY
+
+  # Impide que el navegador adivine el tipo de archivo (MIME sniffing)
+  X-Content-Type-Options: nosniff
+
+  # Solo envía el dominio como referrer, nunca la URL completa
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Desactiva APIs del navegador que la app no necesita
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()
+
+  # Fuerza HTTPS por 2 años en todos los subdominios
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  # Content Security Policy (header HTTP — más fuerte que el meta tag del HTML)
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh; img-src 'self' data: blob: https:; object-src 'none'; base-uri 'self';
+
+  # Desactiva el filtro XSS antiguo del navegador (reemplazado por CSP)
+  X-XSS-Protection: 0

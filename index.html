@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh; img-src 'self' data: blob: https:; object-src 'none'; base-uri 'self';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <title>UiX-lingo | Aprende de UX/UI</title>
+    <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
+    <link rel="stylesheet" href="styles.css?v=11">
+    <style>
+        /* Transición suave al cambiar de tema */
+        *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
+        /* Excluir animaciones de duración corta para que no se cancelen */
+        .animate-spin, .animate-bounce, .animate-pulse, .flame-sparking, .animate-pop, .animate-slide-up, .animate-fade-in, .animate-fade-out, .ice-shard, .snowflake-in { transition: none !important; }
+    </style>
+    <!-- Inicialización de tema: se ejecuta antes del render para evitar flash -->
+    <script src="theme-init.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"
+        integrity="sha384-HAH79XdRvHr6axVGh4xQWVCp14kcd32bNk4Xu0sHDHtFQ42n6BAM8ykvB47dGz6D"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"
+        integrity="sha384-d+vyQ0dYcymoP8ndq2hW7FGC50nqGdXUEgoOUGxbbkAJwZqL7h+jKN0GGgn9hFDS"
+        crossorigin="anonymous"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"
+        integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS"
+        crossorigin="anonymous">
+</head>
+
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <img id="splash-logo" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="opacity-0 scale-90">
+    </div>
+
+    <!-- Global Loader Overlay -->
+    <div id="global-loader" class="global-loader hidden" aria-live="polite" aria-busy="true">
+        <div class="global-loader__card">
+            <i class="fas fa-circle-notch animate-spin global-loader__icon" aria-hidden="true"></i>
+            <p id="global-loader-text" class="global-loader__text">Cargando...</p>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+
+        <!-- Navbar Global para Usuarios Logueados -->
+        <header id="main-header" class="logged-in-navbar hidden">
+            <!-- Izquierda: Logo + Perfil de Usuario -->
+            <div id="navbar-left" class="navbar-left">
+                <div class="logo-wrapper" onclick="handleHeaderClick()" role="button" tabindex="0">
+                    <img src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="header-logo">
+                </div>
+                <div class="navbar-divider"></div>
+                <div class="user-profile-nav" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <button id="btn-back-header" onclick="backToTopicSelection()" class="hidden btn-icon-back" title="Volver al tablero">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="user-avatar-placeholder"></div>
+                    <span id="nav-greeting" class="nav-greeting-text">Hola, Usuario</span>
+                </div>
+            </div>
+
+            <!-- Centro: Controles del Quiz (ocultos por defecto) -->
+            <div id="quiz-header-controls" class="navbar-center hidden">
+            </div>
+
+            <!-- Derecha: Toggle de tema + Cerrar Sesión -->
+            <div id="navbar-right" class="navbar-right">
+                <button id="btn-theme-toggle" class="btn-theme-toggle" title="Cambiar tema" onclick="toggleTheme()">
+                    <i id="theme-icon" class="fas fa-sun"></i>
+                </button>
+                <button onclick="logout()" class="btn-icon-logout" title="Cerrar sesión">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <main>
+
+            <!-- Inicio -->
+            <section id="landing-page" class="animate-pop">
+
+                <div id="auth-card" class="auth-card">
+
+                    <!-- LOGIN VIEW -->
+                    <div id="login-view">
+                        <img id="home-logo" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="opacity-0"
+                            style="margin-bottom: 1.5rem;">
+                        <h2 class="view-title" id="login-title">Ingresa tu correo electrónico</h2>
+
+                        <!-- PASO 1: Email -->
+                        <div id="login-step-email">
+                            <input type="email" id="user-email" placeholder="ejemplo@email.com" class="text-input"
+                                autocomplete="username" oninput="validateEmailFormat()">
+                            <button id="btn-check-email" onclick="verifyEmail()" disabled class="btn-primary">
+                                Continuar
+                            </button>
+                        </div>
+
+                        <!-- PASO 2: Contraseña (oculto inicialmente) -->
+                        <div id="login-step-password" class="hidden">
+                            <div class="input-wrapper">
+                                <input type="password" id="user-password" placeholder="Contraseña" class="text-input"
+                                    autocomplete="current-password" oninput="validatePasswordFormat()">
+                                <button type="button" onclick="togglePasswordVisibility()" class="btn-eye">
+                                    <i class="fas fa-eye" id="eye-icon"></i>
+                                </button>
+                            </div>
+                            <p id="password-hint" style="font-size:0.8rem; opacity:0.5; margin-top:-0.25rem; margin-bottom:0.75rem;"></p>
+                            <button id="btn-do-login" onclick="doLogin()" disabled class="btn-primary">
+                                Iniciar sesión
+                            </button>
+                            <button type="button" onclick="backToEmailStep()" class="btn-auth-tertiary">
+                                ← Cambiar correo
+                            </button>
+                        </div>
+                    </div>
+                </div> <!-- END AUTH CARD -->
+
+                <!-- PROFILE VIEW -->
+                <div id="profile-view" class="hidden w-full bento-wrapper">
+                    <div class="bento-grid">
+                        <!-- 1. Header/Identity Card -->
+                        <div class="bento-card bento-card-identity">
+                            <div class="bento-avatar-wrapper relative">
+                                <img id="profile-avatar-img" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp" alt="Avatar" class="bento-avatar">
+                                <input type="file" id="avatar-upload" accept="image/*" class="hidden"
+                                    onchange="handleAvatarUpload(event)">
+                                <button class="bento-btn-camera"
+                                    onclick="document.getElementById('avatar-upload').click()" title="Cambiar foto">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
+                            <div class="bento-identity-info">
+                                <div class="bento-nickname-row">
+                                    <h1 id="profile-nickname" class="bento-nickname m-0">Usuario</h1>
+                                    <button onclick="toggleEditNickname()" class="bento-btn-edit"
+                                        title="Editar Nickname">
+                                        <i class="fas fa-pen text-sm"></i>
+                                    </button>
+                                </div>
+                                <div id="edit-nickname-form"
+                                    class="hidden flex items-center gap-2 mt-2 w-full max-w-xs transition-opacity duration-300">
+                                    <input type="text" id="nickname-input"
+                                        class="text-input py-2 px-3 text-sm h-10 flex-grow"
+                                        placeholder="Nuevo nickname" maxlength="40" autocomplete="off">
+                                    <button onclick="saveNickname()"
+                                        class="btn-primary flex-shrink-0 !w-auto !py-2 !px-4 h-10 text-sm"
+                                        style="margin-top: 16px; margin-bottom: 16px;">Guardar</button>
+                                    <button onclick="toggleEditNickname()"
+                                        class="btn-icon-cancel flex-shrink-0 h-10 w-10 text-gray-400 hover:text-red-500 transition-colors">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <p id="profile-practice-rank" class="bento-role">Calculando ranking de práctica...</p>
+                            </div>
+                        </div>
+
+                        <!-- 2. Seniority Card -->
+                        <div class="bento-card bento-card-seniority">
+                            <div class="bento-seniority-bg-icon">
+                                <i class="fas fa-gem opacity-10 text-[100px]"></i>
+                            </div>
+                            <div class="bento-seniority-top bento-seniority-badges">
+                                <span class="bento-badge">Seniority</span>
+                                <span class="bento-badge bento-badge--secondary">Especialidad</span>
+                            </div>
+                            <div class="bento-seniority-bottom">
+                                <div class="bento-seniority-values">
+                                    <h2 id="profile-seniority" class="bento-seniority-value">Explorador</h2>
+                                    <p id="profile-especialidad" class="bento-especialidad-value">—</p>
+                                </div>
+                                <i class="fas fa-compass bento-seniority-icon text-4xl"></i>
+                            </div>
+                        </div>
+
+                        <!-- 4. Talents Card -->
+                        <div class="bento-card bento-card-talents">
+                            <div class="bento-talents-header">
+                                <h3 class="bento-talents-title">
+                                    <i class="fas fa-brain text-purple-500"></i> Mis Talentos Destacados
+                                </h3>
+                            </div>
+                            <div id="profile-talents" class="bento-talents-grid">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- 3. Stats Cards -->
+                        <div class="bento-card bento-card-stat bento-stat-quest">
+                            <div class="bento-stat-icon-wrapper text-purple-600 bg-purple-100">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <p class="bento-stat-mode-title">Práctica</p>
+                            <div class="bento-stat-head">
+                                <p class="bento-stat-label">Puntuación más alta</p>
+                                <button onclick="openLeaderboard('quest')" class="bento-rank-btn" title="Ver ranking Quest">
+                                    <i class="fas fa-trophy"></i>
+                                </button>
+                            </div>
+                            <h4 id="profile-quest-pts" class="bento-stat-value">1,250</h4>
+                            <button onclick="openModeFromProfile('practice')" class="bento-stat-cta">
+                                Ir a práctica
+                            </button>
+                        </div>
+
+                        <div class="bento-card bento-card-stat bento-stat-pruebas">
+                            <div class="bento-stat-icon-wrapper text-teal-600 bg-teal-50">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                            <p class="bento-stat-mode-title">Evaluación</p>
+                            <div class="bento-stat-head">
+                                <p class="bento-stat-label">Puntuación obtenida</p>
+                            </div>
+                            <h4 id="profile-tests-pts" class="bento-stat-value">840</h4>
+                            <button onclick="openModeFromProfile('evaluation')" class="bento-stat-cta">
+                                Ir a evaluación
+                            </button>
+                        </div>
+
+                        <div class="bento-card bento-card-stat bento-stat-pills">
+                            <div class="bento-stat-pills__icon-row">
+                                <div class="bento-stat-icon-wrapper text-blue-600 bg-blue-50">
+                                    <i class="fas fa-capsules"></i>
+                                </div>
+                                <span id="profile-pills-new-tag" class="bento-pills-new-tag hidden" aria-hidden="true">Nueva pill</span>
+                            </div>
+                            <p class="bento-stat-mode-title">Pills</p>
+                            <div class="bento-stat-head">
+                                <p id="profile-pills-label" class="bento-stat-label">Pts. Pills</p>
+                                <button onclick="openLeaderboard('pills')" class="bento-rank-btn" title="Ver ranking Pills">
+                                    <i class="fas fa-trophy"></i>
+                                </button>
+                            </div>
+                            <div id="profile-pills-invite" class="bento-pills-invite hidden">
+                                <p id="profile-pills-invite-text" class="bento-pills-invite__text"></p>
+                                <p class="bento-pills-invite__hint">¿Te animas a responderla?</p>
+                            </div>
+                            <h4 id="profile-pills-pts" class="bento-stat-value">320</h4>
+                            <div id="profile-pills-actions-single" class="bento-pills-actions-single">
+                                <button type="button" onclick="openModeFromProfile('pills')" class="bento-stat-cta">
+                                    Ir a pills
+                                </button>
+                            </div>
+                            <div id="profile-pills-actions-dual" class="bento-pills-actions-dual hidden">
+                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-pills-btn-ver">
+                                    Ver pill
+                                </button>
+                                <button type="button" onclick="openModeFromProfile('pills')" class="bento-stat-cta bento-pills-btn-secondary">
+                                    Ir a pills
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 4. Seals Gallery & History -->
+                        <div class="bento-card bento-card-seals">
+                            <div class="bento-seals-header">
+                                <h3 class="bento-seals-title">
+                                    <i class="fas fa-stamp text-orange-500"></i> Tus Sellos
+                                </h3>
+                            </div>
+                            
+                            <div id="profile-seals-recent" class="bento-seals-grid">
+                                <!-- Last 5 seals populated by JS -->
+                            </div>
+
+                            <button onclick="toggleSealsAccordion()" class="bento-seals-expand-btn">
+                                <span>Ver más sellos</span>
+                                <i id="seals-accordion-icon" class="fas fa-chevron-down"></i>
+                            </button>
+
+                            <div id="seals-accordion-content" class="seals-accordion-content">
+                                <div id="seals-history-list" class="seals-history-list">
+                                    <!-- Monthly history populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Action Area -->
+                    </div>
+                </div>
+
+                <!-- MODE SELECTION VIEW -->
+                <div id="mode-selection-view" class="hidden">
+                    <p class="section-subtitle">¿Qué deseas hacer hoy?</p>
+
+                    <div class="mode-grid">
+                        <div onclick="selectMode('practice')" class="mode-card" role="button" tabindex="0">
+                            <div class="mode-card__icon-wrap mode-card__icon-wrap--practice">
+                                <i class="fas fa-dumbbell mode-card__icon"></i>
+                            </div>
+                            <h3 class="mode-card__title">Práctica</h3>
+                            <p class="mode-card__desc">Entrena sin presión. Elige tus temas y refuerza conocimientos.
+                            </p>
+                        </div>
+
+                        <div onclick="selectMode('evaluation')" class="mode-card" role="button" tabindex="0">
+                            <div class="mode-card__icon-wrap mode-card__icon-wrap--evaluation">
+                                <i class="fas fa-clipboard-check mode-card__icon"></i>
+                            </div>
+                            <h3 class="mode-card__title">Evaluación</h3>
+                            <p class="mode-card__desc">Ponte a prueba con un examen simulado y
+                                tiempo límite.</p>
+                        </div>
+
+                        <div onclick="selectMode('pills')" class="mode-card" role="button" tabindex="0">
+                            <div class="mode-card__icon-wrap mode-card__icon-wrap--pills">
+                                <i class="fas fa-capsules mode-card__icon"></i>
+                            </div>
+                            <h3 class="mode-card__title">Pills</h3>
+                            <p class="mode-card__desc">
+                                Micro-lecciones de las clases internas de la empresa.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DASHBOARD VIEW -->
+                <div id="dashboard-view" class="hidden">
+                    <h2 id="dashboard-title" class="view-title">Modo Práctica</h2>
+                    <button onclick="backToModes()" class="btn-text-back">
+                        <i class="fas fa-arrow-left"></i> Volver a elegir
+                    </button>
+                    <p class="section-subtitle">Elige los temas de tu interés:</p>
+
+                    <div class="category-grid">
+                        <div class="cat-card" data-cat="UX Writing" onclick="toggleCategory(this)" role="button" tabindex="0">
+                            <i class="fas fa-pen-nib cat-icon cat-icon--writing"></i>
+                            <span class="cat-label cat-label--writing">Writing</span>
+                        </div>
+                        <div class="cat-card" data-cat="UX Research" onclick="toggleCategory(this)" role="button" tabindex="0">
+                            <i class="fas fa-search cat-icon cat-icon--research"></i>
+                            <span class="cat-label cat-label--research">Research</span>
+                        </div>
+                        <div class="cat-card" data-cat="UI Design" onclick="toggleCategory(this)" role="button" tabindex="0">
+                            <i class="fas fa-palette cat-icon cat-icon--ui"></i>
+                            <span class="cat-label cat-label--ui">UI Design</span>
+                        </div>
+                        <div class="cat-card" data-cat="Product Strategy" onclick="toggleCategory(this)" role="button" tabindex="0">
+                            <i class="fas fa-rocket cat-icon cat-icon--strategy"></i>
+                            <span class="cat-label cat-label--strategy">Strategy</span>
+                        </div>
+                        <div class="cat-card" data-cat="Casos Prácticos" onclick="toggleCategory(this)" role="button" tabindex="0">
+                            <i class="fas fa-briefcase cat-icon cat-icon--cases"></i>
+                            <span class="cat-label cat-label--cases">Cases</span>
+                        </div>
+                    </div>
+
+                    <div class="action-group">
+                        <button id="btn-start" onclick="startQuiz()" class="btn-cta">
+                            EMPEZAR PRUEBA
+                        </button>
+
+                        <div class="divider"></div>
+
+                        <button onclick="openLeaderboard()" class="btn-leaderboard">
+                            <i class="fas fa-trophy"></i> Ver Ranking Global
+                        </button>
+                    </div>
+                </div>
+
+                <!-- EVALUATION BRIEF VIEW -->
+                <div id="evaluation-brief-view" class="hidden">
+                    <h2 class="view-title">Modo Evaluación</h2>
+                    <button onclick="backToModes()" class="btn-text-back">
+                        <i class="fas fa-arrow-left"></i> Volver a elegir
+                    </button>
+                    <p class="section-subtitle">Antes de empezar, revisa cómo funcionará esta sección.</p>
+
+                    <div class="evaluation-brief-card evaluation-brief-card--summary">
+                        <h3 class="evaluation-brief-title">Tu evaluación</h3>
+                        <p id="evaluation-auto-summary" class="evaluation-auto-summary">
+                            Las preguntas se eligen según tu registro en <code>ranking_user</code> (seniority y
+                            <code>Especialidad</code>) y los campos <code>Seniority</code> y <code>Cat</code> en
+                            <code>preguntas_evaluacion</code>. Especialidad UX/UI combina UI Design y UX Research.
+                        </p>
+                    </div>
+
+                    <div class="evaluation-brief-card">
+                        <h3 class="evaluation-brief-title">¿Qué verás aquí?</h3>
+                        <ul class="evaluation-brief-list">
+                            <li>Preguntas enfocadas en tu crecimiento profesional UX/UI.</li>
+                            <li>Dificultad adaptada según tu nivel de seniority.</li>
+                            <li>Resultados y puntaje guardados en tu perfil al finalizar.</li>
+                        </ul>
+                    </div>
+
+                    <div class="evaluation-brief-card">
+                        <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
+                        <ul class="evaluation-brief-list">
+                            <li>La prueba tiene tiempo por pregunta.</li>
+                            <li>Si sales de la pestaña, la sesión se cierra.</li>
+                            <li>Si se repite, la evaluación se marca como conducta no permitida.</li>
+                        </ul>
+                    </div>
+
+                    <div class="action-group">
+                        <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled>
+                            INICIAR EVALUACIÓN
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PILLS: listado por categoría (cards rellenadas por JS desde colección `pills`) -->
+                <div id="pills-construction-view" class="hidden">
+                    <h2 class="view-title">Modo Pills</h2>
+                    <button onclick="backToModes()" class="btn-text-back">
+                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                    </button>
+                    <p class="section-subtitle">Elige una pill y participa por un premio.</p>
+
+                    <div id="pills-category-grid" class="pills-category-grid">
+                        <!-- Cards por categoría (renderPillsCategoryList) -->
+                    </div>
+
+                    <div class="action-group">
+                        <button onclick="backToModes()" class="btn-outline-blue">
+                            VOLVER
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pills quiz: Verdadero / Falso con drag and drop -->
+            <section id="pills-quiz-interface" class="hidden">
+                <div class="pills-quiz-header">
+                    <div class="q-number-display pills-quiz-counter">
+                        <span id="pills-current-q-num">1</span><span id="pills-q-total" class="q-total">/0</span>
+                    </div>
+                    <div class="topic-badge-wrapper" style="margin-bottom: 0.5rem; display: flex; justify-content: center;">
+                        <div id="pills-topic-badge" class="topic-badge">Pill</div>
+                    </div>
+                </div>
+                <div class="pills-tf-layout">
+                    <button type="button" id="pills-drop-false" class="pills-drop-zone pills-drop-zone--false" data-pill-answer="false" aria-label="Falso">
+                        <i class="fas fa-times pills-drop-icon" aria-hidden="true"></i>
+                        <span class="pills-drop-label">Falso</span>
+                    </button>
+                    <div class="pills-question-center">
+                        <div id="pills-question-card" class="pills-question-card" draggable="true" role="button" tabindex="0" aria-grabbed="false">
+                            <span class="pills-swipe-indicator pills-swipe-indicator--false" aria-hidden="true"><i class="fas fa-times"></i></span>
+                            <span class="pills-swipe-indicator pills-swipe-indicator--true" aria-hidden="true"><i class="fas fa-check"></i></span>
+                            <p id="pills-question-text" class="pills-question-text"></p>
+                        </div>
+                        <p class="pills-drag-hint pills-drag-hint--desktop">Arrastra la tarjeta a los lados o sueltala en Falso / Verdadero</p>
+                        <p class="pills-drag-hint pills-drag-hint--mobile">Desliza como en Tinder: izquierda = Falso, derecha = Verdadero. Tambien puedes tocar los iconos</p>
+                    </div>
+                    <button type="button" id="pills-drop-true" class="pills-drop-zone pills-drop-zone--true" data-pill-answer="true" aria-label="Verdadero">
+                        <i class="fas fa-check pills-drop-icon" aria-hidden="true"></i>
+                        <span class="pills-drop-label">Verdadero</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Quiz -->
+            <section id="quiz-interface" class="hidden">
+                <div id="sticky-question-header">
+                    <!-- Nuevos Contadores encima de la pregunta -->
+                    <div class="quiz-meta-inline">
+                        <div class="streak-container" id="streak-area">
+                            <div class="streak-icon-wrapper" id="streak-icon-wrapper">
+                                <canvas id="spark-canvas"></canvas>
+                                <i class="fas fa-fire streak-icon" id="streak-flame"></i>
+                            </div>
+                            <span id="streak-counter" class="streak-count">0</span>
+                        </div>
+                        <div id="evaluation-timer" class="quiz-timer hidden" aria-live="polite">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span id="evaluation-timer-value">6s</span>
+                        </div>
+                        <div class="q-number-display">
+                            <span id="current-q-num">1</span><span id="q-total" class="q-total">/0</span>
+                        </div>
+                    </div>
+
+                    <div class="question-title-container">
+                        <div class="topic-badge-wrapper"
+                            style="margin-bottom: 0.5rem; display: flex; justify-content: flex-start;">
+                            <div id="topic-badge" class="topic-badge">Tema</div>
+                        </div>
+                        <h3 id="question-text"></h3>
+                    </div>
+                </div>
+
+                <div id="question-content">
+                    <div id="options-container"></div>
+
+                    <button id="btn-dont-know" onclick="handleDontKnow()">
+                        No sé la respuesta
+                    </button>
+                </div>
+            </section>
+
+            <!-- Pantalla de Descanso -->
+            <section id="break-screen" class="hidden animate-pop">
+                <div class="break-img-wrapper">
+                    <img id="break-image" src="" alt="Descanso">
+                </div>
+                <div class="break-content">
+                    <h2 id="break-title">¡Excelente ritmo!</h2>
+                    <p id="break-message">Tómate un respiro mental. Estás avanzando muy bien en la prueba.</p>
+                    <button onclick="continueFromBreak()" class="btn-primary">
+                        CONTINUAR
+                    </button>
+                </div>
+            </section>
+
+            <!-- Resultados -->
+            <section id="results-screen" class="hidden animate-slide-up">
+                <h2 id="results-title" class="section-title">Tu Nivel UX/UI</h2>
+
+                <!-- Gráfico de Camino (Career Path) -->
+                <div class="career-path">
+                    <div class="career-track"></div>
+                    <div id="level-progress-bar" style="height: 0%"></div>
+
+                    <div class="career-nodes">
+                        <!-- Junior -->
+                        <div class="level-node" data-level="0">
+                            <div class="node-circle">
+                                <i class="fas fa-baby node-icon"></i>
+                            </div>
+                            <span class="node-text">Junior</span>
+                        </div>
+                        <!-- Medium -->
+                        <div class="level-node" data-level="40">
+                            <div class="node-circle">
+                                <i class="fas fa-user node-icon"></i>
+                            </div>
+                            <span class="node-text">Medium</span>
+                        </div>
+                        <!-- Senior -->
+                        <div class="level-node" data-level="65">
+                            <div class="node-circle">
+                                <i class="fas fa-briefcase node-icon"></i>
+                            </div>
+                            <span class="node-text">Senior</span>
+                        </div>
+                        <!-- Product Designer -->
+                        <div class="level-node" data-level="85">
+                            <div class="node-circle">
+                                <i class="fas fa-paint-brush node-icon"></i>
+                            </div>
+                            <span class="node-text">Product Designer</span>
+                        </div>
+                        <!-- Customer Experience -->
+                        <div class="level-node" data-level="100">
+                            <div class="node-circle">
+                                <i class="fas fa-crown node-icon"></i>
+                            </div>
+                            <span class="node-text">Customer Experience</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenedor de detalles -->
+                <div id="results-content" class="hidden opacity-0">
+                    <div id="results-block-default">
+                        <div>
+                            <div id="classic-score-block">
+                                <span id="final-score">0</span>
+                                <span class="score-label">Aciertos</span>
+                            </div>
+
+                            <div id="evaluation-results-summary" class="hidden">
+                                <div id="evaluation-donut" class="evaluation-donut">
+                                    <div class="evaluation-donut__inner">
+                                        <span id="evaluation-correct-count" class="evaluation-donut__value">0</span>
+                                        <span class="evaluation-donut__label">Aciertos</span>
+                                    </div>
+                                </div>
+                                <div class="evaluation-breakdown">
+                                    <span id="evaluation-correct-text">Correctas: 0</span>
+                                    <span id="evaluation-incorrect-text">Incorrectas: 0</span>
+                                </div>
+                            </div>
+
+                            <button id="btn-review-topics" onclick="openReviewSheet()" class="hidden btn-text-review">
+                                Revisar temas a reforzar
+                            </button>
+
+                            <div id="new-record-badge" class="hidden animate-bounce">
+                                <i class="fas fa-crown"></i> ¡Nuevo Récord Personal!
+                            </div>
+                            <p id="next-level-text" class="next-level-text">Siguiente Nivel:
+                                <span id="next-level">---</span>
+                            </p>
+
+                            <button id="results-leaderboard-btn" onclick="openLeaderboard()" class="btn-leaderboard btn-leaderboard--wide">
+                                <i class="fas fa-trophy"></i> Ver Ranking Global
+                            </button>
+
+                            <div id="results-divider" class="divider divider--wide"></div>
+
+                            <div class="results-actions">
+                                <button onclick="handleHeaderClick()" class="btn-outline-blue">
+                                    Volver al inicio
+                                </button>
+                                <button id="results-restart-btn" onclick="restartDirectly()" class="btn-primary">
+                                    Reiniciar prueba
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="results-block-pills" class="hidden">
+                        <p id="results-pills-pill-name" class="results-pills-pill-name"></p>
+                        <div class="results-pills-score-wrap">
+                            <div id="results-pills-donut" class="results-pills-donut" aria-label="Progreso de aciertos">
+                                <div class="results-pills-donut__inner">
+                                    <span id="results-pills-score-num" class="results-pills-score-num">0</span>
+                                    <span class="results-pills-score-label">aciertos</span>
+                                </div>
+                            </div>
+                            <div class="results-pills-score-lines">
+                                <span id="results-pills-score-of" class="results-pills-score-of"></span>
+                            </div>
+                        </div>
+                        <div id="results-pills-sticker" class="results-pills-sticker hidden">
+                            <img id="results-pills-sticker-img" class="results-pills-sticker__img" src="" alt="" width="160" height="160" decoding="async" loading="lazy">
+                            <p id="results-pills-sticker-text" class="results-pills-sticker__text"></p>
+                        </div>
+                        <div id="results-pills-revisit-wrap" class="results-pills-revisit-wrap hidden">
+                            <p class="results-pills-revisit-hint">Repasa el material de la pill antes de volver a intentarlo.</p>
+                            <button type="button" id="results-pills-revisit-btn" class="btn-outline-blue results-pills-revisit-btn">
+                                Ver la pill de nuevo
+                            </button>
+                        </div>
+                        <div class="results-pills-ranking-block">
+                            <button type="button" id="results-pills-toggle-ranking" class="btn-leaderboard btn-leaderboard--wide results-pills-toggle-ranking">
+                                <i class="fas fa-trophy" aria-hidden="true"></i> Ver calificaciones (primer intento)
+                            </button>
+                            <div id="results-pills-ranking-panel" class="results-pills-ranking-panel hidden">
+                                <p id="results-pills-ranking-sub" class="results-pills-ranking-sub">Pill: —</p>
+                                <div id="results-pills-leaderboard-list" class="results-pills-leaderboard-list"></div>
+                            </div>
+                        </div>
+                        <div class="results-actions results-actions--pills">
+                            <button type="button" onclick="handleHeaderClick()" class="btn-outline-blue">
+                                Volver al inicio
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p class="footer-text">
+                <span class="footer-version">v3.5.0</span>
+                <span class="footer-tagline">
+                    Una iniciativa <b>más</b> de <span class="footer-brand">UXquisitos</span>
+                </span>
+            </p>
+        </footer>
+
+        <!-- Modal: última pill desde perfil (video vs reto, sin spoilers) -->
+        <div id="pill-experience-overlay" class="pill-experience-overlay hidden" aria-hidden="true">
+            <div class="pill-experience-backdrop" id="pill-experience-backdrop"></div>
+            <div class="modal-box pill-experience-dialog animate-pop" role="dialog" aria-modal="true"
+                aria-labelledby="pill-experience-title">
+                <div class="modal-header">
+                    <h3 id="pill-experience-title" class="modal-title">Pill</h3>
+                    <button type="button" id="pill-experience-btn-close-x" class="btn-close" aria-label="Cerrar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <p id="pill-experience-desc" class="pill-experience-desc"></p>
+                <p class="pill-experience-hint">
+                    Elige si quieres ver primero el video o el material, o ir directo al reto. Aquí no mostramos las preguntas para que sea justo.
+                </p>
+                <div class="pill-experience-actions">
+                    <button type="button" id="pill-experience-btn-video" class="btn-primary pill-experience-btn-full">
+                        Ver video / recurso
+                    </button>
+                    <button type="button" id="pill-experience-btn-quiz" class="btn-cta pill-experience-btn-full">
+                        Contestar preguntas
+                    </button>
+                    <button type="button" id="pill-experience-btn-dismiss" class="btn-outline-blue pill-experience-btn-full">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Ranking -->
+        <div id="leaderboard-modal" class="hidden">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h3 class="modal-title">
+                        <i class="fas fa-trophy" style="color: #eab308;"></i> Top 10 Global
+                    </h3>
+                    <button onclick="closeLeaderboard()" class="btn-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div id="leaderboard-list">
+                    <div class="leaderboard-loading">Cargando ranking...</div>
+                </div>
+
+                <div class="modal-footer">
+                    <p class="modal-footer-text">Clasificación por Puntos y Tiempo</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Sheet (Temas a reforzar) -->
+        <div id="review-sheet" class="hidden">
+            <div class="review-backdrop" onclick="closeReviewSheet()"></div>
+            <div id="review-sheet-content" class="animate-slide-up">
+                <div class="review-header">
+                    <div class="handle-wrapper">
+                        <div class="sheet-handle"></div>
+                    </div>
+                    <div class="review-spacer"></div>
+                    <button onclick="closeReviewSheet()" class="btn-close btn-close--sm">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <h3 class="sheet-title">Tus errores</h3>
+
+                <div id="review-list"></div>
+
+                <button onclick="copyAllTopics(this)" class="btn-primary">
+                    <i class="fas fa-copy"></i> COPIAR TODOS LOS TEMAS
+                </button>
+            </div>
+        </div>
+
+        <!-- Toast de Racha -->
+        <div id="streak-toast">
+            <i class="fas fa-fire toast-icon animate-bounce"></i>
+            <div>
+                <p class="toast-title">¡Racha Incendiaria!</p>
+                <p id="streak-msg-sub" class="toast-sub">5 seguidas</p>
+            </div>
+        </div>
+
+        <!-- Modal Cambio de Contraseña (First Login) -->
+        <div id="change-password-modal" class="hidden">
+            <div class="modal-box animate-pop">
+                <div class="modal-icon-wrap">
+                    <i class="fas fa-lock modal-icon"></i>
+                </div>
+                <h3 class="modal-title modal-title--center">Seguridad de Cuenta</h3>
+                <p class="modal-desc">Es tu primer inicio de sesión. Por favor, establece
+                    una nueva contraseña segura para continuar.</p>
+
+                <div class="form-fields">
+                    <div class="input-wrapper">
+                        <input type="password" id="new-pass-1" class="text-input"
+                            placeholder="Nueva contraseña (mín. 8 caracteres)" autocomplete="new-password">
+                        <button type="button" onclick="toggleModalPassword('new-pass-1', this)" class="btn-eye">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div class="input-wrapper">
+                        <input type="password" id="new-pass-2" class="text-input"
+                            placeholder="Confirmar nueva contraseña" autocomplete="new-password">
+                        <button type="button" onclick="toggleModalPassword('new-pass-2', this)" class="btn-eye">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <p id="pass-error-msg" class="error-msg hidden"></p>
+
+                    <button onclick="saveNewPassword()" id="btn-save-pass" class="btn-primary">
+                        GUARDAR Y CONTINUAR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Dialog (Alert/Confirm custom) -->
+        <div id="app-dialog-overlay" class="app-dialog-overlay hidden" aria-hidden="true">
+            <div id="app-dialog" class="app-dialog animate-pop" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+                <div id="app-dialog-icon" class="app-dialog-icon-wrap">
+                    <i class="fas fa-circle-info"></i>
+                </div>
+                <h3 id="app-dialog-title" class="app-dialog-title">Aviso</h3>
+                <p id="app-dialog-message" class="app-dialog-message"></p>
+                <div class="app-dialog-actions">
+                    <button id="app-dialog-cancel" class="btn-outline-blue hidden" type="button">Cancelar</button>
+                    <button id="app-dialog-confirm" class="btn-primary" type="button">Aceptar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Overlay -->
+        <div id="feedback-overlay" class="hidden"></div>
+
+        <!-- Feedback Panel (Bottom Sheet) -->
+        <div id="feedback-panel" class="hidden">
+            <div class="feedback-body">
+                <div id="feedback-icon" class="feedback-icon-area"></div>
+                <div class="feedback-content">
+                    <h4 id="feedback-title" class="feedback-title-text"></h4>
+                    <p id="feedback-msg" class="feedback-message"></p>
+
+                    <div id="study-tip-box" class="hidden">
+                        <span class="study-label">TEMA A REFORZAR</span>
+                        <div id="study-tag-text" class="study-tag"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feedback-actions">
+                <button id="btn-next-question" onclick="nextQuestion()" class="btn-cta">
+                    SIGUIENTE
+                </button>
+            </div>
+        </div>
+
+        <script type="module" src="app.js"></script>
+        <script>
+            document.addEventListener('keydown', function (e) {
+                if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]')) {
+                    e.preventDefault();
+                    e.target.click();
+                }
+            });
+        </script>
+    </div>
+</body>
+
+</html>
