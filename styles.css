@@ -19,6 +19,7 @@
     --color-primary: #8c59fe;
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.12);
+    --color-success: #4ade80;
 }
 
 /* ==========================================
@@ -43,6 +44,7 @@
     --color-primary: #4A22C0;
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(74, 34, 192, 0.15);
+    --color-success: #16a34a;
 }
 
 *,
@@ -681,7 +683,7 @@ main {
     max-width: 24rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5 rem;
     transition: all 0.5s;
     background: rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(24px);
@@ -745,13 +747,11 @@ main {
 }
 
 #user-email {
-    margin-top: 24px;
-    margin-bottom: 24px;
+margin: 8px 0;
 }
 
 #user-password {
-    margin-top: 24px;
-    margin-bottom: 24px;
+    margin: 8px 0;
 }
 
 .text-input::placeholder {
@@ -762,6 +762,27 @@ main {
     box-shadow: 0 0 0 3px rgba(140, 89, 254, 0.25);
     border-color: var(--color-accent);
     background: rgba(255, 255, 255, 0.09);
+}
+
+.email-status {
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1rem;
+    margin-top: -0.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--color-text-light);
+    transition: color 0.25s, opacity 0.25s;
+    opacity: 0;
+}
+
+.email-status.is-visible {
+    opacity: 1;
+}
+
+.email-status.is-success {
+    color: var(--color-success);
 }
 
 .input-wrapper {
@@ -859,6 +880,59 @@ main {
     min-height: 200px;
     width: 100%;
     min-width: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Cintillos de obra "Próximamente" */
+.coming-soon-tape {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    overflow: hidden;
+}
+
+.tape-strip {
+    position: absolute;
+    width: 180%;
+    left: -40%;
+    padding: 9px 0;
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(176, 138, 18, 0.82) 0px,
+        rgba(176, 138, 18, 0.82) 52px,
+        rgba(130, 100, 10, 0.82) 52px,
+        rgba(130, 100, 10, 0.82) 104px
+    );
+    transform: rotate(-11deg);
+    top: 22%;
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    color: rgba(255, 245, 195, 0.92);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.tape-strip--2 {
+    top: 62%;
+}
+
+[data-theme="light"] .tape-strip {
+    background: repeating-linear-gradient(
+        90deg,
+        rgba(196, 155, 20, 0.78) 0px,
+        rgba(196, 155, 20, 0.78) 52px,
+        rgba(150, 115, 10, 0.78) 52px,
+        rgba(150, 115, 10, 0.78) 104px
+    );
+    color: rgba(60, 40, 0, 0.9);
+    text-shadow: none;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
 }
 
 @media (min-width: 768px) {

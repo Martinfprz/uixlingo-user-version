@@ -89,34 +89,27 @@
                     <div id="login-view">
                         <img id="home-logo" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="opacity-0"
                             style="margin-bottom: 1.5rem;">
-                        <h2 class="view-title" id="login-title">Ingresa tu correo electrónico</h2>
+                        <h2 class="view-title" id="login-title">Inicia sesión</h2>
 
-                        <!-- PASO 1: Email -->
-                        <div id="login-step-email">
-                            <input type="email" id="user-email" placeholder="ejemplo@email.com" class="text-input"
-                                autocomplete="username" oninput="validateEmailFormat()">
-                            <button id="btn-check-email" onclick="verifyEmail()" disabled class="btn-primary">
-                                Continuar
+                        <input type="email" id="user-email" placeholder="ejemplo@email.com" class="text-input"
+                            autocomplete="username" oninput="validateEmailFormat()" onblur="verifyEmail()">
+                        <p id="email-status" class="email-status" aria-live="polite"></p>
+
+                        <div class="input-wrapper">
+                            <input type="password" id="user-password" placeholder="Contraseña" class="text-input"
+                                autocomplete="current-password" oninput="validatePasswordFormat()" disabled>
+                            <button type="button" onclick="togglePasswordVisibility()" class="btn-eye" id="btn-eye" disabled>
+                                <i class="fas fa-eye" id="eye-icon"></i>
                             </button>
                         </div>
+                        <p id="password-hint" style="font-size:0.8rem; opacity:0.5; margin-top:-0.25rem; margin-bottom:0.75rem;"></p>
 
-                        <!-- PASO 2: Contraseña (oculto inicialmente) -->
-                        <div id="login-step-password" class="hidden">
-                            <div class="input-wrapper">
-                                <input type="password" id="user-password" placeholder="Contraseña" class="text-input"
-                                    autocomplete="current-password" oninput="validatePasswordFormat()">
-                                <button type="button" onclick="togglePasswordVisibility()" class="btn-eye">
-                                    <i class="fas fa-eye" id="eye-icon"></i>
-                                </button>
-                            </div>
-                            <p id="password-hint" style="font-size:0.8rem; opacity:0.5; margin-top:-0.25rem; margin-bottom:0.75rem;"></p>
-                            <button id="btn-do-login" onclick="doLogin()" disabled class="btn-primary">
-                                Iniciar sesión
-                            </button>
-                            <button type="button" onclick="backToEmailStep()" class="btn-auth-tertiary">
-                                ← Cambiar correo
-                            </button>
-                        </div>
+                        <button id="btn-do-login" onclick="doLogin()" disabled class="btn-primary">
+                            Iniciar sesión
+                        </button>
+                        <button type="button" id="btn-forgot-password" onclick="sendPasswordReset()" class="btn-auth-tertiary" disabled>
+                            ¿Olvidaste tu contraseña?
+                        </button>
                     </div>
                 </div> <!-- END AUTH CARD -->
 
@@ -185,7 +178,7 @@
                                 </button>
                             </div>
                             <h4 id="profile-quest-pts" class="bento-stat-value">1,250</h4>
-                            <button onclick="openModeFromProfile('practice')" class="bento-stat-cta">
+                            <button onclick="openModeFromProfile('practice')" class="btn-primary bento-stat-cta">
                                 Ir a práctica
                             </button>
                         </div>
@@ -199,7 +192,7 @@
                                 <p class="bento-stat-label">Puntuación obtenida</p>
                             </div>
                             <h4 id="profile-tests-pts" class="bento-stat-value">840</h4>
-                            <button onclick="openModeFromProfile('evaluation')" class="bento-stat-cta">
+                            <button onclick="openModeFromProfile('evaluation')" class="btn-primary bento-stat-cta">
                                 Ir a evaluación
                             </button>
                         </div>
@@ -240,6 +233,14 @@
 
                         <!-- 4. Seals Gallery & History -->
                         <div class="bento-card bento-card-seals">
+                            <div class="coming-soon-tape" aria-hidden="true">
+                                <div class="tape-strip">
+                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
+                                </div>
+                                <div class="tape-strip tape-strip--2">
+                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
+                                </div>
+                            </div>
                             <div class="bento-seals-header">
                                 <h3 class="bento-seals-title">
                                     <i class="fas fa-stamp text-orange-500"></i> Tus Sellos
@@ -612,7 +613,7 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">v3.6.0</span>
+                <span class="footer-version">v3.7.0</span>
                 <span class="footer-tagline">
                     Una iniciativa <b>más</b> de <span class="footer-brand">UXquisitos</span>
                 </span>

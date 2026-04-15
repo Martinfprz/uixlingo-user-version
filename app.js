@@ -207,6 +207,19 @@ async function loadPillsCatalog() {
 if (supabase) {
     supabase.auth.onAuthStateChange((event, session) => {
         supabaseSession = session;
+
+        if (event === 'PASSWORD_RECOVERY') {
+            // Usuario llegó desde el link de reset de contraseña en su correo
+            const p1 = document.getElementById('new-pass-1');
+            const p2 = document.getElementById('new-pass-2');
+            const err = document.getElementById('pass-error-msg');
+            if (p1) p1.value = '';
+            if (p2) p2.value = '';
+            if (err) { err.innerText = ''; err.classList.add('hidden'); }
+            currentOldPassword = null; // no se valida contra contraseña anterior
+            document.getElementById('auth-card')?.classList.add('hidden');
+            document.getElementById('change-password-modal')?.classList.remove('hidden');
+        }
     });
 }
 
@@ -1162,19 +1175,45 @@ function normalize() {
     });
 }
 
+let emailVerified = false;
+
 function validateEmailFormat() {
-    const emailInput = document.getElementById('user-email');
-    const btnCheck = document.getElementById('btn-check-email');
-    const email = emailInput.value.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (btnCheck) btnCheck.disabled = !emailRegex.test(email);
+    // Si el usuario modifica el correo después de haber sido verificado, resetear estado
+    if (emailVerified) {
+        emailVerified = false;
+        userEmail = '';
+        const passInput = document.getElementById('user-password');
+        if (passInput) { passInput.disabled = true; passInput.value = ''; }
+        const btnLogin = document.getElementById('btn-do-login');
+        if (btnLogin) btnLogin.disabled = true;
+        const btnForgot = document.getElementById('btn-forgot-password');
+        if (btnForgot) btnForgot.disabled = true;
+        const btnEye = document.getElementById('btn-eye');
+        if (btnEye) btnEye.disabled = true;
+        const loginTitle = document.getElementById('login-title');
+        if (loginTitle) loginTitle.textContent = 'Inicia sesión';
+        const emailStatus = document.getElementById('email-status');
+        if (emailStatus) emailStatus.classList.remove('is-visible', 'is-success');
+    }
 }
 
-/** Tras "Verificando…" o al volver al paso email: texto Continuar + disabled según el input. */
 function resetLoginEmailButtonState() {
-    const btnCheck = document.getElementById('btn-check-email');
-    if (btnCheck) btnCheck.innerHTML = 'Continuar';
-    validateEmailFormat();
+    emailVerified = false;
+    userEmail = '';
+    const emailInput = document.getElementById('user-email');
+    if (emailInput) emailInput.value = '';
+    const passInput = document.getElementById('user-password');
+    if (passInput) { passInput.disabled = true; passInput.value = ''; }
+    const btnLogin = document.getElementById('btn-do-login');
+    if (btnLogin) btnLogin.disabled = true;
+    const btnForgot = document.getElementById('btn-forgot-password');
+    if (btnForgot) btnForgot.disabled = true;
+    const btnEye = document.getElementById('btn-eye');
+    if (btnEye) btnEye.disabled = true;
+    const loginTitle = document.getElementById('login-title');
+    if (loginTitle) loginTitle.textContent = 'Inicia sesión';
+    const emailStatus = document.getElementById('email-status');
+    if (emailStatus) emailStatus.classList.remove('is-visible', 'is-success');
 }
 
 function validatePasswordFormat() {
@@ -1183,59 +1222,108 @@ function validatePasswordFormat() {
     if (btnLogin) btnLogin.disabled = (passInput.value.length < 6);
 }
 
-window.backToEmailStep = function () {
-    document.getElementById('login-step-password').classList.add('hidden');
-    document.getElementById('login-step-email').classList.remove('hidden');
-    document.getElementById('login-title').textContent = 'Ingresa tu correo electrónico';
-    document.getElementById('user-password').value = '';
-    resetLoginEmailButtonState();
-};
-
-// PASO 1: Verificar que el correo existe en ranking_user (sin autenticar)
+// Verificación de correo al salir del campo (onblur)
 async function verifyEmail() {
     const emailInput = document.getElementById('user-email');
-    const btnCheck = document.getElementById('btn-check-email');
-    userEmail = emailInput.value.trim().toLowerCase();
+    const emailStatus = document.getElementById('email-status');
+    const email = emailInput.value.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!userEmail.includes('@') || !supabase) return;
+    if (!emailRegex.test(email) || !supabase) return;
+    if (emailVerified && userEmail === email) return; // ya verificado, sin cambios
 
-    btnCheck.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i> Verificando...';
-    btnCheck.disabled = true;
+    // Estado: validando
+    emailInput.disabled = true;
+    emailStatus.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i> Validando correo...';
+    emailStatus.classList.remove('is-success');
+    emailStatus.classList.add('is-visible');
 
     try {
-        // Solo verifica si el correo existe en ranking_user (lectura pública autenticada)
         const { data: rankingRow } = await supabase
             .from('ranking_user')
             .select('nombre, email')
-            .eq('email', userEmail)
+            .eq('email', email)
             .maybeSingle();
 
-        // Si no está en ranking_user dejamos pasar: puede ser admin — doLogin lo resolverá
-        const hintEl = document.getElementById('password-hint');
-        const loginTitle = document.getElementById('login-title');
+        emailInput.disabled = false;
 
-        if (hintEl) hintEl.textContent = 'Ingresa tu contraseña';
-        loginTitle.textContent = rankingRow?.nombre
-            ? `Hola, ${rankingRow.nombre.split(' ')[0]}`
+        if (!rankingRow) {
+            userEmail = '';
+            emailVerified = false;
+            emailStatus.classList.remove('is-visible');
+            showAppAlert({
+                title: 'Correo no registrado',
+                message: `El correo ${email} no está registrado en la plataforma. Verifica que sea el correo correcto.`,
+                variant: 'error',
+                confirmText: 'Entendido'
+            });
+            return;
+        }
+
+        // Estado: verificado
+        userEmail = email;
+        emailVerified = true;
+        emailStatus.innerHTML = '<i class="fas fa-circle-check"></i> Correo validado';
+        emailStatus.classList.add('is-success');
+
+        const firstName = (rankingRow.nombre || '').split(' ')[0];
+        document.getElementById('login-title').textContent = firstName
+            ? `Hola, ${firstName}`
             : 'Ingresa tu contraseña';
 
-        document.getElementById('login-step-email').classList.add('hidden');
-        document.getElementById('login-step-password').classList.remove('hidden');
+        document.getElementById('user-password').disabled = false;
+        document.getElementById('btn-eye').disabled = false;
+        document.getElementById('btn-forgot-password').disabled = false;
         document.getElementById('user-password').focus();
 
-        resetLoginEmailButtonState();
-
     } catch (e) {
+        emailInput.disabled = false;
+        emailStatus.classList.remove('is-visible');
         console.warn('verifyEmail error:', e);
-        resetLoginEmailButtonState();
         showAppAlert({
-            title: "Error de conexión",
-            message: "No se pudo verificar el correo. Intenta de nuevo.",
-            variant: "error",
-            confirmText: "Entendido"
+            title: 'Error de conexión',
+            message: 'No se pudo verificar el correo. Intenta de nuevo.',
+            variant: 'error',
+            confirmText: 'Entendido'
         });
     }
 }
+
+window.sendPasswordReset = async function () {
+    if (!emailVerified || !userEmail || !supabase) return;
+
+    const btn = document.getElementById('btn-forgot-password');
+    const originalText = btn.textContent;
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+        redirectTo: window.location.origin + window.location.pathname
+    });
+
+    if (error) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        showAppAlert({
+            title: 'Error',
+            message: 'No se pudo enviar el correo. Intenta de nuevo.',
+            variant: 'error',
+            confirmText: 'Cerrar'
+        });
+    } else {
+        btn.textContent = '¡Correo enviado!';
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }, 5000);
+        showAppAlert({
+            title: 'Revisa tu correo',
+            message: `Se envió un enlace de recuperación a ${userEmail}. Úsalo para establecer una nueva contraseña.`,
+            variant: 'success',
+            confirmText: 'Entendido'
+        });
+    }
+};
 
 // PASO 2: Login con contraseña
 async function doLogin() {
@@ -1537,13 +1625,6 @@ window.logout = function () {
         profileView.classList.add('hidden');
         profileView.classList.remove('animate-fade-out');
 
-        document.getElementById('user-email').value = '';
-        document.getElementById('user-password').value = '';
-
-        // Resetear al paso 1 (email)
-        document.getElementById('login-step-email').classList.remove('hidden');
-        document.getElementById('login-step-password').classList.add('hidden');
-        document.getElementById('login-title').textContent = 'Ingresa tu correo electrónico';
         resetLoginEmailButtonState();
 
         // Hide Navbar
@@ -1808,12 +1889,17 @@ function showAppConfirm({
 }
 
 function getNormalizedSeniority(value = '') {
-    const raw = String(value || '').toLowerCase().trim();
+    const raw = String(value || '')
+        .toLowerCase()
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, ''); // strip acentos: Júnior → junior, Sénior → senior
+    if (!raw) return '';
     if (raw.includes('junior') || raw === 'jr') return 'junior';
     if (raw.includes('medium') || raw.includes('mid') || raw.includes('medio')) return 'medium';
     if (raw.includes('senior') || raw === 'sr') return 'senior';
-    if (raw.includes('product designer')) return 'product_designer';
-    if (raw.includes('customer experience') || raw.includes('cx')) return 'customer_experience';
+    if (raw.includes('product designer') || raw.includes('product_designer')) return 'product_designer';
+    if (raw.includes('customer experience') || raw.includes('customer_experience') || raw === 'cx') return 'customer_experience';
     return '';
 }
 
@@ -1897,8 +1983,9 @@ function categoryMatchesUserEspecialidad(questionCategory, especialidadRaw) {
         return isUiDesignCategory(cat) || isUxResearchFamilyLabel(cat);
     }
 
-    if (isUxResearchFamilyLabel(cat) && isUxResearchFamilyLabel(esp)) {
-        return true;
+    // "UX", "UX Research" o "UX Researcher" en especialidad → cualquier cat de la familia UX Research
+    if (isUxOnlySpecialty(esp) || isUxResearchFamilyLabel(esp)) {
+        return isUxResearchFamilyLabel(cat);
     }
 
     return normalizeLabelKey(cat) === normalizeLabelKey(esp);
@@ -1944,20 +2031,38 @@ function getQuestionSeniority(question) {
 /**
  * Preguntas de evaluación: seniority (ranking_user vs Seniority en doc) y área Cat vs Especialidad en ranking_user.
  */
+function stripAccents(s) {
+    return String(s || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function filterEvaluationQuestionsByUserProfile(normalizedQuestions) {
     const userRaw = String(userProfile.seniority || '').trim();
     const userNorm = getNormalizedSeniority(userRaw);
     const esp = String(userProfile.especialidad || '').trim();
 
-    return normalizedQuestions.filter((q) => {
+    const matched = normalizedQuestions.filter((q) => {
         const qNorm = q.seniority;
         const qRaw = String(q.seniorityRaw || '').trim();
         const seniorityOk =
             (userNorm && qNorm && userNorm === qNorm) ||
-            (userRaw && qRaw && userRaw.toLowerCase() === qRaw.toLowerCase());
+            (userRaw && qRaw && stripAccents(userRaw) === stripAccents(qRaw));
         if (!seniorityOk) return false;
         return categoryMatchesUserEspecialidad(q.category, esp);
     });
+
+    if (matched.length === 0 && normalizedQuestions.length > 0) {
+        const uniqueQSeniorities = [...new Set(normalizedQuestions.map(q => q.seniorityRaw).filter(Boolean))];
+        const uniqueQCats = [...new Set(normalizedQuestions.map(q => q.category).filter(Boolean))];
+        console.warn(
+            '[eval-filter] Sin preguntas para este usuario.\n',
+            `  Usuario seniority raw: "${userRaw}" → norm: "${userNorm}"\n`,
+            `  Usuario especialidad: "${esp}"\n`,
+            `  Seniorities en preguntas: [${uniqueQSeniorities.join(', ')}]\n`,
+            `  Categorías en preguntas: [${uniqueQCats.join(', ')}]`
+        );
+    }
+
+    return matched;
 }
 
 function updateEvaluationStartButtonState() {
@@ -2633,7 +2738,7 @@ function startQuiz() {
         });
         return;
     }
-    if (isEvaluationMode() && ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= 2) {
+    if (isEvaluationMode() && ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= 3) {
         showAppAlert({
             title: "Evaluación bloqueada",
             message: "La prueba fue bloqueada por conductas no permitidas.",
@@ -3350,20 +3455,26 @@ async function handleEvaluationViolation(reason = 'focus_lost') {
 
     returnToDashboard();
 
+    let title = "";
     let message = "";
+    let variant = "";
+
     if (nextCount === 1) {
-        message = "Se cerró tu evaluación por salir de la pestaña. Si vuelve a ocurrir, la evaluación será bloqueada.";
+        title = "Cambiaste de pestaña 😬";
+        message = "Tu evaluación se cerró porque cambiaste de pestaña. Manténte en una sola ventana para continuar con tu evaluación.";
+        variant = "warning";
+    } else if (nextCount === 2) {
+        title = "¡Detente, UiXer! ✋";
+        message = "Tu evaluación se cerró porque saliste de la pestaña. Si esto vuelve a pasar, tu evaluación será bloqueada.";
+        variant = "warning";
     } else {
-        message = "La prueba fue bloqueada por conductas no permitidas.";
+        title = "¡UiXer, lo hiciste otra vez! 😱";
+        message = "Tu evaluación se bloqueó porque cambiaste de pestañas tres veces. Para continuar, por favor, contacta al equipo Ops.";
+        variant = "error";
     }
 
     setTimeout(async () => {
-        await showAppAlert({
-            title: nextCount === 1 ? "Mensaje de advertencia" : "Evaluación bloqueada",
-            message,
-            variant: nextCount === 1 ? "warning" : "error",
-            confirmText: "Entendido"
-        });
+        await showAppAlert({ title, message, variant, confirmText: "Entendido" });
         isHandlingEvalViolation = false;
     }, 320);
 }
