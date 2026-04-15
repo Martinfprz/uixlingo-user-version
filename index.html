@@ -9,7 +9,7 @@
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
     <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
-    <link rel="stylesheet" href="styles.css?v=11">
+    <link rel="stylesheet" href="styles.css?v=12">
     <style>
         /* Transición suave al cambiar de tema */
         *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
@@ -348,44 +348,77 @@
 
                 <!-- EVALUATION BRIEF VIEW -->
                 <div id="evaluation-brief-view" class="hidden">
-                    <h2 class="view-title">Modo Evaluación</h2>
-                    <p class="section-subtitle">Antes de empezar, revisa cómo funcionará esta sección.</p>
 
-                    <div class="evaluation-brief-card evaluation-brief-card--summary">
-                        <h3 class="evaluation-brief-title">Tu evaluación</h3>
-                        <p id="evaluation-auto-summary" class="evaluation-auto-summary">
-                            Las preguntas se eligen según tu registro en <code>ranking_user</code> (seniority y
-                            <code>Especialidad</code>) y los campos <code>Seniority</code> y <code>Cat</code> en
-                            <code>preguntas_evaluacion</code>. Especialidad UX/UI combina UI Design y UX Research.
-                        </p>
+                    <!-- Estado normal: antes de completar la evaluación -->
+                    <div id="evaluation-brief-content">
+                        <h2 class="view-title">Tu evaluación de enero a marzo 2026</h2>
+                        <p class="section-subtitle">Antes de comenzar, te contamos cómo funcionará esta sección:</p>
+
+                        <div class="evaluation-brief-card evaluation-brief-card--summary">
+                            <h3 class="evaluation-brief-title">Tu evaluación</h3>
+                            <p id="evaluation-auto-summary" class="evaluation-auto-summary">
+                                Las preguntas se eligen según tu registro en <code>ranking_user</code> (seniority y
+                                <code>Especialidad</code>) y los campos <code>Seniority</code> y <code>Cat</code> en
+                                <code>preguntas_evaluacion</code>. Especialidad UX/UI combina UI Design y UX Research.
+                            </p>
+                        </div>
+
+                        <div class="evaluation-brief-card">
+                            <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
+                            <ul class="evaluation-brief-list">
+                                <li>Preguntas enfocadas en tu desarrollo profesional.</li>
+                                <li>Dificultad que se adapta según tu nivel de experiencia.</li>
+                                <li>Resultados y puntajes guardados en tu perfil, al finalizar.</li>
+                            </ul>
+                        </div>
+
+                        <div class="evaluation-brief-card">
+                            <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
+                            <ul class="evaluation-brief-list">
+                                <li><b>Tiempo por pregunta:</b> Cada pregunta tiene un tiempo asignado para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
+                                <li><b>Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
+                                <li><b>Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
+                            </ul>
+                            <p>¿Liste para empezar? Haz clic en el botón de abajo cuando estés preparade. 😊</p>
+                        </div>
+
+                        <div class="action-group">
+                            <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled>
+                                INICIAR EVALUACIÓN
+                            </button>
+                            <button type="button" onclick="backToModes()" class="btn-text-back btn-text-back--tertiary">
+                                <i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a elegir
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="evaluation-brief-card">
-                        <h3 class="evaluation-brief-title">¿Qué verás aquí?</h3>
-                        <ul class="evaluation-brief-list">
-                            <li>Preguntas enfocadas en tu crecimiento profesional UX/UI.</li>
-                            <li>Dificultad adaptada según tu nivel de seniority.</li>
-                            <li>Resultados y puntaje guardados en tu perfil al finalizar.</li>
-                        </ul>
+                    <!-- Estado completado: ya hiciste la evaluación -->
+                    <div id="evaluation-completed-view" class="hidden">
+                        <h2 class="view-title">Tu evaluación de enero a marzo 2026</h2>
+                        <p class="section-subtitle">Ya completaste tu evaluación. Aquí están tus resultados:</p>
+
+                        <div class="evaluation-brief-card evaluation-brief-card--summary">
+                            <h3 class="evaluation-brief-title">Tu puntuación</h3>
+                            <div class="eval-completed-score-wrap">
+                                <span id="eval-completed-score" class="eval-completed-score-value">0</span>
+                                <span class="eval-completed-score-label">aciertos</span>
+                            </div>
+                        </div>
+
+                        <div id="eval-errors-card" class="evaluation-brief-card hidden">
+                            <h3 class="evaluation-brief-title">Estudia lo que te faltó</h3>
+                            <div id="eval-errors-inline-list" class="eval-errors-inline-list">
+                                <!-- Rellenado por JS desde localStorage -->
+                            </div>
+                        </div>
+
+                        <div class="action-group">
+                            <button type="button" onclick="backToModes()" class="btn-text-back btn-text-back--tertiary">
+                                <i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a elegir
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="evaluation-brief-card">
-                        <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
-                        <ul class="evaluation-brief-list">
-                            <li>La prueba tiene tiempo por pregunta.</li>
-                            <li>Si sales de la pestaña, la sesión se cierra.</li>
-                            <li>Si se repite, la evaluación se marca como conducta no permitida.</li>
-                        </ul>
-                    </div>
-
-                    <div class="action-group">
-                        <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled>
-                            INICIAR EVALUACIÓN
-                        </button>
-                        <button type="button" onclick="backToModes()" class="btn-text-back btn-text-back--tertiary">
-                            <i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a elegir
-                        </button>
-                    </div>
                 </div>
 
                 <!-- PILLS: listado por categoría (cards rellenadas por JS desde colección `pills`) -->
@@ -567,6 +600,12 @@
 
                             <div id="results-divider" class="divider divider--wide"></div>
 
+                            <div id="results-eval-errors-wrap" class="hidden">
+                                <button onclick="openReviewSheet()" class="btn-leaderboard btn-leaderboard--wide">
+                                    <i class="fas fa-search"></i> Ver mis errores
+                                </button>
+                            </div>
+
                             <div class="results-actions">
                                 <button onclick="handleHeaderClick()" class="btn-outline-blue">
                                     Volver al inicio
@@ -613,7 +652,7 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">v3.7.0</span>
+                <span class="footer-version">v3.7.1</span>
                 <span class="footer-tagline">
                     Una iniciativa <b>más</b> de <span class="footer-brand">UXquisitos</span>
                 </span>

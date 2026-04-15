@@ -426,6 +426,8 @@ let userProfile = {
     testsPoints: 0,
     pillsPoints: 0,
     latestPillRankId: '',
+    /** true si el usuario ya completó la evaluación (tests_points no era null en ranking_user). */
+    evalCompleted: false,
     /** { [pillDocId]: { score: number, total: number } } — calificación por pill (última sesión). */
     pillScores: {},
     seals: [],
@@ -526,6 +528,7 @@ async function loadRankingUserStats() {
             userProfile.testsPoints = Number(data.tests_points || 0);
             userProfile.pillsPoints = Number(data.pills_points || 0);
             userProfile.latestPillRankId = String(data.pills_rank_pill_id || '').trim();
+            userProfile.evalCompleted = data.tests_points !== null && data.tests_points !== undefined;
         }
     } catch (e) {
         console.warn('loadRankingUserStats error:', e);
@@ -1692,6 +1695,7 @@ window.selectMode = async function (mode) {
                 evalBriefView?.classList.remove('hidden');
                 evalBriefView?.classList.add('animate-fade-in');
                 updateEvaluationBriefAutoUI();
+                renderEvaluationCompletedState();
             } else if (mode === 'pills') {
                 pillsConstructionView?.classList.remove('hidden');
                 pillsConstructionView?.classList.add('animate-fade-in');
@@ -2117,6 +2121,58 @@ function updateEvaluationBriefAutoUI() {
             ? `Nivel «${userLabel}», especialidad «${espLabel}». No hay preguntas que cumplan seniority + área (Cat). Revisa ranking_user y preguntas_evaluacion.`
             : `Nivel «${userLabel}», especialidad «${espLabel}». Hay ${n} pregunta(s) disponibles para tu evaluación.${detail} Pulsa «Iniciar evaluación» cuando estés listo.`;
     updateEvaluationStartButtonState();
+}
+
+function getEvalErrorsStorageKey() {
+    const uid = supabaseSession?.user?.id || userEmail || 'anon';
+    return `uixlingo_eval_errors:${uid}`;
+}
+
+function renderEvaluationCompletedState() {
+    const completedView = document.getElementById('evaluation-completed-view');
+    const normalContent = document.getElementById('evaluation-brief-content');
+    if (!completedView || !normalContent) return;
+
+    if (userProfile.evalCompleted) {
+        normalContent.classList.add('hidden');
+        completedView.classList.remove('hidden');
+
+        const scoreEl = document.getElementById('eval-completed-score');
+        if (scoreEl) scoreEl.innerText = userProfile.testsPoints;
+
+        // Cargar errores desde localStorage y renderizarlos inline
+        let savedErrors = [];
+        try {
+            savedErrors = JSON.parse(localStorage.getItem(getEvalErrorsStorageKey()) || '[]');
+        } catch (e) { /* ignorar */ }
+
+        const errorsCard = document.getElementById('eval-errors-card');
+        const errorsList = document.getElementById('eval-errors-inline-list');
+
+        if (errorsCard && errorsList) {
+            errorsList.innerHTML = '';
+            if (savedErrors.length === 0) {
+                errorsCard.classList.add('hidden');
+            } else {
+                errorsCard.classList.remove('hidden');
+                savedErrors.forEach((err, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'eval-error-item';
+                    item.innerHTML = `
+                        <p class="eval-error-question">${esc(index + 1)}. ${esc(err.question)}</p>
+                        <div class="eval-error-tag-row">
+                            <span class="review-topic-label">Tema a reforzar</span>
+                            <span class="review-topic-name">${esc(err.studyTag || '—')}</span>
+                        </div>
+                    `;
+                    errorsList.appendChild(item);
+                });
+            }
+        }
+    } else {
+        completedView.classList.add('hidden');
+        normalContent.classList.remove('hidden');
+    }
 }
 
 function formatSeniorityLabel(seniority) {
@@ -3687,7 +3743,10 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             rankingMerge.quest_points = Math.max(cur, next);
             shouldUpdate = next > cur;
         } else if (currentQuizMode === 'evaluation') {
-            rankingMerge.tests_points = Number(finalScore || 0);
+            const isFirstEvalAttempt = existing.tests_points === null || existing.tests_points === undefined;
+            if (isFirstEvalAttempt) {
+                rankingMerge.tests_points = Number(finalScore || 0);
+            }
         } else if (currentQuizMode === 'pills') {
             if (isLatestPillSession && !pillsRankingLockedByRanking) {
                 rankingMerge.pills_points = Number(finalScore || 0);
@@ -3727,10 +3786,9 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         if (currentQuizMode === 'evaluation') {
             const newScore = Number(finalScore || 0);
             const newTime = Number(timeSeconds || 0);
-            const bestScore = Number(existing.tests_points ?? -1);
-            const bestTime = Number(existing.tiempo ?? Number.MAX_SAFE_INTEGER);
+            const isFirstEvalAttempt = existing.tests_points === null || existing.tests_points === undefined;
 
-            shouldUpdate = newScore > bestScore || (newScore === bestScore && newTime < bestTime);
+            shouldUpdate = isFirstEvalAttempt;
 
             if (shouldUpdate) {
                 const { error: evalLegacyUpsertError } = await supabase.from('ranking_user').upsert({
@@ -3742,6 +3800,17 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                     fecha: new Date().toISOString()
                 }, { onConflict: 'email' });
                 if (evalLegacyUpsertError) throw evalLegacyUpsertError;
+
+                // Guardar errores en localStorage para que el usuario pueda estudiarlos después
+                try {
+                    const evalErrorsKey = `uixlingo_eval_errors:${userId}`;
+                    const errorsToSave = errors.map(e => ({ question: e.question, studyTag: e.studyTag }));
+                    localStorage.setItem(evalErrorsKey, JSON.stringify(errorsToSave));
+                } catch (lsErr) {
+                    console.warn('saveScoreToCloud: no se pudieron guardar errores en localStorage', lsErr);
+                }
+
+                userProfile.evalCompleted = true;
             }
         }
 
@@ -3752,6 +3821,10 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                 ? Math.max(currentValue, Number(finalScore || 0))
                 : Number(finalScore || 0);
             if (currentQuizMode === 'pills' && pillsRankingLocked) {
+                scoreToSave = currentValue;
+            }
+            // Para evaluación: solo guardar en user_profiles si es el primer intento
+            if (currentQuizMode === 'evaluation' && !shouldUpdate) {
                 scoreToSave = currentValue;
             }
 
@@ -4170,6 +4243,11 @@ async function showResults() {
         }
         if (restartBtn) {
             restartBtn.classList.toggle('hidden', isEvaluationResult);
+        }
+
+        const evalErrorsWrap = document.getElementById('results-eval-errors-wrap');
+        if (evalErrorsWrap) {
+            evalErrorsWrap.classList.toggle('hidden', !isEvaluationResult || errors.length === 0);
         }
 
         if (isEvaluationResult) {
