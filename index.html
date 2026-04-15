@@ -120,12 +120,6 @@
                         <div class="bento-card bento-card-identity">
                             <div class="bento-avatar-wrapper relative">
                                 <img id="profile-avatar-img" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp" alt="Avatar" class="bento-avatar">
-                                <input type="file" id="avatar-upload" accept="image/*" class="hidden"
-                                    onchange="handleAvatarUpload(event)">
-                                <button class="bento-btn-camera"
-                                    onclick="document.getElementById('avatar-upload').click()" title="Cambiar foto">
-                                    <i class="fas fa-camera"></i>
-                                </button>
                             </div>
                             <div class="bento-identity-info">
                                 <div class="bento-nickname-row">
@@ -222,7 +216,7 @@
                                 </button>
                             </div>
                             <div id="profile-pills-actions-dual" class="bento-pills-actions-dual hidden">
-                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-pills-btn-ver">
+                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver">
                                     Ver pill
                                 </button>
                                 <button type="button" onclick="openModeFromProfile('pills')" class="bento-stat-cta bento-pills-btn-secondary">

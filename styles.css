@@ -1447,6 +1447,15 @@ margin: 8px 0;
     transform: translateY(-1px);
 }
 
+/* Homologa el hover de todos los botones primarios dentro del bento
+   (Práctica, Evaluación, Ver pill) al comportamiento sutil de las pills */
+.bento-card-stat .btn-primary:hover:not(:disabled) {
+    background: rgba(140, 89, 254, 0.14);
+    border: 1px solid rgba(140, 89, 254, 0.35);
+    box-shadow: none;
+    transform: translateY(-1px);
+}
+
 .bento-stat-quest:hover {
     border-color: rgba(140, 89, 254, 0.3);
 }
