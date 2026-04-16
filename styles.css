@@ -2304,6 +2304,10 @@ margin: 8px 0;
     font-size: 0.92rem;
 }
 
+.evaluation-brief-highlight {
+    color: var(--color-cta-dark);
+}
+
 .evaluation-seniority-hint {
     margin: 0 0 0.9rem 0;
     color: var(--color-text-light);
@@ -2411,6 +2415,13 @@ margin: 8px 0;
     align-items: center;
     transition: all 0.5s;
     margin-top: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.pills-disabled-control {
+    pointer-events: none;
+    cursor: not-allowed;
 }
 
 .pills-construction-text {
@@ -3804,9 +3815,7 @@ margin: 8px 0;
 footer {
     padding: 1rem;
     text-align: center;
-    position: sticky;
-    bottom: 0;
-    z-index: 20;
+    margin-top: auto;
     background: rgba(8, 6, 18, 0.8);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -5322,6 +5331,10 @@ footer {
 
 [data-theme="light"] .evaluation-auto-summary code {
     background: rgba(13, 11, 30, 0.07);
+}
+
+[data-theme="light"] .evaluation-brief-highlight {
+    color: var(--color-accent);
 }
 
 [data-theme="light"] .eval-seniority-btn {

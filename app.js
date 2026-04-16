@@ -59,8 +59,8 @@ const SESSION_LENGTH = 20;
 const EVALUATION_SESSION_LENGTH = 15;
 /** Sesión evaluación especialidad UX/UI: 8 UI Design + 8 UX Research cuando el pool lo permite. */
 const EVALUATION_SESSION_LENGTH_UX_UI = 16;
-/** Sesión evaluación especialidad UX (no UX/UI): hasta 10 preguntas. */
-const EVALUATION_SESSION_LENGTH_UX_ONLY = 10;
+/** Sesión evaluación especialidad UX (no UX/UI): hasta 15 preguntas. */
+const EVALUATION_SESSION_LENGTH_UX_ONLY = 15;
 
 // --- SPLASH SCREEN LOGIC ---
 window.addEventListener('load', () => {
@@ -236,7 +236,7 @@ let breakImages = [];
 const EVALUATION_QUESTION_TIME = 30;
 let evaluationTimerId = null;
 let evaluationTimeLeft = EVALUATION_QUESTION_TIME;
-const ENABLE_EVAL_HARD_BLOCK = false; // Cambiar a true cuando se habilite bloqueo real
+const ENABLE_EVAL_HARD_BLOCK = true;
 const EVAL_VIOLATION_STORAGE_PREFIX = 'uix_eval_violations_v1';
 const EVAL_FOCUS_EVENT_DEBOUNCE_MS = 1200;
 let isEvaluationSessionActive = false;
@@ -528,7 +528,7 @@ async function loadRankingUserStats() {
             userProfile.testsPoints = Number(data.tests_points || 0);
             userProfile.pillsPoints = Number(data.pills_points || 0);
             userProfile.latestPillRankId = String(data.pills_rank_pill_id || '').trim();
-            userProfile.evalCompleted = data.tests_points !== null && data.tests_points !== undefined;
+            userProfile.evalCompleted = data.tests_points != null;
         }
     } catch (e) {
         console.warn('loadRankingUserStats error:', e);
@@ -1208,7 +1208,10 @@ function resetLoginEmailButtonState() {
     const passInput = document.getElementById('user-password');
     if (passInput) { passInput.disabled = true; passInput.value = ''; }
     const btnLogin = document.getElementById('btn-do-login');
-    if (btnLogin) btnLogin.disabled = true;
+    if (btnLogin) {
+        btnLogin.innerHTML = 'Iniciar sesión';
+        btnLogin.disabled = true;
+    }
     const btnForgot = document.getElementById('btn-forgot-password');
     if (btnForgot) btnForgot.disabled = true;
     const btnEye = document.getElementById('btn-eye');
@@ -2076,9 +2079,12 @@ function updateEvaluationStartButtonState() {
         currentQuizMode === 'evaluation'
             ? filterEvaluationQuestionsByUserProfile(normalize()).length
             : filterEvaluationQuestionsByUserProfile(normalizePoolForEvaluation()).length;
+    const isBlocked = isEvaluationHardBlocked();
+    const shouldDisable = n === 0 || isBlocked;
 
-    btnStartEval.disabled = n === 0;
-    btnStartEval.classList.toggle('is-disabled', n === 0);
+    btnStartEval.disabled = shouldDisable;
+    btnStartEval.classList.toggle('is-disabled', shouldDisable);
+    btnStartEval.innerText = isBlocked ? 'EVALUACION BLOQUEADA' : 'INICIAR EVALUACION';
 }
 
 /** Normaliza `evaluationData` sin depender de `rawData` (p. ej. tras recargar preguntas desde Supabase). */
@@ -2114,6 +2120,12 @@ function updateEvaluationBriefAutoUI() {
         detail = ` Especialidad «${espLabel}»: solo preguntas cuyo Cat coincide con tu registro.`;
     } else {
         detail = ' Sin especialidad en ranking_user: se filtra solo por seniority (todas las áreas que coincidan).';
+    }
+
+    if (isEvaluationHardBlocked()) {
+        el.textContent = 'Tu evaluacion fue bloqueada por salir de la prueba 3 veces. El boton de inicio queda deshabilitado. Si necesitas ayuda, contacta al equipo Ops.';
+        updateEvaluationStartButtonState();
+        return;
     }
 
     el.textContent =
@@ -2794,7 +2806,7 @@ function startQuiz() {
         });
         return;
     }
-    if (isEvaluationMode() && ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= 3) {
+    if (isEvaluationMode() && isEvaluationHardBlocked()) {
         showAppAlert({
             title: "Evaluación bloqueada",
             message: "La prueba fue bloqueada por conductas no permitidas.",
@@ -3470,6 +3482,10 @@ function getEvalViolationCount() {
     return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function isEvaluationHardBlocked() {
+    return ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= 3;
+}
+
 function setEvalViolationCount(count) {
     localStorage.setItem(getEvalViolationStorageKey(), String(Math.max(0, count)));
 }
@@ -3743,7 +3759,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             rankingMerge.quest_points = Math.max(cur, next);
             shouldUpdate = next > cur;
         } else if (currentQuizMode === 'evaluation') {
-            const isFirstEvalAttempt = existing.tests_points === null || existing.tests_points === undefined;
+            const isFirstEvalAttempt = existing.tests_points == null;
             if (isFirstEvalAttempt) {
                 rankingMerge.tests_points = Number(finalScore || 0);
             }
@@ -3786,7 +3802,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         if (currentQuizMode === 'evaluation') {
             const newScore = Number(finalScore || 0);
             const newTime = Number(timeSeconds || 0);
-            const isFirstEvalAttempt = existing.tests_points === null || existing.tests_points === undefined;
+            const isFirstEvalAttempt = existing.tests_points == null;
 
             shouldUpdate = isFirstEvalAttempt;
 

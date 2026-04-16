@@ -192,6 +192,14 @@
                         </div>
 
                         <div class="bento-card bento-card-stat bento-stat-pills">
+                            <div class="coming-soon-tape" aria-hidden="true">
+                                <div class="tape-strip">
+                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
+                                </div>
+                                <div class="tape-strip tape-strip--2">
+                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
+                                </div>
+                            </div>
                             <div class="bento-stat-pills__icon-row">
                                 <div class="bento-stat-icon-wrapper text-blue-600 bg-blue-50">
                                     <i class="fas fa-capsules"></i>
@@ -201,7 +209,7 @@
                             <p class="bento-stat-mode-title">Pills</p>
                             <div class="bento-stat-head">
                                 <p id="profile-pills-label" class="bento-stat-label">Pts. Pills</p>
-                                <button onclick="openLeaderboard('pills')" class="bento-rank-btn" title="Ver ranking Pills">
+                                <button type="button" class="bento-rank-btn pills-disabled-control" title="Ver ranking Pills (próximamente)" disabled aria-disabled="true">
                                     <i class="fas fa-trophy"></i>
                                 </button>
                             </div>
@@ -211,22 +219,22 @@
                             </div>
                             <h4 id="profile-pills-pts" class="bento-stat-value">320</h4>
                             <div id="profile-pills-actions-single" class="bento-pills-actions-single">
-                                <button type="button" onclick="openModeFromProfile('pills')" class="bento-stat-cta">
+                                <button type="button" class="bento-stat-cta pills-disabled-control" disabled aria-disabled="true">
                                     Ir a pills
                                 </button>
                             </div>
                             <div id="profile-pills-actions-dual" class="bento-pills-actions-dual hidden">
-                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver">
+                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver pills-disabled-control" disabled aria-disabled="true">
                                     Ver pill
                                 </button>
-                                <button type="button" onclick="openModeFromProfile('pills')" class="bento-stat-cta bento-pills-btn-secondary">
+                                <button type="button" class="bento-stat-cta bento-pills-btn-secondary pills-disabled-control" disabled aria-disabled="true">
                                     Ir a pills
                                 </button>
                             </div>
                         </div>
 
                         <!-- 4. Seals Gallery & History -->
-                        <div class="bento-card bento-card-seals">
+                        <div class="bento-card bento-card-seals hidden">
                             <div class="coming-soon-tape" aria-hidden="true">
                                 <div class="tape-strip">
                                     <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
@@ -284,7 +292,8 @@
                                 tiempo límite.</p>
                         </div>
 
-                        <div onclick="selectMode('pills')" class="mode-card" role="button" tabindex="0">
+                        <div class="mode-card mode-card--disabled pills-disabled-control" role="button" tabindex="-1" aria-disabled="true">
+                            <span class="badge-soon">Próximamente</span>
                             <div class="mode-card__icon-wrap mode-card__icon-wrap--pills">
                                 <i class="fas fa-capsules mode-card__icon"></i>
                             </div>
@@ -369,9 +378,9 @@
                         <div class="evaluation-brief-card">
                             <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
                             <ul class="evaluation-brief-list">
-                                <li><b>Tiempo por pregunta:</b> Cada pregunta tiene un tiempo asignado para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
-                                <li><b>Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
-                                <li><b>Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
+                                <li><b class="evaluation-brief-highlight">Tiempo por pregunta:</b> Cada pregunta tiene 30 segundos para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
+                                <li><b class="evaluation-brief-highlight">Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
+                                <li><b class="evaluation-brief-highlight">Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
                             </ul>
                             <p>¿Liste para empezar? Haz clic en el botón de abajo cuando estés preparade. 😊</p>
                         </div>
@@ -417,6 +426,14 @@
 
                 <!-- PILLS: listado por categoría (cards rellenadas por JS desde colección `pills`) -->
                 <div id="pills-construction-view" class="hidden">
+                    <div class="coming-soon-tape" aria-hidden="true">
+                        <div class="tape-strip">
+                            <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
+                        </div>
+                        <div class="tape-strip tape-strip--2">
+                            <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
+                        </div>
+                    </div>
                     <h2 class="view-title">Modo Pills</h2>
                     <p class="section-subtitle">Elige una pill y participa por un premio.</p>
 
@@ -425,7 +442,7 @@
                     </div>
 
                     <div class="action-group">
-                        <button onclick="backToModes()" class="btn-outline-blue">
+                        <button type="button" class="btn-outline-blue pills-disabled-control" disabled aria-disabled="true">
                             VOLVER
                         </button>
                     </div>
@@ -440,7 +457,7 @@
                     </div>
                 </div>
                 <div class="pills-tf-layout">
-                    <button type="button" id="pills-drop-false" class="pills-drop-zone pills-drop-zone--false" data-pill-answer="false" aria-label="Falso">
+                    <button type="button" id="pills-drop-false" class="pills-drop-zone pills-drop-zone--false pills-disabled-control" data-pill-answer="false" aria-label="Falso" disabled aria-disabled="true">
                         <i class="fas fa-times pills-drop-icon" aria-hidden="true"></i>
                         <span class="pills-drop-label">Falso</span>
                     </button>
@@ -453,7 +470,7 @@
                         <p class="pills-drag-hint pills-drag-hint--desktop">Arrastra la tarjeta hacia abajo, hacia Falso o Verdadero (o elige la respuesta).</p>
                         <p class="pills-drag-hint pills-drag-hint--mobile">Desliza como en Tinder: izquierda = Falso, derecha = Verdadero. Tambien puedes tocar los iconos</p>
                     </div>
-                    <button type="button" id="pills-drop-true" class="pills-drop-zone pills-drop-zone--true" data-pill-answer="true" aria-label="Verdadero">
+                    <button type="button" id="pills-drop-true" class="pills-drop-zone pills-drop-zone--true pills-disabled-control" data-pill-answer="true" aria-label="Verdadero" disabled aria-disabled="true">
                         <i class="fas fa-check pills-drop-icon" aria-hidden="true"></i>
                         <span class="pills-drop-label">Verdadero</span>
                     </button>
@@ -646,9 +663,9 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">v3.7.1</span>
+                <span class="footer-version">v3.8.0</span>
                 <span class="footer-tagline">
-                    Una iniciativa <b>más</b> de <span class="footer-brand">UXquisitos</span>
+                    Una iniciativa de <span class="footer-brand">UXquisitos | Hecho por Martín Fuentes</span>
                 </span>
             </p>
         </footer>
