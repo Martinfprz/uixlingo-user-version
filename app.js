@@ -1976,8 +1976,50 @@ function isUxOnlySpecialty(especialidadRaw) {
 }
 
 /**
+ * Especialidad UX Writing / UX Writer: debe ver preguntas con Cat = "UX Writing".
+ * Cubre: "UX Writer", "UX Writing", "ux writer", "writing", etc.
+ */
+function isUxWritingSpecialty(especialidadRaw) {
+    const n = normalizeLabelKey(especialidadRaw);
+    if (!n) return false;
+    if (isUxUiDualSpecialty(especialidadRaw)) return false;
+    return n === 'ux writer' || n === 'ux writing' || n === 'writing' ||
+           n.includes('ux writer') || n.includes('ux writing');
+}
+
+/** Categoría "UX Writing" en la pregunta (ya normalizada por normalizeCategoryLabel). */
+function isUxWritingCategory(value) {
+    return normalizeLabelKey(value) === 'ux writing';
+}
+
+/**
+ * Especialidad UI (sin UX): "UI", "UI Design", "UI Designer", etc.
+ * Debe ver preguntas con Cat = "UI Design".
+ */
+function isUiOnlySpecialty(especialidadRaw) {
+    const n = normalizeLabelKey(especialidadRaw);
+    if (!n) return false;
+    if (isUxUiDualSpecialty(especialidadRaw)) return false;
+    return n === 'ui' || n === 'ui design' || n === 'ui designer' ||
+           (n.startsWith('ui') && !n.includes('ux'));
+}
+
+/**
  * ¿La categoría de la pregunta (Cat) corresponde a la Especialidad del usuario en ranking_user?
  * Sin especialidad en perfil: no se filtra por área (solo seniority), por compatibilidad.
+ *
+ * Mapeo de especialidades:
+ *   UX / UX Research / UX Researcher  → preguntas Cat familia UX Research
+ *   UX/UI                              → preguntas Cat UI Design + familia UX Research
+ *   UX Writer / UX Writing             → preguntas Cat UX Writing
+ *   UI / UI Design / UI Designer       → preguntas Cat UI Design
+ *   Otros                              → coincidencia exacta normalizada
+ *
+ * Checklist manual (Medium en todos):
+ *   [x] UX          → Cat UX Research / UX Researcher  ✓
+ *   [x] UX/UI       → Cat UI Design + UX Research       ✓
+ *   [x] UX Writer   → Cat UX Writing                    ✓ (nuevo)
+ *   [x] UI          → Cat UI Design                     ✓ (nuevo)
  */
 function categoryMatchesUserEspecialidad(questionCategory, especialidadRaw) {
     const esp = String(especialidadRaw || '').trim();
@@ -1986,15 +2028,27 @@ function categoryMatchesUserEspecialidad(questionCategory, especialidadRaw) {
     const cat = String(questionCategory || '').trim();
     if (!cat) return false;
 
+    // Caso 2: UX/UI → mezcla UI Design + familia UX Research
     if (isUxUiDualSpecialty(esp)) {
         return isUiDesignCategory(cat) || isUxResearchFamilyLabel(cat);
     }
 
-    // "UX", "UX Research" o "UX Researcher" en especialidad → cualquier cat de la familia UX Research
+    // Caso 3: UX Writer / UX Writing → solo UX Writing
+    if (isUxWritingSpecialty(esp)) {
+        return isUxWritingCategory(cat);
+    }
+
+    // Caso 4: UI / UI Design / UI Designer → solo UI Design
+    if (isUiOnlySpecialty(esp)) {
+        return isUiDesignCategory(cat);
+    }
+
+    // Caso 1: UX / UX Research / UX Researcher → familia UX Research
     if (isUxOnlySpecialty(esp) || isUxResearchFamilyLabel(esp)) {
         return isUxResearchFamilyLabel(cat);
     }
 
+    // Fallback: coincidencia exacta normalizada
     return normalizeLabelKey(cat) === normalizeLabelKey(esp);
 }
 
