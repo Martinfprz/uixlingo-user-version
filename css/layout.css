@@ -1,0 +1,4 @@
+/* Layout: shell + splash + barra global (orden = styles.css) */
+@import url("layout-root.css");
+@import url("splash.css");
+@import url("layout-navbar.css");

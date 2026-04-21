@@ -1,0 +1,14 @@
+
+/* ==========================================
+   DASHBOARD / SELECCIÓN DE CATEGORÍAS
+   ========================================== */
+
+#dashboard-view {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: opacity 0.5s, transform 0.5s;
+    margin-top: 16px;
+}
+

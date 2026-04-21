@@ -1,0 +1,132 @@
+/* ==========================================
+   FEEDBACK OVERLAY Y PANEL
+   ========================================== */
+
+#feedback-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 80;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    transition: opacity 0.3s;
+    opacity: 0.5;
+}
+
+/* Bottom sheet solo en viewports estrechos (móvil); tablet/desktop usan modal centrado (min-width: 640px) */
+@media (max-width: 639px) {
+    #feedback-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        padding: 1.5rem;
+        border-left: 8px solid transparent;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.4);
+        z-index: 90;
+        border-radius: 1.5rem 1.5rem 0 0;
+        max-height: 80vh;
+        overflow-y: auto;
+        background: rgba(13, 11, 26, 0.92);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+}
+
+.feedback-panel--correct {
+    background: rgba(172, 231, 56, 0.07);
+    border-color: #ace738;
+    border-top-color: rgba(172, 231, 56, 0.3);
+}
+
+.feedback-panel--wrong {
+    background: rgba(255, 90, 106, 0.07);
+    border-color: #ff5a6a;
+    border-top-color: rgba(255, 90, 106, 0.3);
+}
+
+.feedback-body {
+    display: flex;
+    gap: 1rem;
+}
+
+.feedback-icon-area {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.feedback-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-grow: 1;
+}
+
+.feedback-title-text {
+    font-weight: 700;
+    font-size: 1.125rem;
+    margin: 0;
+}
+
+.feedback-title--correct {
+    color: #ace738;
+}
+
+.feedback-title--wrong {
+    color: #ff5a6a;
+}
+
+.feedback-message {
+    font-size: 0.875rem;
+    color: var(--color-text-light);
+    line-height: 1.6;
+    margin: 0;
+}
+
+#study-tip-box {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: rgba(89, 122, 255, 0.1);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(89, 122, 255, 0.2);
+}
+
+.study-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: #7b9bff;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.study-tag {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #7b9bff;
+    font-style: italic;
+}
+
+.feedback-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.feedback-actions .btn-cta {
+    width: 100%;
+    padding: 0.75rem 3rem;
+    font-size: 1rem;
+}
+
+/* Icon feedback colors */
+.icon-feedback-correct {
+    color: #ace738;
+}
+
+.icon-feedback-wrong {
+    color: #ff5a6a;
+}
+

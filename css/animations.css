@@ -1,0 +1,160 @@
+/* ==========================================
+   ANIMACIONES
+   ========================================== */
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(-25%);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+
+.animate-bounce {
+    animation: bounce 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes flame-glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.6));
+        transform: scale(1);
+    }
+    50% {
+        filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.9)) drop-shadow(0 0 20px rgba(239, 68, 68, 0.3));
+        transform: scale(1.18);
+    }
+}
+
+.flame-sparking {
+    animation: flame-glow 0.7s ease-in-out infinite;
+    color: #f97316;
+}
+
+@keyframes ice-shard {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--ix), var(--iy)) rotate(var(--ir)) scale(0.3);
+    }
+}
+
+.ice-shard {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    animation: ice-shard 0.6s ease-out forwards;
+}
+
+@keyframes snowflake-appear {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) rotate(-90deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.3) rotate(10deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+.snowflake-in {
+    animation: snowflake-appear 0.5s ease-out 0.15s both;
+    color: #60a5fa !important;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.animate-pop {
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-fade-out {
+    animation: fadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+

@@ -1,0 +1,68 @@
+/* ==========================================
+   CSS VARIABLES & BASE
+   ========================================== */
+
+:root {
+    --color-bg: #080612;
+    --color-surface: rgba(255, 255, 255, 0.05);
+    --color-surface-elevated: rgba(255, 255, 255, 0.09);
+    --color-text: #EFFFFD;
+    --color-text-light: rgba(239, 255, 253, 0.5);
+    --color-accent: #8c59fe;
+    --color-accent-alt: #597aff;
+    --color-cta: #ace738;
+    --color-teal: #00c4b3;
+    --color-error: #ff5a6a;
+    --color-accent-dark: #7040e0;
+    --color-cta-dark: #8ec42e;
+    --color-border: rgba(255, 255, 255, 0.1);
+    --color-primary: #8c59fe;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --color-success: #4ade80;
+
+    /* Espaciado */
+    --space-2:  0.5rem;
+    --space-3:  0.75rem;
+    --space-4:  1rem;
+    --space-5:  1.25rem;
+    --space-6:  1.5rem;
+    --space-8:  2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+
+    /* Tipografía */
+    --text-xs:   0.75rem;
+    --text-sm:   0.875rem;
+    --text-base: 1rem;
+    --text-lg:   1.125rem;
+    --text-xl:   1.25rem;
+    --text-2xl:  1.5rem;
+    --text-3xl:  1.875rem;
+    --text-4xl:  2.25rem;
+}
+
+/* ==========================================
+   LIGHT MODE VARIABLES
+   Fondo frío #F5F7FF · Todos los colores AAA ≥ 7:1
+   ========================================== */
+
+[data-theme="light"] {
+    --color-bg: #F5F7FF;
+    --color-surface: rgba(255, 255, 255, 0.75);
+    --color-surface-elevated: rgba(255, 255, 255, 0.92);
+    --color-text: #0D0B1E;
+    --color-text-light: #4A4268;
+    --color-accent: #4A22C0;       /* Púrpura oscuro — 7.75:1 ✓ AAA */
+    --color-accent-alt: #2136B8;   /* Azul oscuro    — 7.91:1 ✓ AAA */
+    --color-cta: #ace738;          /* Lima (solo fondos, texto siempre oscuro) */
+    --color-teal: #006B63;         /* Teal oscuro    — 7.62:1 ✓ AAA */
+    --color-error: #B8001A;        /* Rojo oscuro    — 7.48:1 ✓ AAA */
+    --color-accent-dark: #3A1A98;
+    --color-cta-dark: #3D5900;
+    --color-border: rgba(13, 11, 30, 0.12);
+    --color-primary: #4A22C0;
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(74, 34, 192, 0.15);
+    --color-success: #16a34a;
+}

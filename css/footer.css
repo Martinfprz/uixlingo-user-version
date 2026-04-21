@@ -1,0 +1,85 @@
+/* ==========================================
+   FOOTER
+   ========================================== */
+
+footer {
+    padding: 1rem;
+    text-align: center;
+    margin-top: auto;
+    background: rgba(8, 6, 18, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.footer-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    margin: 0;
+}
+
+.footer-version {
+    font-size: 0.65rem;
+    font-family: ui-monospace, "Cascadia Code", monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(239, 255, 253, 0.38);
+}
+
+.footer-tagline {
+    display: block;
+    max-width: 36rem;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    text-align: center;
+    background: linear-gradient(
+        110deg,
+        var(--color-teal),
+        #7df2e8,
+        var(--color-accent),
+        #d4b8ff,
+        var(--color-accent-alt),
+        var(--color-teal)
+    );
+    background-size: 280% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: footer-tagline-gradient 7s ease-in-out infinite;
+    filter: drop-shadow(0 0 14px rgba(140, 89, 254, 0.35)) drop-shadow(0 0 24px rgba(0, 196, 179, 0.22));
+}
+
+.footer-tagline b {
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.footer-brand {
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: none;
+}
+
+@keyframes footer-tagline-gradient {
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .footer-tagline {
+        animation: none;
+        background-position: 50% 50%;
+    }
+}
+

@@ -1,0 +1,122 @@
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (min-width: 640px) {
+
+    #landing-page {
+        padding: 2rem;
+    }
+
+    .mode-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .category-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        padding: 0 0.8rem;
+    }
+
+    .cat-label {
+        font-size: 0.66rem;
+    }
+
+    .cat-card {
+        min-height: 5.5rem;
+        padding: 1rem 0.55rem 0.9rem;
+    }
+
+    .cat-icon {
+        font-size: 1.22rem;
+    }
+}
+
+@media (max-width: 639px) {
+    .cat-card {
+        min-height: 4.9rem;
+        border-radius: 1.1rem;
+        padding: 0.85rem 0.55rem 0.78rem;
+    }
+
+    .cat-label {
+        font-size: 0.58rem;
+    }
+
+    #break-screen {
+        padding: 2rem;
+    }
+
+    #break-title {
+        font-size: 1.875rem;
+    }
+
+    #break-message {
+        font-size: 1rem;
+    }
+
+    #question-text {
+        font-size: 1.25rem;
+    }
+
+    .results-actions {
+        flex-direction: row;
+    }
+
+    .results-actions .btn-primary,
+    .results-actions .btn-outline-blue {
+        width: auto;
+        padding: 1rem 2rem;
+    }
+
+    .feedback-actions .btn-cta {
+        width: auto;
+    }
+
+    .app-dialog {
+        padding: 1.5rem;
+    }
+}
+
+/* Tablet y desktop: feedback como popup centrado (no bottom sheet al redimensionar ventana) */
+@media (min-width: 640px) {
+    #feedback-overlay {
+        background: rgba(0, 0, 0, 0.65);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        z-index: 80;
+    }
+
+    #feedback-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        margin: auto;
+        width: min(680px, calc(100% - 2rem));
+        max-height: min(78vh, 560px);
+        height: fit-content;
+        border-radius: 1rem;
+        border-left-width: 0;
+        border-top: 8px solid transparent;
+        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+        padding: 1.25rem 1.35rem;
+        z-index: 90;
+        overflow-y: auto;
+        background: rgba(13, 11, 26, 0.92);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+    }
+
+    .feedback-actions {
+        justify-content: flex-end;
+        margin-top: 1.25rem;
+    }
+
+    .feedback-actions .btn-cta {
+        width: auto;
+        min-width: 220px;
+    }
+}
+

@@ -1,0 +1,19 @@
+/* UiX-lingo — orden de import = orden original de styles.css (cascada) */
+@import url("tokens.css");
+@import url("base.css");
+@import url("animations.css");
+@import url("layout.css");
+@import url("quiz-header.css");
+@import url("auth.css");
+@import url("profile.css");
+@import url("components.css");
+@import url("mode-selection.css");
+@import url("dashboard.css");
+@import url("quiz.css");
+@import url("results.css");
+@import url("footer.css");
+@import url("modals.css");
+@import url("quiz-feedback.css");
+@import url("responsive.css");
+@import url("theme-toggle.css");
+@import url("theme-light.css");

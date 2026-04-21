@@ -1,0 +1,91 @@
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--color-bg);
+    background-image:
+        radial-gradient(ellipse 700px 700px at -5% -5%, rgba(140, 89, 254, 0.22) 0%, transparent 65%),
+        radial-gradient(ellipse 500px 500px at 105% 105%, rgba(0, 196, 179, 0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 400px 400px at 80% 15%, rgba(89, 122, 255, 0.12) 0%, transparent 65%);
+    color: var(--color-text);
+    overflow-y: auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+    position: relative;
+    margin: 0;
+}
+
+@media (min-width: 768px) {
+    body {
+        background-attachment: fixed;
+    }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-accent) 50%, transparent);
+}
+
+/* ==========================================
+   UTILIDADES
+   ========================================== */
+
+.hidden {
+    display: none !important;
+}
+
+.opacity-0 {
+    opacity: 0;
+}
+
+.scale-90 {
+    transform: scale(0.9);
+}
+
+.pointer-events-none {
+    pointer-events: none;
+}
+
+/* ==========================================
+   ACCESIBILIDAD — Focus visible global
+   ========================================== */
+
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+[data-theme="light"] :focus-visible {
+    outline-color: var(--color-accent);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+

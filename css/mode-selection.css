@@ -1,0 +1,167 @@
+
+/* ==========================================
+   SELECCIÓN DE MODO
+   ========================================== */
+
+#mode-selection-view {
+    width: 100%;
+    max-width: 40rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    transition: opacity 0.5s, transform 0.5s, box-shadow 0.5s, border-color 0.5s, background 0.5s,
+        backdrop-filter 0.5s, -webkit-backdrop-filter 0.5s;
+    margin-top: 0;
+    margin-bottom: auto;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 2.5rem 1.5rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.welcome-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--color-text);
+    margin: 0 0 0.5rem 0;
+}
+
+.section-subtitle {
+    font-size: 1.125rem;
+    color: rgba(239, 255, 253, 0.65);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    margin: 0 0 1.5rem 0;
+}
+
+.mode-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100%;
+    max-width: 32rem;
+    padding: 0 1rem;
+    margin-bottom: 1rem;
+}
+
+.mode-card {
+    cursor: pointer;
+    position: relative;
+    padding: 2rem 1.5rem;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s;
+}
+
+.mode-card:hover:not(.mode-card--disabled) {
+    border-color: rgba(140, 89, 254, 0.4);
+    background: rgba(140, 89, 254, 0.07);
+    box-shadow: 0 12px 32px rgba(140, 89, 254, 0.2);
+    transform: translateY(-4px);
+}
+
+.mode-card--disabled {
+    border-color: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.02);
+    opacity: 0.4;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+}
+
+.mode-card__icon-wrap {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.mode-card__icon-wrap--practice {
+    background: rgba(140, 89, 254, 0.15);
+    box-shadow: 0 0 0 1px rgba(140, 89, 254, 0.2);
+}
+
+.mode-card__icon-wrap--disabled {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-card__icon-wrap--evaluation {
+    background: rgba(0, 196, 179, 0.15);
+    box-shadow: 0 0 0 1px rgba(0, 196, 179, 0.2);
+}
+
+.mode-card__icon-wrap--pills {
+    background: rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.mode-card:hover .mode-card__icon-wrap--practice,
+.mode-card:hover .mode-card__icon-wrap--evaluation,
+.mode-card:hover .mode-card__icon-wrap--pills {
+    transform: scale(1.1);
+}
+
+.mode-card__icon {
+    font-size: 1.5rem;
+    color: var(--color-accent);
+}
+
+.mode-card__icon-wrap--evaluation .mode-card__icon {
+    color: var(--color-teal);
+}
+
+.mode-card__icon--disabled {
+    font-size: 1.5rem;
+    color: rgba(239, 255, 253, 0.3);
+}
+
+.mode-card__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+}
+
+.mode-card__title--disabled {
+    color: rgba(239, 255, 253, 0.3);
+}
+
+.mode-card__desc {
+    font-size: 0.875rem;
+    color: rgba(239, 255, 253, 0.75);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.mode-card__desc--disabled {
+    color: rgba(239, 255, 253, 0.2);
+}
+
+.badge-soon {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(239, 255, 253, 0.4);
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}

@@ -15,7 +15,8 @@ Plataforma de aprendizaje de UX/UI en formato quiz interactivo. Los usuarios pra
 
 ```
 ├── index.html        # App principal (SPA)
-├── styles.css        # Estilos globales
+├── css/
+│   └── main.css      # Entry point de estilos (importa el resto del CSS)
 ├── app.js            # Lógica de la aplicación
 ├── theme-init.js     # Inicialización de tema (dark/light)
 ├── vercel.json       # Headers de seguridad para Vercel

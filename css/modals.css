@@ -1,0 +1,611 @@
+/* ==========================================
+   MODAL RANKING
+   ========================================== */
+
+#leaderboard-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 1rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Modal: pill desde perfil (elegir ver material vs reto) */
+.pill-experience-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.pill-experience-overlay.hidden {
+    display: none !important;
+}
+
+.pill-experience-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.pill-experience-dialog {
+    position: relative;
+    z-index: 1;
+    max-width: 26rem;
+}
+
+.pill-experience-desc {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--color-text-light);
+    margin: 0 0 0.75rem 0;
+}
+
+.pill-experience-hint {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: rgba(239, 255, 253, 0.55);
+    margin: 0;
+}
+
+.pill-experience-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+
+.pill-experience-btn-full {
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.modal-box {
+    background: rgba(13, 11, 26, 0.95);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    width: 100%;
+    max-width: 28rem;
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    padding-bottom: 1rem;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.modal-title--center {
+    justify-content: center;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+#leaderboard-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.modal-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    text-align: center;
+}
+
+.modal-footer-text {
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+    margin: 0;
+}
+
+/* Ranking items */
+.leaderboard-item {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.leaderboard-item--me {
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.25);
+}
+
+.leaderboard-item__left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.leaderboard-rank {
+    font-weight: 900;
+    color: rgba(239, 255, 253, 0.18);
+    width: 1.5rem;
+    text-align: right;
+}
+
+.leaderboard-name {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.leaderboard-name--me {
+    color: #fbbf24;
+}
+
+.leaderboard-score {
+    text-align: right;
+}
+
+.leaderboard-pts {
+    font-weight: 900;
+    color: var(--color-accent);
+}
+
+.leaderboard-time {
+    font-size: 0.625rem;
+    color: var(--color-text-light);
+}
+
+.leaderboard-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-text-light);
+}
+
+.leaderboard-error {
+    text-align: center;
+    color: #ff5a6a;
+    font-size: 0.75rem;
+    padding: 1rem;
+}
+
+.leaderboard-error__title {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.leaderboard-error__hint {
+    margin-top: 0.5rem;
+    color: var(--color-text-light);
+}
+
+/* ==========================================
+   MODAL CAMBIO DE CONTRASEÑA
+   ========================================== */
+
+#change-password-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 1rem;
+}
+
+#change-password-modal .modal-box {
+    padding: 2rem;
+}
+
+/* ==========================================
+   APP DIALOG (Alert/Confirm custom)
+   ========================================== */
+
+.app-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 95;
+    background: rgba(17, 24, 39, 0.32);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.app-dialog {
+    width: min(520px, 100%);
+    background: #ffffff;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 24px 64px rgba(2, 6, 23, 0.24);
+    padding: 1.25rem;
+}
+
+.app-dialog-icon-wrap {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.75rem auto;
+    font-size: 1.25rem;
+}
+
+.app-dialog-icon-wrap i {
+    line-height: 1;
+}
+
+.app-dialog-overlay[data-variant="info"] .app-dialog-icon-wrap {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.app-dialog-overlay[data-variant="warning"] .app-dialog-icon-wrap {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.app-dialog-overlay[data-variant="error"] .app-dialog-icon-wrap {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.app-dialog-overlay[data-variant="success"] .app-dialog-icon-wrap {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.app-dialog-title {
+    margin: 0 0 0.5rem 0;
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.app-dialog-message {
+    margin: 0;
+    text-align: center;
+    color: #4b5563;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.app-dialog-actions {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+}
+
+.app-dialog-actions .btn-primary,
+.app-dialog-actions .btn-outline-blue {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* App Dialog — Dark mode (default theme is dark) */
+:root .app-dialog {
+    background: rgba(18, 14, 34, 0.96);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+:root .app-dialog-title {
+    color: var(--color-text);
+}
+
+:root .app-dialog-message {
+    color: var(--color-text-light);
+}
+
+:root .app-dialog-overlay[data-variant="info"] .app-dialog-icon-wrap {
+    background: rgba(3, 105, 161, 0.18);
+    color: #38bdf8;
+}
+
+:root .app-dialog-overlay[data-variant="warning"] .app-dialog-icon-wrap {
+    background: rgba(180, 83, 9, 0.18);
+    color: #fbbf24;
+}
+
+:root .app-dialog-overlay[data-variant="error"] .app-dialog-icon-wrap {
+    background: rgba(185, 28, 28, 0.18);
+    color: #f87171;
+}
+
+:root .app-dialog-overlay[data-variant="success"] .app-dialog-icon-wrap {
+    background: rgba(21, 128, 61, 0.18);
+    color: #4ade80;
+}
+
+/* App Dialog — Light mode keeps original white style */
+[data-theme="light"] .app-dialog {
+    background: #ffffff;
+    border-color: rgba(15, 23, 42, 0.08);
+    box-shadow: 0 24px 64px rgba(2, 6, 23, 0.24);
+}
+
+[data-theme="light"] .app-dialog-title {
+    color: #111827;
+}
+
+[data-theme="light"] .app-dialog-message {
+    color: #4b5563;
+}
+
+[data-theme="light"] .app-dialog-overlay[data-variant="info"] .app-dialog-icon-wrap {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+[data-theme="light"] .app-dialog-overlay[data-variant="warning"] .app-dialog-icon-wrap {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+[data-theme="light"] .app-dialog-overlay[data-variant="error"] .app-dialog-icon-wrap {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+[data-theme="light"] .app-dialog-overlay[data-variant="success"] .app-dialog-icon-wrap {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.modal-icon-wrap {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 9999px;
+    background: rgba(140, 89, 254, 0.15);
+    border: 1px solid rgba(140, 89, 254, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+}
+
+.modal-icon {
+    font-size: 1.5rem;
+    color: var(--color-accent);
+}
+
+.modal-desc {
+    color: var(--color-text-light);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-fields .text-input {
+    padding: 0.75rem 1rem;
+}
+
+.form-fields .input-wrapper .text-input {
+    padding-right: 3.5rem;
+}
+
+.form-fields .btn-primary {
+    margin-top: 0.5rem;
+}
+
+.error-msg {
+    color: #ff5a6a;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    background: rgba(255, 90, 106, 0.1);
+    border: 1px solid rgba(255, 90, 106, 0.2);
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+}
+
+/* ==========================================
+   REVIEW SHEET (Temas a reforzar)
+   ========================================== */
+
+#review-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.review-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.3s;
+    cursor: pointer;
+}
+
+#review-sheet-content {
+    background: rgba(13, 11, 26, 0.97);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: none;
+    width: 100%;
+    border-radius: 1.5rem 1.5rem 0 0;
+    padding: 1.5rem;
+    box-shadow: 0 -32px 64px rgba(0, 0, 0, 0.5);
+    position: relative;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    transition: transform 0.3s ease-out;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.handle-wrapper {
+    position: absolute;
+    top: 1rem;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.sheet-handle {
+    width: 3rem;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+}
+
+.review-spacer {
+    flex-grow: 1;
+}
+
+.sheet-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 1rem 0;
+}
+
+#review-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-right: 0.5rem;
+}
+
+.review-item {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.review-question {
+    font-size: 0.875rem;
+    color: var(--color-text);
+    font-weight: 500;
+    margin: 0 0 0.5rem 0;
+}
+
+.review-item__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.review-topic-label {
+    font-size: 0.625rem;
+    color: var(--color-text-light);
+    font-weight: 700;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.review-topic-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--color-accent);
+}
+
+/* ==========================================
+   TOAST DE RACHA
+   ========================================== */
+
+#streak-toast {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translate(-50%, -150%);
+    background: linear-gradient(135deg, #FF6B00, #ff4500);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    box-shadow: 0 20px 40px rgba(255, 107, 0, 0.35);
+    z-index: 50;
+    transition: opacity 0.5s, transform 0.5s, box-shadow 0.5s;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    opacity: 0;
+    pointer-events: none;
+    border: 1px solid rgba(255, 150, 50, 0.4);
+}
+
+.toast-icon {
+    color: #fde68a;
+    font-size: 1.25rem;
+}
+
+.toast-title {
+    font-weight: 900;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.toast-sub {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fed7aa;
+    margin: 0;
+}
+

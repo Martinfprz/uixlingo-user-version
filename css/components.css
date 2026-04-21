@@ -1,0 +1,250 @@
+/* ==========================================
+   BOTONES
+   ========================================== */
+
+/* Botón primario */
+.btn-primary {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-alt) 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 1.125rem;
+    box-shadow: 0 4px 20px rgba(140, 89, 254, 0.35);
+    border: none;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-primary:hover:not(:disabled) {
+    box-shadow: 0 8px 32px rgba(140, 89, 254, 0.5);
+    transform: translateY(-2px);
+}
+
+.btn-primary:active:not(:disabled) {
+    box-shadow: 0 2px 10px rgba(140, 89, 254, 0.3);
+    transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(239, 255, 253, 0.3);
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.btn-primary.btn--success-state {
+    background: linear-gradient(135deg, #ace738 0%, #8ec42e 100%) !important;
+    box-shadow: 0 4px 20px rgba(172, 231, 56, 0.35) !important;
+    color: #0a0612 !important;
+}
+
+/* Botón CTA (verde lima) */
+.btn-cta {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #ace738 0%, #8ec42e 100%);
+    color: #0a0612;
+    font-weight: 900;
+    font-size: 1.125rem;
+    box-shadow: 0 4px 20px rgba(172, 231, 56, 0.3);
+    border: none;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-cta:hover:not(:disabled) {
+    box-shadow: 0 8px 32px rgba(172, 231, 56, 0.45);
+    transform: translateY(-2px);
+}
+
+.btn-cta:active:not(:disabled) {
+    box-shadow: 0 2px 10px rgba(172, 231, 56, 0.3);
+    transform: translateY(1px);
+}
+
+.btn-cta:disabled,
+.btn-cta.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Botón ranking */
+.btn-leaderboard {
+    width: 100%;
+    padding: 1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    color: #fbbf24;
+    font-weight: 700;
+    background: rgba(234, 179, 8, 0.05);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.btn-leaderboard:hover {
+    background: rgba(234, 179, 8, 0.12);
+    border-color: rgba(234, 179, 8, 0.5);
+    box-shadow: 0 4px 20px rgba(234, 179, 8, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-leaderboard--wide {
+    max-width: 28rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Botón outline azul */
+.btn-outline-blue {
+    width: 100%;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    border: 1.5px solid rgba(89, 122, 255, 0.45);
+    color: #7b9bff;
+    font-weight: 700;
+    background: rgba(89, 122, 255, 0.05);
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.btn-outline-blue:hover {
+    background: rgba(89, 122, 255, 0.12);
+    border-color: rgba(89, 122, 255, 0.6);
+}
+
+/* Botones de texto */
+.btn-text-logout {
+    font-size: 0.875rem;
+    color: rgba(239, 255, 253, 0.45);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-bottom: 2rem;
+    font-family: inherit;
+    transition: color 0.2s;
+}
+
+.btn-text-logout:hover {
+    color: #ff5a6a;
+}
+
+.btn-text-back {
+    font-size: 0.875rem;
+    color: rgba(239, 255, 253, 0.45);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-bottom: 2rem;
+    font-family: inherit;
+    transition: color 0.2s;
+}
+
+.btn-text-back:hover {
+    color: var(--color-accent);
+}
+
+/* Terciario bajo el CTA (p. ej. evaluación): sin margen de “volver arriba” */
+.btn-text-back--tertiary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0.35rem auto 0;
+    padding: 0.45rem 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-underline-offset: 0.22em;
+    text-decoration-thickness: 1px;
+}
+
+/* Botón cerrar */
+.btn-close {
+    color: rgba(239, 255, 253, 0.4);
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    cursor: pointer;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    transition: color 0.2s, background-color 0.2s;
+    font-size: 1rem;
+}
+
+.btn-close:hover {
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-close--sm {
+    position: relative;
+    z-index: 20;
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(239, 255, 253, 0.45);
+}
+
+.btn-close--sm:hover {
+    color: var(--color-text);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Botón copiar */
+.btn-copy-topic {
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(239, 255, 253, 0.3);
+    transition: color 0.2s;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1.125rem;
+}
+
+.btn-copy-topic:hover {
+    color: var(--color-accent);
+}
+
+.btn-copy-topic--done {
+    color: #ace738;
+}
+
+/* ==========================================
+   DIVISOR
+   ========================================== */
+
+.divider {
+    width: 100%;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 1rem 0;
+}
+
+.divider--wide {
+    max-width: 28rem;
+    margin-bottom: 1.5rem;
+}

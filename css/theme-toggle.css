@@ -1,0 +1,33 @@
+/* ==========================================
+   TEMA: BOTÓN TOGGLE
+   ========================================== */
+
+.btn-theme-toggle {
+    background: transparent;
+    border: none;
+    color: rgba(239, 255, 253, 0.5);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-theme-toggle:hover {
+    background: rgba(140, 89, 254, 0.12);
+    color: var(--color-accent);
+}
+
+[data-theme="light"] .btn-theme-toggle {
+    color: rgba(13, 11, 30, 0.5);
+}
+
+[data-theme="light"] .btn-theme-toggle:hover {
+    background: rgba(74, 34, 192, 0.08);
+    color: var(--color-accent);
+}

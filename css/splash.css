@@ -1,0 +1,28 @@
+/* ==========================================
+   SPLASH SCREEN
+   ========================================== */
+
+#splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background-color: #080612;
+    background-image:
+        radial-gradient(ellipse 700px 700px at 0% 0%, rgba(140, 89, 254, 0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 500px 500px at 100% 100%, rgba(0, 196, 179, 0.14) 0%, transparent 65%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+#splash-logo {
+    width: 31.25rem;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    object-fit: contain;
+    transition: opacity 1s ease-out, transform 1s ease-out, filter 1s ease-out;
+    filter: drop-shadow(0 0 40px rgba(140, 89, 254, 0.3));
+}
+

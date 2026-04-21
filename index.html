@@ -9,7 +9,7 @@
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
     <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
-    <link rel="stylesheet" href="styles.css?v=12">
+    <link rel="stylesheet" href="css/main.css?v=13">
     <style>
         /* Transición suave al cambiar de tema */
         *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
@@ -20,10 +20,10 @@
     <script src="theme-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"
         integrity="sha384-HAH79XdRvHr6axVGh4xQWVCp14kcd32bNk4Xu0sHDHtFQ42n6BAM8ykvB47dGz6D"
-        crossorigin="anonymous"></script>
+        crossorigin="anonymous" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"
         integrity="sha384-d+vyQ0dYcymoP8ndq2hW7FGC50nqGdXUEgoOUGxbbkAJwZqL7h+jKN0GGgn9hFDS"
-        crossorigin="anonymous"></script>
+        crossorigin="anonymous" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"
         integrity="sha384-3B6NwesSXE7YJlcLI9RpRqGf2p/EgVH8BgoKTaUrmKNDkHPStTQ3EyoYjCGXaOTS"
         crossorigin="anonymous">
@@ -33,7 +33,7 @@
 
     <!-- Splash Screen -->
     <div id="splash-screen">
-        <img id="splash-logo" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="opacity-0 scale-90">
+        <img id="splash-logo" fetchpriority="high" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="opacity-0 scale-90" width="2752" height="1011">
     </div>
 
     <!-- Global Loader Overlay -->
@@ -51,10 +51,10 @@
             <!-- Izquierda: Logo + Perfil de Usuario -->
             <div id="navbar-left" class="navbar-left">
                 <div class="logo-wrapper" onclick="handleHeaderClick()" role="button" tabindex="0">
-                    <img src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="header-logo">
+                    <img src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="header-logo" width="11008" height="4044">
                 </div>
                 <div class="navbar-divider"></div>
-                <div class="user-profile-nav" style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="user-profile-nav">
                     <button id="btn-back-header" onclick="backToTopicSelection()" class="hidden btn-icon-back" title="Volver al tablero">
                         <i class="fas fa-arrow-left"></i>
                     </button>
@@ -88,13 +88,15 @@
                     <!-- LOGIN VIEW -->
                     <div id="login-view">
                         <img id="home-logo" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="opacity-0"
-                            style="margin-bottom: 1.5rem;">
+                            width="2752" height="1011" style="margin-bottom: 1.5rem;">
                         <h2 class="view-title" id="login-title">Inicia sesión</h2>
 
+                        <label for="user-email" class="sr-only">Correo electrónico</label>
                         <input type="email" id="user-email" placeholder="ejemplo@email.com" class="text-input"
                             autocomplete="username" oninput="validateEmailFormat()" onblur="verifyEmail()">
                         <p id="email-status" class="email-status" aria-live="polite"></p>
 
+                        <label for="user-password" class="sr-only">Contraseña</label>
                         <div class="input-wrapper">
                             <input type="password" id="user-password" placeholder="Contraseña" class="text-input"
                                 autocomplete="current-password" oninput="validatePasswordFormat()" disabled>
@@ -102,7 +104,7 @@
                                 <i class="fas fa-eye" id="eye-icon"></i>
                             </button>
                         </div>
-                        <p id="password-hint" style="font-size:0.8rem; opacity:0.5; margin-top:-0.25rem; margin-bottom:0.75rem;"></p>
+                        <p id="password-hint" class="password-hint"></p>
 
                         <button id="btn-do-login" onclick="doLogin()" disabled class="btn-primary">
                             Iniciar sesión
@@ -119,7 +121,7 @@
                         <!-- 1. Header/Identity Card -->
                         <div class="bento-card bento-card-identity">
                             <div class="bento-avatar-wrapper relative">
-                                <img id="profile-avatar-img" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp" alt="Avatar" class="bento-avatar">
+                                <img id="profile-avatar-img" loading="lazy" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp" alt="Avatar" class="bento-avatar" width="80" height="80">
                             </div>
                             <div class="bento-identity-info">
                                 <div class="bento-nickname-row">
@@ -132,7 +134,7 @@
                         <!-- 2. Seniority Card -->
                         <div class="bento-card bento-card-seniority">
                             <div class="bento-seniority-bg-icon">
-                                <i class="fas fa-gem opacity-10 text-[100px]"></i>
+                                <i class="fas fa-gem bento-seniority-bg-icon__gem" aria-hidden="true"></i>
                             </div>
                             <div class="bento-seniority-top bento-seniority-badges">
                                 <span class="bento-badge">Seniority</span>
@@ -151,7 +153,7 @@
                         <div class="bento-card bento-card-talents">
                             <div class="bento-talents-header">
                                 <h3 class="bento-talents-title">
-                                    <i class="fas fa-brain text-purple-500"></i> Mis Talentos Destacados
+                                    <i class="fas fa-brain bento-talents-icon--brain" aria-hidden="true"></i> Mis Talentos Destacados
                                 </h3>
                             </div>
                             <div id="profile-talents" class="bento-talents-grid">
@@ -245,7 +247,7 @@
                             </div>
                             <div class="bento-seals-header">
                                 <h3 class="bento-seals-title">
-                                    <i class="fas fa-stamp text-orange-500"></i> Tus Sellos
+                                    <i class="fas fa-stamp bento-seals-icon--stamp" aria-hidden="true"></i> Tus Sellos
                                 </h3>
                             </div>
                             
@@ -360,9 +362,8 @@
                         <div class="evaluation-brief-card evaluation-brief-card--summary">
                             <h3 class="evaluation-brief-title">Tu evaluación</h3>
                             <p id="evaluation-auto-summary" class="evaluation-auto-summary">
-                                Las preguntas se eligen según tu registro en <code>ranking_user</code> (seniority y
-                                <code>Especialidad</code>) y los campos <code>Seniority</code> y <code>Cat</code> en
-                                <code>preguntas_evaluacion</code>. Especialidad UX/UI combina UI Design y UX Research.
+                                Las preguntas se seleccionan automáticamente según tu nivel de seniority
+                                y especialidad registrada en el sistema.
                             </p>
                         </div>
 

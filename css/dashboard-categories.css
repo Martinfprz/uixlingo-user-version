@@ -1,0 +1,226 @@
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+    margin-bottom: 2rem;
+    width: 100%;
+    max-width: 36rem;
+    padding: 0 0.5rem;
+}
+
+.evaluation-category-grid {
+    margin-bottom: 0;
+    max-width: 100%;
+    padding: 0;
+}
+
+.evaluation-seniority-grid {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.eval-seniority-btn {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text);
+    border-radius: 9999px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.eval-seniority-btn:hover {
+    border-color: rgba(140, 89, 254, 0.45);
+    background: rgba(140, 89, 254, 0.12);
+}
+
+.eval-seniority-btn.active {
+    border-color: rgba(140, 89, 254, 0.55);
+    background: linear-gradient(135deg, rgba(140, 89, 254, 0.26), rgba(89, 122, 255, 0.2));
+    box-shadow: 0 6px 16px rgba(140, 89, 254, 0.25);
+}
+
+.cat-card {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    min-height: 5.1rem;
+    padding: 0.95rem 0.7rem 0.85rem;
+    border-radius: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease,
+        background 0.25s ease, opacity 0.25s ease, filter 0.25s ease;
+    cursor: pointer;
+    opacity: 0.82;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    filter: grayscale(20%);
+    transform: translateY(0);
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.cat-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(120% 75% at 50% -25%, rgba(255, 255, 255, 0.16), transparent 60%);
+    opacity: 0.7;
+    transition: opacity 0.25s ease;
+}
+
+.cat-card::after {
+    content: "";
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: -24%;
+    height: 52%;
+    border-radius: 9999px;
+    z-index: -1;
+    background: radial-gradient(circle, rgba(140, 89, 254, 0.34), transparent 72%);
+    opacity: 0.35;
+    filter: blur(14px);
+    transition: opacity 0.25s ease;
+}
+
+@media (hover: hover) {
+    .cat-card:hover {
+        opacity: 1;
+        filter: grayscale(0%);
+        transform: translateY(-2px);
+        border-color: rgba(140, 89, 254, 0.34);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .cat-card:hover::before {
+        opacity: 0.95;
+    }
+
+    .cat-card:hover::after {
+        opacity: 0.62;
+    }
+}
+
+.cat-card.active {
+    opacity: 1;
+    filter: grayscale(0%);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.cat-card.active::before {
+    opacity: 1;
+}
+
+.cat-card.active::after {
+    opacity: 0.78;
+}
+
+.cat-card.active[data-cat="UX Writing"] {
+    border-color: rgba(168, 85, 247, 0.5);
+    background: rgba(168, 85, 247, 0.12);
+}
+
+.cat-card.active[data-cat="UX Research"] {
+    border-color: rgba(14, 165, 233, 0.5);
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.cat-card.active[data-cat="UI Design"] {
+    border-color: rgba(172, 231, 56, 0.45);
+    background: rgba(172, 231, 56, 0.08);
+}
+
+.cat-card.active[data-cat="Product Strategy"] {
+    border-color: rgba(239, 68, 68, 0.45);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.cat-card.active[data-cat="Casos Prácticos"] {
+    border-color: rgba(234, 179, 8, 0.45);
+    background: rgba(234, 179, 8, 0.08);
+}
+
+.cat-icon {
+    font-size: 1.18rem;
+    transition: transform 0.25s ease;
+}
+
+.cat-card.active .cat-icon {
+    transform: translateY(-1px) scale(1.06);
+}
+
+.cat-icon--writing {
+    color: #c084fc;
+}
+
+.cat-icon--research {
+    color: #38bdf8;
+}
+
+.cat-icon--ui {
+    color: #ace738;
+}
+
+.cat-icon--strategy {
+    color: #f87171;
+}
+
+.cat-icon--cases {
+    color: #fbbf24;
+}
+
+.cat-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: letter-spacing 0.25s ease, opacity 0.25s ease;
+}
+
+.cat-card:not(.active) .cat-label {
+    opacity: 0.88;
+}
+
+.cat-card.active .cat-label {
+    letter-spacing: 0.055em;
+}
+
+.cat-label--writing {
+    color: #c084fc;
+}
+
+.cat-label--research {
+    color: #38bdf8;
+}
+
+.cat-label--ui {
+    color: #ace738;
+}
+
+.cat-label--strategy {
+    color: #f87171;
+}
+
+.cat-label--cases {
+    color: #fbbf24;
+}
+
+.action-group {
+    width: 100%;
+    max-width: 24rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+

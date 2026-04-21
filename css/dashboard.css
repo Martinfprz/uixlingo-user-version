@@ -1,0 +1,5 @@
+/* Dashboard: intro, brief evaluación, pills, categorías */
+@import url("dashboard-intro.css");
+@import url("evaluation.css");
+@import url("pills.css");
+@import url("dashboard-categories.css");

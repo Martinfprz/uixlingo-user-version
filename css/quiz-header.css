@@ -1,0 +1,127 @@
+.topic-badge-wrapper {
+    margin-bottom: 0.5rem;
+}
+
+.topic-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(239, 255, 253, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Category badge variants */
+.badge--ux-writing {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.badge--ux-research {
+    background: rgba(14, 165, 233, 0.2);
+    color: #38bdf8;
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+.badge--ui-design {
+    background: rgba(172, 231, 56, 0.2);
+    color: #ace738;
+    border-color: rgba(172, 231, 56, 0.3);
+}
+
+.badge--product-strategy {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge--casos-practicos {
+    background: rgba(234, 179, 8, 0.2);
+    color: #fbbf24;
+    border-color: rgba(234, 179, 8, 0.3);
+}
+
+.quiz-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.q-number-display {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.q-total {
+    color: rgba(239, 255, 253, 0.28);
+}
+
+/* ==========================================
+   STREAK AREA
+   ========================================== */
+
+.streak-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    overflow: visible;
+    color: rgba(239, 255, 253, 0.35);
+}
+
+.streak-area--active {
+    color: #f97316;
+}
+
+.streak-icon-wrapper {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#spark-canvas {
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    width: 68px;
+    height: 68px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.streak-icon {
+    font-size: 1.125rem;
+}
+
+/* Iconos siempre con color propio (currentColor del contenedor en light mode los apagaba) */
+#streak-flame.fa-fire {
+    color: #fb923c;
+}
+
+.streak-area--active #streak-flame.fa-fire,
+.streak-area--active .streak-icon.fa-fire {
+    color: #f97316;
+}
+
+.flame-sparking,
+.streak-area--active .streak-icon.flame-sparking {
+    color: #ea580c;
+}
+
+#streak-flame.fa-snowflake,
+.streak-icon.fa-snowflake {
+    color: #60a5fa;
+}
+
+.streak-count {
+    font-weight: 700;
+    font-family: monospace;
+}
+
