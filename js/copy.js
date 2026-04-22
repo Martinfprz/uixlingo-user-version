@@ -44,6 +44,8 @@ export const UI_TEXT = {
         loginButtonSpinner: '<i class="fas fa-circle-notch animate-spin"></i> Entrando...',
         emailValidating: '<i class="fas fa-circle-notch animate-spin"></i> Validando correo...',
         emailValidated: '<i class="fas fa-circle-check"></i> Correo validado',
+        firstLoginModalTitle: 'Seguridad de Cuenta',
+        firstLoginModalDesc: 'Es tu primer inicio de sesión. Por favor, establece una nueva contraseña segura para continuar.',
         forgotSending: 'Enviando...',
         forgotSent: '¡Correo enviado!',
         passwordMinError: 'La contraseña debe tener al menos 8 caracteres.',
@@ -51,9 +53,14 @@ export const UI_TEXT = {
         passwordSameAsOld: 'La nueva contraseña no puede ser igual a la actual.',
         savePasswordSpinner: '<i class="fas fa-circle-notch animate-spin"></i> Guardando...',
         savePasswordBtn: 'GUARDAR Y CONTINUAR',
+        recoverySavePasswordBtn: 'ACTUALIZAR CONTRASEÑA',
         savePasswordError: 'Error al guardar. Intenta de nuevo.',
         passwordCreatedTitle: '¡Contraseña creada!',
         passwordCreatedMessage: 'Tu contraseña fue guardada. A partir de ahora úsala para iniciar sesión.',
+        recoveryModalTitle: 'Establece tu nueva contraseña',
+        recoveryModalDesc: 'El link de recuperación es válido. Ingresa la contraseña que usarás para iniciar sesión.',
+        recoverySuccessTitle: '¡Contraseña actualizada!',
+        recoverySuccessMessage: 'Tu contraseña fue actualizada correctamente. Inicia sesión con la nueva contraseña.',
     },
 
     alerts: {
@@ -67,6 +74,8 @@ export const UI_TEXT = {
         resetCheckEmailTitle: 'Revisa tu correo',
         resetCheckEmailMessage: (email) =>
             `Se envió un enlace de recuperación a ${email}. Úsalo para establecer una nueva contraseña.`,
+        recoveryInvalidTitle: 'Enlace inválido o expirado',
+        recoveryInvalidMessage: 'El enlace de recuperación no es válido o ya expiró. Solicita uno nuevo desde la pantalla de inicio.',
         tooManyAttemptsTitle: 'Demasiados intentos',
         tooManyAttemptsMessage: (sec) =>
             `Por seguridad, espera ${sec}s antes de intentar de nuevo.`,

@@ -1,4 +1,14 @@
 {
+  "rewrites": [
+    {
+      "source": "/reset-password",
+      "destination": "/"
+    },
+    {
+      "source": "/reset-password/",
+      "destination": "/"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

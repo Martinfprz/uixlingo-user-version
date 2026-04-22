@@ -15,6 +15,7 @@ import {
     PILLS_SWIPE_THRESHOLD,
     PILLS_SWIPE_THRESHOLD_DESKTOP_Y,
     PILLS_HINT_DEAD_PX,
+    RESET_PASSWORD_PATH,
 } from './constants.js';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
@@ -23,6 +24,10 @@ import { exposeToWindow } from './global-handlers.js';
 import { UI_TEXT as T } from './copy.js';
 
 let supabaseSession = null;
+/** True cuando el usuario llegó desde un link de recuperación y aún no guarda la nueva contraseña. */
+let isPasswordRecoveryFlow = false;
+/** Flag síncrono para capturar el evento SIGNED_IN en caso de que Supabase no emita PASSWORD_RECOVERY. */
+let _recoveryFlowPending = false;
 
 // --- SPLASH SCREEN LOGIC ---
 window.addEventListener('load', () => {
@@ -171,19 +176,121 @@ if (supabase) {
         supabaseSession = session;
 
         if (event === 'PASSWORD_RECOVERY') {
-            // Usuario llegó desde el link de reset de contraseña en su correo
-            const p1 = document.getElementById('new-pass-1');
-            const p2 = document.getElementById('new-pass-2');
-            const err = document.getElementById('pass-error-msg');
-            if (p1) p1.value = '';
-            if (p2) p2.value = '';
-            if (err) { err.innerText = ''; err.classList.add('hidden'); }
-            currentOldPassword = null; // no se valida contra contraseña anterior
-            document.getElementById('auth-card')?.classList.add('hidden');
-            document.getElementById('change-password-modal')?.classList.remove('hidden');
+            _recoveryFlowPending = false;
+            openRecoveryModal();
+            return;
+        }
+
+        // Supabase a veces emite SIGNED_IN en lugar de PASSWORD_RECOVERY.
+        if (event === 'SIGNED_IN' && _recoveryFlowPending) {
+            _recoveryFlowPending = false;
+            openRecoveryModal();
+            return;
+        }
+
+        // INITIAL_SESSION: el SDK ya procesó el hash ANTES de que este listener se registrara.
+        // Si hay sesión activa y estamos en /reset-password, es un flujo de recovery.
+        if (event === 'INITIAL_SESSION' && session) {
+            const onResetRoute = window.location.pathname === RESET_PASSWORD_PATH
+                || window.location.pathname === `${RESET_PASSWORD_PATH}/`;
+            if (onResetRoute || _recoveryFlowPending) {
+                _recoveryFlowPending = false;
+                openRecoveryModal();
+            }
         }
     });
 }
+
+/**
+ * Detecta los tres formatos de callback que Supabase puede emitir en el link de recuperación:
+ *   1. PKCE flow  → ?code=...  (más común en v2, default)
+ *   2. token_hash → ?token_hash=...&type=recovery
+ *   3. Implicit   → #access_token=...&type=recovery  (procesado automáticamente por el SDK)
+ * Se llama al inicio del módulo para que el intercambio ocurra antes de cualquier render.
+ */
+async function initPasswordRecoveryFlow() {
+    if (!supabase) return;
+
+    const isResetPasswordRoute = window.location.pathname === RESET_PASSWORD_PATH || window.location.pathname === `${RESET_PASSWORD_PATH}/`;
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    const code = params.get('code');
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+    const hasRecoveryHash = hash.includes('type=recovery');
+
+    // --- Formato 1: PKCE (?code=...) ---
+    if (code) {
+        _recoveryFlowPending = true; // activar ANTES del await para que onAuthStateChange lo vea
+        history.replaceState({}, document.title, window.location.pathname);
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        _recoveryFlowPending = false;
+        if (error) {
+            _showRecoveryError();
+            return;
+        }
+        // Fallback final: si ni PASSWORD_RECOVERY ni SIGNED_IN abrieron el modal
+        if (!isPasswordRecoveryFlow) await _openRecoveryModalIfSessionAvailable();
+        return;
+    }
+
+    // --- Formato 2: token_hash (?token_hash=...&type=recovery) ---
+    if (tokenHash && type === 'recovery') {
+        _recoveryFlowPending = true;
+        history.replaceState({}, document.title, window.location.pathname);
+        const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
+        _recoveryFlowPending = false;
+        if (error) {
+            _showRecoveryError();
+            return;
+        }
+        if (!isPasswordRecoveryFlow) await _openRecoveryModalIfSessionAvailable();
+        return;
+    }
+
+    // --- Formato 3: Implicit (#access_token=...&type=recovery) ---
+    // El SDK procesa este hash automáticamente y dispara PASSWORD_RECOVERY o INITIAL_SESSION.
+    // Limpiamos el hash de la URL y esperamos con reintentos progresivos.
+    if (hasRecoveryHash) {
+        history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+        for (const ms of [50, 150, 300, 600, 1000]) {
+            await new Promise(r => setTimeout(r, ms));
+            if (isPasswordRecoveryFlow) return; // ya abierto por onAuthStateChange
+            const opened = await _openRecoveryModalIfSessionAvailable();
+            if (opened) return;
+        }
+        _showRecoveryError();
+        return;
+    }
+
+    // Fallback: ya en /reset-password, verificar si hay sesión activa (ej. recarga de página).
+    if (isResetPasswordRoute) {
+        const opened = await _openRecoveryModalIfSessionAvailable();
+        if (!opened) _showRecoveryError();
+    }
+}
+
+async function _openRecoveryModalIfSessionAvailable() {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.user) {
+        openRecoveryModal();
+        return true;
+    }
+    return false;
+}
+
+function _showRecoveryError() {
+    history.replaceState({}, document.title, '/');
+    showAppAlert({
+        title: T.alerts.recoveryInvalidTitle,
+        message: T.alerts.recoveryInvalidMessage,
+        variant: 'error',
+        confirmText: T.common.understood,
+    });
+}
+
+// Iniciar detección de recovery inmediatamente (sin await para no bloquear el render del splash)
+initPasswordRecoveryFlow();
 
 let questions = [];
 let currentSession = [];
@@ -1188,7 +1295,7 @@ window.sendPasswordReset = async function () {
     btn.disabled = true;
 
     const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-        redirectTo: window.location.origin + window.location.pathname
+        redirectTo: window.location.origin + RESET_PASSWORD_PATH
     });
 
     if (error) {
@@ -1332,10 +1439,46 @@ let pendingUserDocId = null;
 let currentOldPassword = null;
 let pendingUserCollection = "ranking_user";
 
+function getChangePasswordPrimaryButtonLabel() {
+    return isPasswordRecoveryFlow ? T.auth.recoverySavePasswordBtn : T.auth.savePasswordBtn;
+}
+
+function setChangePasswordModalCopy(isRecovery) {
+    const modal = document.getElementById('change-password-modal');
+    if (!modal) return;
+    const titleEl = modal.querySelector('.modal-title--center');
+    const descEl = modal.querySelector('.modal-desc');
+    const saveBtn = document.getElementById('btn-save-pass');
+    if (titleEl) titleEl.textContent = isRecovery ? T.auth.recoveryModalTitle : T.auth.firstLoginModalTitle;
+    if (descEl) descEl.textContent = isRecovery ? T.auth.recoveryModalDesc : T.auth.firstLoginModalDesc;
+    if (saveBtn) saveBtn.innerHTML = getChangePasswordPrimaryButtonLabel();
+}
+
+/**
+ * Abre el modal de nueva contraseña en contexto de recuperación (desde link de correo).
+ * A diferencia de promptChangePassword, no valida contra contraseña anterior ni exige userId.
+ */
+function openRecoveryModal() {
+    isPasswordRecoveryFlow = true;
+    currentOldPassword = null;
+    history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+    setChangePasswordModalCopy(true);
+    const p1 = document.getElementById('new-pass-1');
+    const p2 = document.getElementById('new-pass-2');
+    const err = document.getElementById('pass-error-msg');
+    if (p1) p1.value = '';
+    if (p2) p2.value = '';
+    if (err) { err.innerText = ''; err.classList.add('hidden'); }
+    document.getElementById('auth-card')?.classList.add('hidden');
+    document.getElementById('change-password-modal')?.classList.remove('hidden');
+}
+
 function promptChangePassword(docId, oldPass, collectionName = "ranking_user") {
     pendingUserDocId = docId;
     currentOldPassword = oldPass;
     pendingUserCollection = collectionName;
+    isPasswordRecoveryFlow = false;
+    setChangePasswordModalCopy(false);
     const p1 = document.getElementById('new-pass-1');
     const p2 = document.getElementById('new-pass-2');
     const err = document.getElementById('pass-error-msg');
@@ -1377,7 +1520,8 @@ window.saveNewPassword = async function () {
         err.classList.remove('hidden');
         return;
     }
-    if (p1 === currentOldPassword) {
+    // Solo validar contra contraseña anterior en flujo de primer-login (no recovery)
+    if (!isPasswordRecoveryFlow && p1 === currentOldPassword) {
         err.innerText = T.auth.passwordSameAsOld;
         err.classList.remove('hidden');
         return;
@@ -1388,39 +1532,59 @@ window.saveNewPassword = async function () {
     btn.disabled = true;
 
     try {
-        // Actualizar password en Supabase Auth
-        const { error } = await supabase.auth.updateUser({
-            password: p1
-        });
+        // Verificar que existe sesión activa antes de llamar a updateUser
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) throw new Error('no_active_session');
+
+        const { error } = await supabase.auth.updateUser({ password: p1 });
         if (error) throw error;
 
-        // Limpiar initial_password en ranking_user para que próximos logins
-        // no vuelvan a caer en el flujo de cambio forzado
-        if (userEmail) {
-            await supabase
-                .from('ranking_user')
-                .update({ initial_password: null })
-                .eq('email', userEmail.toLowerCase());
+        if (isPasswordRecoveryFlow) {
+            // --- Flujo recovery: cerrar sesión y regresar al login ---
+            isPasswordRecoveryFlow = false;
+            await showAppAlert({
+                title: T.auth.recoverySuccessTitle,
+                message: T.auth.recoverySuccessMessage,
+                variant: 'success',
+                confirmText: T.common.understood,
+            });
+            document.getElementById('change-password-modal').classList.add('hidden');
+            // Cerrar sesión para que el usuario haga login limpio con la nueva contraseña
+            await supabase.auth.signOut();
+            // Restaurar pantalla de login
+            const emailInput = document.getElementById('user-email');
+            if (emailInput) emailInput.value = '';
+            document.getElementById('email-status')?.classList.remove('is-visible');
+            document.getElementById('user-password')?.setAttribute('disabled', '');
+            document.getElementById('btn-eye')?.setAttribute('disabled', '');
+            document.getElementById('btn-forgot-password')?.setAttribute('disabled', '');
+            document.getElementById('auth-card')?.classList.remove('hidden');
+            history.replaceState({}, document.title, '/');
+        } else {
+            // --- Flujo primer-login: limpiar initial_password y entrar al dashboard ---
+            if (userEmail) {
+                await supabase
+                    .from('ranking_user')
+                    .update({ initial_password: null })
+                    .eq('email', userEmail.toLowerCase());
+            }
+            await showAppAlert({
+                title: T.auth.passwordCreatedTitle,
+                message: T.auth.passwordCreatedMessage,
+                variant: 'success',
+                confirmText: T.common.continue,
+            });
+            document.getElementById('change-password-modal').classList.add('hidden');
+            currentOldPassword = null;
+            pendingUserDocId = null;
+            pendingUserCollection = "ranking_user";
+            showDashboard(userName);
         }
 
-        // Éxito
-        await showAppAlert({
-            title: T.auth.passwordCreatedTitle,
-            message: T.auth.passwordCreatedMessage,
-            variant: "success",
-            confirmText: T.common.continue
-        });
-        document.getElementById('change-password-modal').classList.add('hidden');
-        currentOldPassword = null;
-        pendingUserDocId = null;
-        pendingUserCollection = "ranking_user";
-        showDashboard(userName);
-
     } catch (e) {
-        console.error(e);
         err.innerText = T.auth.savePasswordError;
         err.classList.remove('hidden');
-        btn.innerHTML = T.auth.savePasswordBtn;
+        btn.innerHTML = getChangePasswordPrimaryButtonLabel();
         btn.disabled = false;
     }
 }
