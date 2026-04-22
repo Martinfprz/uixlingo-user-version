@@ -45,3 +45,5 @@ export const PILLS_HINT_DEAD_PX = 14;
 
 /** Path fijo para el redirect de recuperación de contraseña. Debe estar en Supabase > Auth > Redirect URLs. */
 export const RESET_PASSWORD_PATH = '/reset-password';
+/** Dominio público canónico para links de recuperación enviados por correo. */
+export const PUBLIC_APP_ORIGIN = 'https://uixlingo-user-version.vercel.app';

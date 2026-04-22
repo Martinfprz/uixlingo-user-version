@@ -16,6 +16,7 @@ import {
     PILLS_SWIPE_THRESHOLD_DESKTOP_Y,
     PILLS_HINT_DEAD_PX,
     RESET_PASSWORD_PATH,
+    PUBLIC_APP_ORIGIN,
 } from './constants.js';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
@@ -1337,6 +1338,13 @@ function getResetPasswordAlert(error) {
     };
 }
 
+function getPasswordResetRedirectTo() {
+    const host = window.location.hostname;
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+    const origin = isLocalHost ? PUBLIC_APP_ORIGIN : window.location.origin;
+    return `${origin}${RESET_PASSWORD_PATH}`;
+}
+
 window.sendPasswordReset = async function () {
     if (!emailVerified || !userEmail || !supabase) return;
 
@@ -1347,7 +1355,7 @@ window.sendPasswordReset = async function () {
 
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-            redirectTo: window.location.origin + RESET_PASSWORD_PATH
+            redirectTo: getPasswordResetRedirectTo()
         });
 
         if (error) {
