@@ -71,6 +71,20 @@ export const UI_TEXT = {
         verifyConnectionMessage: 'No se pudo verificar el correo. Intenta de nuevo.',
         resetErrorTitle: 'Error',
         resetErrorMessage: 'No se pudo enviar el correo. Intenta de nuevo.',
+        resetRateLimitTitle: 'Demasiados intentos',
+        resetRateLimitMessage:
+            'Hiciste demasiadas solicitudes de recuperación. Espera un momento y vuelve a intentar.',
+        resetRedirectTitle: 'Configuración de enlace no válida',
+        resetRedirectMessage:
+            'No se pudo generar el enlace de recuperación para esta URL. Contacta al equipo para validar Redirect URLs en Supabase.',
+        resetUserNotFoundTitle: 'Cuenta no disponible',
+        resetUserNotFoundMessage:
+            'No fue posible enviar la recuperación porque la cuenta no está disponible en Authentication.',
+        resetProviderErrorTitle: 'Servicio de correo no disponible',
+        resetProviderErrorMessage:
+            'El proveedor de correo no respondió. Intenta nuevamente en unos minutos.',
+        resetUnexpectedWithDetail: (detail) =>
+            `No se pudo enviar el correo de recuperación. Detalle: ${detail}`,
         resetCheckEmailTitle: 'Revisa tu correo',
         resetCheckEmailMessage: (email) =>
             `Se envió un enlace de recuperación a ${email}. Úsalo para establecer una nueva contraseña.`,

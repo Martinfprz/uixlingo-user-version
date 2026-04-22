@@ -96,12 +96,21 @@ function openAppDialog({
 
     appDialogOverlayEl.classList.remove('hidden');
     appDialogOverlayEl.setAttribute('aria-hidden', 'false');
+    const previousFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     return new Promise((resolve) => {
         const cleanup = () => {
             appDialogConfirmEl.onclick = null;
             appDialogCancelEl.onclick = null;
             appDialogResolver = null;
+            // Evita ocultar con aria-hidden mientras el foco sigue dentro del modal.
+            if (document.activeElement instanceof HTMLElement && appDialogOverlayEl.contains(document.activeElement)) {
+                if (previousFocusEl && document.contains(previousFocusEl)) {
+                    previousFocusEl.focus({ preventScroll: true });
+                } else {
+                    document.activeElement.blur();
+                }
+            }
             appDialogOverlayEl.classList.add('hidden');
             appDialogOverlayEl.setAttribute('aria-hidden', 'true');
         };

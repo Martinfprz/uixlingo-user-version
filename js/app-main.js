@@ -1286,6 +1286,57 @@ async function verifyEmail() {
     }
 }
 
+function getResetPasswordAlert(error) {
+    const rawMessage = String(error?.message || '').toLowerCase();
+    const status = Number(error?.status || 0);
+
+    if (status === 429 || rawMessage.includes('too many requests') || rawMessage.includes('rate limit')) {
+        return {
+            title: T.alerts.resetRateLimitTitle,
+            message: T.alerts.resetRateLimitMessage,
+            variant: 'warning',
+        };
+    }
+
+    if (rawMessage.includes('redirect') || rawMessage.includes('redirect_to')) {
+        return {
+            title: T.alerts.resetRedirectTitle,
+            message: T.alerts.resetRedirectMessage,
+            variant: 'error',
+        };
+    }
+
+    if (rawMessage.includes('user not found') || rawMessage.includes('email not found') || rawMessage.includes('invalid user')) {
+        return {
+            title: T.alerts.resetUserNotFoundTitle,
+            message: T.alerts.resetUserNotFoundMessage,
+            variant: 'error',
+        };
+    }
+
+    if (status >= 500 || rawMessage.includes('smtp') || rawMessage.includes('provider') || rawMessage.includes('service unavailable')) {
+        return {
+            title: T.alerts.resetProviderErrorTitle,
+            message: T.alerts.resetProviderErrorMessage,
+            variant: 'error',
+        };
+    }
+
+    if (error?.message) {
+        return {
+            title: T.alerts.resetErrorTitle,
+            message: T.alerts.resetUnexpectedWithDetail(error.message),
+            variant: 'error',
+        };
+    }
+
+    return {
+        title: T.alerts.resetErrorTitle,
+        message: T.alerts.resetErrorMessage,
+        variant: 'error',
+    };
+}
+
 window.sendPasswordReset = async function () {
     if (!emailVerified || !userEmail || !supabase) return;
 
@@ -1294,20 +1345,25 @@ window.sendPasswordReset = async function () {
     btn.textContent = T.auth.forgotSending;
     btn.disabled = true;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-        redirectTo: window.location.origin + RESET_PASSWORD_PATH
-    });
-
-    if (error) {
-        btn.textContent = originalText;
-        btn.disabled = false;
-        showAppAlert({
-            title: T.common.error,
-            message: T.alerts.resetErrorMessage,
-            variant: 'error',
-            confirmText: T.common.close
+    try {
+        const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
+            redirectTo: window.location.origin + RESET_PASSWORD_PATH
         });
-    } else {
+
+        if (error) {
+            console.warn('sendPasswordReset error:', error);
+            const alert = getResetPasswordAlert(error);
+            btn.textContent = originalText;
+            btn.disabled = false;
+            showAppAlert({
+                title: alert.title,
+                message: alert.message,
+                variant: alert.variant,
+                confirmText: T.common.close
+            });
+            return;
+        }
+
         btn.textContent = T.auth.forgotSent;
         setTimeout(() => {
             btn.textContent = originalText;
@@ -1318,6 +1374,16 @@ window.sendPasswordReset = async function () {
             message: T.alerts.resetCheckEmailMessage(userEmail),
             variant: 'success',
             confirmText: T.common.understood
+        });
+    } catch (e) {
+        console.warn('sendPasswordReset unexpected error:', e);
+        btn.textContent = originalText;
+        btn.disabled = false;
+        showAppAlert({
+            title: T.alerts.resetErrorTitle,
+            message: T.alerts.resetErrorMessage,
+            variant: 'error',
+            confirmText: T.common.close
         });
     }
 };
@@ -1446,8 +1512,8 @@ function getChangePasswordPrimaryButtonLabel() {
 function setChangePasswordModalCopy(isRecovery) {
     const modal = document.getElementById('change-password-modal');
     if (!modal) return;
-    const titleEl = modal.querySelector('.modal-title--center');
-    const descEl = modal.querySelector('.modal-desc');
+    const titleEl = document.getElementById('change-pass-title') || modal.querySelector('.modal-title--center');
+    const descEl = document.getElementById('change-pass-desc') || modal.querySelector('.modal-desc');
     const saveBtn = document.getElementById('btn-save-pass');
     if (titleEl) titleEl.textContent = isRecovery ? T.auth.recoveryModalTitle : T.auth.firstLoginModalTitle;
     if (descEl) descEl.textContent = isRecovery ? T.auth.recoveryModalDesc : T.auth.firstLoginModalDesc;
