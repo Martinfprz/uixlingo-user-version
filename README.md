@@ -37,6 +37,10 @@ No requiere instalación. Abre `index.html` en un servidor local (p. ej. Live Se
 
 > Las funcionalidades de autenticación, ranking y carga de preguntas requieren conexión al proyecto Supabase configurado.
 
+### Supabase: sellos de pills (`user_pill_badges`)
+
+El perfil lee `public.user_pill_badges` unido a `pills` para listar sellos asignados (p. ej. desde admin). En Supabase hace falta una política **RLS** que permita al usuario leer solo sus filas, por ejemplo: `SELECT` con condición `auth.uid() = user_id`. Si no existe, el `SELECT` devolverá 0 filas aunque haya datos.
+
 ## Deploy en Vercel
 
 1. Sube el repositorio a GitHub.

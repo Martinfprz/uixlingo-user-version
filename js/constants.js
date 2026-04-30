@@ -42,6 +42,7 @@ export const PILLS_SWIPE_THRESHOLD = 90;
 export const PILLS_SWIPE_THRESHOLD_DESKTOP_Y = 76;
 
 export const PILLS_HINT_DEAD_PX = 14;
+export const PILLS_SEAL_WINDOW_HOURS = 72;
 
 /** Path fijo para el redirect de recuperación de contraseña. Debe estar en Supabase > Auth > Redirect URLs. */
 export const RESET_PASSWORD_PATH = '/reset-password';

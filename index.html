@@ -194,14 +194,6 @@
                         </div>
 
                         <div class="bento-card bento-card-stat bento-stat-pills">
-                            <div class="coming-soon-tape" aria-hidden="true">
-                                <div class="tape-strip">
-                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
-                                </div>
-                                <div class="tape-strip tape-strip--2">
-                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
-                                </div>
-                            </div>
                             <div class="bento-stat-pills__icon-row">
                                 <div class="bento-stat-icon-wrapper text-blue-600 bg-blue-50">
                                     <i class="fas fa-capsules"></i>
@@ -211,7 +203,7 @@
                             <p class="bento-stat-mode-title">Pills</p>
                             <div class="bento-stat-head">
                                 <p id="profile-pills-label" class="bento-stat-label">Pts. Pills</p>
-                                <button type="button" class="bento-rank-btn pills-disabled-control" title="Ver ranking Pills (próximamente)" disabled aria-disabled="true">
+                                <button type="button" id="profile-pills-rank-btn" class="bento-rank-btn" title="Ver ranking Pills" onclick="openLeaderboard('pills')">
                                     <i class="fas fa-trophy"></i>
                                 </button>
                             </div>
@@ -221,50 +213,45 @@
                             </div>
                             <h4 id="profile-pills-pts" class="bento-stat-value">320</h4>
                             <div id="profile-pills-actions-single" class="bento-pills-actions-single">
-                                <button type="button" class="bento-stat-cta pills-disabled-control" disabled aria-disabled="true">
+                                <button type="button" id="profile-pills-btn-ir-single" class="bento-stat-cta">
                                     Ir a pills
                                 </button>
                             </div>
                             <div id="profile-pills-actions-dual" class="bento-pills-actions-dual hidden">
-                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver pills-disabled-control" disabled aria-disabled="true">
+                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver">
                                     Ver pill
                                 </button>
-                                <button type="button" class="bento-stat-cta bento-pills-btn-secondary pills-disabled-control" disabled aria-disabled="true">
+                                <button type="button" id="profile-pills-btn-ir-dual" class="bento-stat-cta bento-pills-btn-secondary">
                                     Ir a pills
                                 </button>
                             </div>
                         </div>
 
                         <!-- 4. Seals Gallery & History -->
-                        <div class="bento-card bento-card-seals hidden">
-                            <div class="coming-soon-tape" aria-hidden="true">
-                                <div class="tape-strip">
-                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
-                                </div>
-                                <div class="tape-strip tape-strip--2">
-                                    <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
-                                </div>
-                            </div>
+                        <div class="bento-card bento-card-seals">
                             <div class="bento-seals-header">
                                 <h3 class="bento-seals-title">
                                     <i class="fas fa-stamp bento-seals-icon--stamp" aria-hidden="true"></i> Tus Sellos
                                 </h3>
-                            </div>
-                            
-                            <div id="profile-seals-recent" class="bento-seals-grid">
-                                <!-- Last 5 seals populated by JS -->
+                                <div id="seals-year-selector" class="seals-year-selector"></div>
                             </div>
 
-                            <button onclick="toggleSealsAccordion()" class="bento-seals-expand-btn">
+                            <div id="seals-q-switcher" class="seals-q-switcher" role="tablist" aria-label="Trimestre">
+                                <button class="seals-q-btn" data-q="Q1" role="tab" type="button">Q1</button>
+                                <button class="seals-q-btn" data-q="Q2" role="tab" type="button">Q2</button>
+                                <button class="seals-q-btn" data-q="Q3" role="tab" type="button">Q3</button>
+                                <button class="seals-q-btn" data-q="Q4" role="tab" type="button">Q4</button>
+                            </div>
+
+                            <div id="profile-seals-recent" class="bento-seals-grid">
+                                <!-- Seals populated by JS, filtered by Q -->
+                            </div>
+
+                            <div id="seals-history-list" class="hidden"></div>
+                            <button class="bento-seals-expand-btn hidden" aria-hidden="true">
                                 <span>Ver más sellos</span>
                                 <i id="seals-accordion-icon" class="fas fa-chevron-down"></i>
                             </button>
-
-                            <div id="seals-accordion-content" class="seals-accordion-content">
-                                <div id="seals-history-list" class="seals-history-list">
-                                    <!-- Monthly history populated by JS -->
-                                </div>
-                            </div>
                         </div>
 
                         <!-- 5. Action Area -->
@@ -294,8 +281,7 @@
                                 tiempo límite.</p>
                         </div>
 
-                        <div class="mode-card mode-card--disabled pills-disabled-control" role="button" tabindex="-1" aria-disabled="true">
-                            <span class="badge-soon">Próximamente</span>
+                        <div onclick="selectMode('pills')" class="mode-card" role="button" tabindex="0">
                             <div class="mode-card__icon-wrap mode-card__icon-wrap--pills">
                                 <i class="fas fa-capsules mode-card__icon"></i>
                             </div>
@@ -427,14 +413,6 @@
 
                 <!-- PILLS: listado por categoría (cards rellenadas por JS desde colección `pills`) -->
                 <div id="pills-construction-view" class="hidden">
-                    <div class="coming-soon-tape" aria-hidden="true">
-                        <div class="tape-strip">
-                            <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
-                        </div>
-                        <div class="tape-strip tape-strip--2">
-                            <span>PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE &nbsp;·&nbsp; PRÓXIMAMENTE</span>
-                        </div>
-                    </div>
                     <h2 class="view-title">Modo Pills</h2>
                     <p class="section-subtitle">Elige una pill y participa por un premio.</p>
 
@@ -443,7 +421,7 @@
                     </div>
 
                     <div class="action-group">
-                        <button type="button" class="btn-outline-blue pills-disabled-control" disabled aria-disabled="true">
+                        <button type="button" class="btn-outline-blue" onclick="backToModes()">
                             VOLVER
                         </button>
                     </div>
@@ -458,7 +436,7 @@
                     </div>
                 </div>
                 <div class="pills-tf-layout">
-                    <button type="button" id="pills-drop-false" class="pills-drop-zone pills-drop-zone--false pills-disabled-control" data-pill-answer="false" aria-label="Falso" disabled aria-disabled="true">
+                    <button type="button" id="pills-drop-false" class="pills-drop-zone pills-drop-zone--false" data-pill-answer="false" aria-label="Falso">
                         <i class="fas fa-times pills-drop-icon" aria-hidden="true"></i>
                         <span class="pills-drop-label">Falso</span>
                     </button>
@@ -471,7 +449,7 @@
                         <p class="pills-drag-hint pills-drag-hint--desktop">Arrastra la tarjeta hacia abajo, hacia Falso o Verdadero (o elige la respuesta).</p>
                         <p class="pills-drag-hint pills-drag-hint--mobile">Desliza como en Tinder: izquierda = Falso, derecha = Verdadero. Tambien puedes tocar los iconos</p>
                     </div>
-                    <button type="button" id="pills-drop-true" class="pills-drop-zone pills-drop-zone--true pills-disabled-control" data-pill-answer="true" aria-label="Verdadero" disabled aria-disabled="true">
+                    <button type="button" id="pills-drop-true" class="pills-drop-zone pills-drop-zone--true" data-pill-answer="true" aria-label="Verdadero">
                         <i class="fas fa-check pills-drop-icon" aria-hidden="true"></i>
                         <span class="pills-drop-label">Verdadero</span>
                     </button>
@@ -664,7 +642,7 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">v3.8.3</span>
+                <span class="footer-version">v4.0.0</span>
                 <span class="footer-tagline">
                     Una iniciativa de <span class="footer-brand">UXquisitos | Hecho por Martín Fuentes</span>
                 </span>

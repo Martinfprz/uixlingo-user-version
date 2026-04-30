@@ -205,7 +205,7 @@
 
 .results-pills-sticker {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.85rem;
     text-align: left;
     padding: 0.85rem 1rem;

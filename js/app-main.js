@@ -15,6 +15,7 @@ import {
     PILLS_SWIPE_THRESHOLD,
     PILLS_SWIPE_THRESHOLD_DESKTOP_Y,
     PILLS_HINT_DEAD_PX,
+    PILLS_SEAL_WINDOW_HOURS,
     RESET_PASSWORD_PATH,
     PUBLIC_APP_ORIGIN,
 } from './constants.js';
@@ -111,6 +112,18 @@ function getModeQuestionPool(mode) {
     return practiceData;
 }
 
+function getNullablePillScoreValue(row) {
+    if (!row || row.score === undefined || row.score === null || row.score === '') return null;
+    const val = Number(row.score);
+    return Number.isFinite(val) ? val : null;
+}
+
+function isValidPillFirstAttemptRow(row) {
+    const scoreVal = getNullablePillScoreValue(row);
+    // Regla negocio solicitada: score null o 0 no bloquea primer intento.
+    return scoreVal !== null && scoreVal > 0;
+}
+
 // --- CARGA BAJO DEMANDA DESDE SUPABASE ---
 async function loadPracticeQuestions() {
     if (!supabase) return;
@@ -147,11 +160,14 @@ async function loadPillsCatalog() {
     try {
         const { data, error } = await supabase.from('pills').select('*').order('sort_order');
         if (error) throw error;
-        pillsCatalog = (data || []).map(p => ({
+        pillsCatalog = (data || []).map((p) => ({
             ...p,
             published_at: p.published_at,
             publishedAt: p.published_at,
-            order: p.sort_order
+            order: p.sort_order,
+            seal_url: safeHttpUrl(String(p.seal_url || '').trim()),
+            seal_name: String(p.seal_name || '').trim(),
+            seal_path: String(p.seal_path || '').trim()
         }));
         pillsData = [];
         if (currentQuizMode === 'pills') {
@@ -312,7 +328,7 @@ let lastEvalViolationAt = 0;
 let activeCategories = new Set();
 /** Pill activa en el quiz (doc id en `pills`) + metadatos para el badge */
 let selectedPillId = '';
-let selectedPillMeta = { name: '', category: '' };
+let selectedPillMeta = { name: '', category: '', sealUrl: '', sealName: '' };
 /** True si ya había un intento previo guardado para esta pill al iniciar la sesión actual (2.º intento o más). */
 let pillsSessionHadPriorAttempt = false;
 let lastPillSessionOrderByPillId = {};
@@ -435,6 +451,36 @@ let userProfile = {
     talents: []
 };
 
+/** Filtro activo del switcher de sellos. `q` es 'Q1'…'Q4' según `pills.quarter` en Supabase. */
+let sealsFilter = { year: null, q: null };
+
+function getSealYear(dateStr) {
+    return new Date(dateStr).getFullYear();
+}
+
+/** Trimestre calendario 1–4 (solo respaldo si el sello no trae `pills.quarter`). */
+function getCalendarQuarterFromDate(dateStr) {
+    return Math.floor(new Date(dateStr).getMonth() / 3) + 1;
+}
+
+/** Normaliza texto de columna `pills.quarter` ('Q1'…'Q4') o null. */
+function normalizePillQuarter(raw) {
+    if (raw == null || raw === '') return null;
+    const s = String(raw).trim().toUpperCase();
+    return /^Q[1-4]$/.test(s) ? s : null;
+}
+
+/**
+ * Q efectivo para filtros/UI: prioriza `seal.quarter` (viene de `pills.quarter`);
+ * si no hay (sellos legacy), usa trimestre calendario de `date`.
+ */
+function effectiveSealQuarter(seal) {
+    const fromPill = normalizePillQuarter(seal?.quarter);
+    if (fromPill) return fromPill;
+    const cq = getCalendarQuarterFromDate(seal?.date);
+    return `Q${cq}`;
+}
+
 // --- SUPABASE PROFILE LOADING ---
 async function loadUserProfile(uid) {
     if (!supabase || !uid) return;
@@ -468,8 +514,9 @@ async function loadUserProfile(uid) {
         }
         userProfile.pillScores = {};
         scores.forEach(s => {
+            if (!isValidPillFirstAttemptRow(s)) return;
             const total = Number(s.total || 0);
-            const score = Number(s.score || 0);
+            const score = Number(getNullablePillScoreValue(s) || 0);
             const fallbackErrors = Math.max(total - score, 0);
             const errorsVal =
                 s.errors === undefined || s.errors === null
@@ -536,6 +583,11 @@ async function loadRankingUserStats() {
     }
 }
 
+/**
+ * Sella el perfil: `user_sellos` (legacy), `user_pill_scores` (V/F), `user_pill_badges` (asignación admin).
+ * Mismo `pill_id` se deduplica a un solo ítem: id canónico `pill-{uuid}`; si hay fila en ambas tablas, gana la de badges (última en el merge).
+ * Supabase: en `user_pill_badges` hace falta RLS con `USING (auth.uid() = user_id)` (o equivalente) para que el SELECT no devuelva 0 filas.
+ */
 async function loadUserSeals(uid) {
     if (!supabase || !uid) return;
     try {
@@ -544,12 +596,119 @@ async function loadUserSeals(uid) {
             .select('fecha_asignacion, sellos(id, nombre, icono)')
             .eq('user_id', uid);
         if (error) throw error;
-        userProfile.seals = (data || []).map(d => ({
+        const legacySeals = (data || []).map(d => ({
             id: d.sellos.id,
             name: d.sellos.nombre || T.common.sealFallback,
             icon: d.sellos.icono  || 'fa-star',
             date: d.fecha_asignacion || new Date().toISOString().split('T')[0]
         }));
+
+        let pillScoreRows = [];
+        let pillScoresErr = null;
+        ({ data: pillScoreRows, error: pillScoresErr } = await supabase
+            .from('user_pill_scores')
+            .select('pill_id, score, total, errors, sticker_granted, created_at, updated_at')
+            .eq('user_id', uid));
+
+        if (pillScoresErr) {
+            // Fallback legacy para esquemas sin columnas nuevas.
+            ({ data: pillScoreRows, error: pillScoresErr } = await supabase
+                .from('user_pill_scores')
+                .select('pill_id, score, total')
+                .eq('user_id', uid));
+        }
+
+        let pillSeals = [];
+        if (pillScoresErr) {
+            console.warn('loadUserSeals user_pill_scores:', pillScoresErr);
+        } else {
+            const qualifyingPillRows = (pillScoreRows || []).filter((row) => {
+                if (!isValidPillFirstAttemptRow(row)) return false;
+                const total = Number(row?.total || 0);
+                const score = Number(getNullablePillScoreValue(row) || 0);
+                const fallbackErrors = Math.max(total - score, 0);
+                const errorsVal =
+                    row?.errors === undefined || row?.errors === null
+                        ? fallbackErrors
+                        : Number(row.errors || 0);
+                const explicitGranted =
+                    row?.sticker_granted === undefined || row?.sticker_granted === null
+                        ? null
+                        : Boolean(row.sticker_granted);
+                return explicitGranted === true || (explicitGranted === null && total > 0 && errorsVal <= 1);
+            });
+
+            const pillIds = [...new Set(qualifyingPillRows.map((r) => String(r.pill_id || '').trim()).filter(Boolean))];
+            let pillsById = new Map();
+            if (pillIds.length > 0) {
+                const { data: pillRows, error: pillsErr } = await supabase
+                    .from('pills')
+                    .select('id, name, seal_url, seal_name, quarter')
+                    .in('id', pillIds);
+                if (!pillsErr) {
+                    pillsById = new Map((pillRows || []).map((p) => [String(p.id), p]));
+                }
+            }
+
+            pillSeals = qualifyingPillRows.map((row) => {
+                const pid = String(row.pill_id || '').trim();
+                const pill = pillsById.get(pid);
+                const safeSealUrl = safeHttpUrl(String(pill?.seal_url || '').trim());
+                const sealName = String(
+                    pill?.name ||
+                    pill?.seal_name ||
+                    T.common.sealFallback
+                ).trim();
+                return {
+                    id: `pill-${pid}`,
+                    name: sealName || T.common.sealFallback,
+                    icon: 'fa-stamp',
+                    imageUrl: safeSealUrl,
+                    quarter: normalizePillQuarter(pill?.quarter),
+                    date:
+                        row.created_at ||
+                        row.updated_at ||
+                        new Date().toISOString().split('T')[0]
+                };
+            });
+        }
+
+        // Asignación explícita (admin) — mismo `pill_id` que scores: un solo sello visible (id `pill-{uuid}`).
+        const { data: badgeRows, error: pillBadgesErr } = await supabase
+            .from('user_pill_badges')
+            .select('pill_id, awarded_at, pills(id, name, seal_url, seal_name, quarter)')
+            .eq('user_id', uid);
+
+        if (pillBadgesErr) {
+            console.warn('loadUserSeals user_pill_badges:', pillBadgesErr);
+        }
+
+        const pillBadgeSeals = (pillBadgesErr ? [] : (badgeRows || [])).map((row) => {
+            const pill = Array.isArray(row.pills) ? row.pills[0] : row.pills;
+            const pid = String(row.pill_id || '').trim();
+            const safeSealUrl = safeHttpUrl(String(pill?.seal_url || '').trim());
+            const sealName = String(
+                pill?.name ||
+                pill?.seal_name ||
+                T.common.sealFallback
+            ).trim();
+            return {
+                id: `pill-${pid}`,
+                name: sealName || T.common.sealFallback,
+                icon: 'fa-medal',
+                imageUrl: safeSealUrl,
+                quarter: normalizePillQuarter(pill?.quarter),
+                date: row.awarded_at || new Date().toISOString()
+            };
+        });
+
+        const merged = [...legacySeals, ...pillSeals, ...pillBadgeSeals];
+        const byId = new Map();
+        merged.forEach((seal) => {
+            if (!seal?.id) return;
+            byId.set(String(seal.id), seal);
+        });
+        userProfile.seals = [...byId.values()];
     } catch (e) {
         console.warn('loadUserSeals error:', e);
     }
@@ -672,6 +831,45 @@ function getLatestPublishedPill() {
     return scored[0].pill;
 }
 
+function getPillPublishedAtMs(pill) {
+    if (!pill || typeof pill !== 'object') return 0;
+    return Math.max(
+        getMillisFromFirestoreField(pill.publishedAt),
+        getMillisFromFirestoreField(pill.published_at),
+        getMillisFromFirestoreField(pill.createdAt),
+        getMillisFromFirestoreField(pill.created_at)
+    );
+}
+
+function getPillSealWindowState(pill) {
+    const publishedAtMs = getPillPublishedAtMs(pill);
+    if (publishedAtMs <= 0) {
+        return {
+            isLimited: false,
+            isExpired: false,
+            remainingMs: Number.POSITIVE_INFINITY
+        };
+    }
+    const windowMs = PILLS_SEAL_WINDOW_HOURS * 60 * 60 * 1000;
+    const expiresAtMs = publishedAtMs + windowMs;
+    const remainingMs = expiresAtMs - Date.now();
+    return {
+        isLimited: true,
+        isExpired: remainingMs <= 0,
+        remainingMs
+    };
+}
+
+function formatPillSealRemaining(remainingMs) {
+    const totalMinutes = Math.max(0, Math.floor(Number(remainingMs || 0) / (60 * 1000)));
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${Math.max(minutes, 1)}m`;
+}
+
 function normalizePillScoreEntry(entry) {
     if (entry == null) return { score: 0, total: 0 };
     if (typeof entry === 'number') return { score: entry, total: 0 };
@@ -694,6 +892,8 @@ function renderProfilePillsCard() {
     const singleActions = document.getElementById('profile-pills-actions-single');
     const dualActions = document.getElementById('profile-pills-actions-dual');
     const btnVer = document.getElementById('profile-pills-btn-ver');
+    const btnIrSingle = document.getElementById('profile-pills-btn-ir-single');
+    const btnIrDual = document.getElementById('profile-pills-btn-ir-dual');
     const newTagEl = document.getElementById('profile-pills-new-tag');
 
     if (!labelEl || !valueEl || !inviteEl || !singleActions || !dualActions) return;
@@ -704,6 +904,13 @@ function renderProfilePillsCard() {
             newTagEl.setAttribute('aria-hidden', visible ? 'false' : 'true');
         }
     };
+
+    if (btnIrSingle) {
+        btnIrSingle.onclick = () => window.openModeFromProfile('pills');
+    }
+    if (btnIrDual) {
+        btnIrDual.onclick = () => window.openModeFromProfile('pills');
+    }
 
     const latest = getLatestPublishedPill();
     const pillsPointsFromRanking = Number(userProfile.pillsPoints || 0);
@@ -721,12 +928,14 @@ function renderProfilePillsCard() {
 
     const pillId = latest.id;
     const pillName = String(latest.name || latest.id || T.common.pillFallback).trim();
+    const sealWindow = getPillSealWindowState(latest);
     const entry = userProfile.pillScores && userProfile.pillScores[pillId];
     const hasAttemptFromRanking =
-        String(userProfile.latestPillRankId || '') === String(pillId);
+        String(userProfile.latestPillRankId || '') === String(pillId) &&
+        Number(userProfile.pillsPoints || 0) > 0;
     const hasAttempt = (entry !== undefined && entry !== null) || hasAttemptFromRanking;
 
-    if (hasAttempt) {
+    if (hasAttempt || sealWindow.isExpired) {
         setPillsNewTagVisible(false);
         labelEl.classList.remove('hidden');
         labelEl.textContent = T.profile.pointsPills;
@@ -771,6 +980,16 @@ function getPillMediaLink(pill) {
             ''
     ).trim();
     return safeHttpUrl(raw);
+}
+
+function getPillSealUrl(pill) {
+    if (!pill || typeof pill !== 'object') return '';
+    return safeHttpUrl(String(pill.seal_url || '').trim());
+}
+
+function getPillSealName(pill) {
+    if (!pill || typeof pill !== 'object') return '';
+    return String(pill.seal_name || '').trim();
 }
 
 function closePillExperienceDialog() {
@@ -946,30 +1165,98 @@ async function updatePracticeRankUI() {
 
 function renderSeals() {
     const recentContainer = document.getElementById('profile-seals-recent');
-    const historyList = document.getElementById('seals-history-list');
-    if (!recentContainer || !historyList) return;
+    const yearSelector    = document.getElementById('seals-year-selector');
+    const qSwitcher       = document.getElementById('seals-q-switcher');
+    if (!recentContainer) return;
 
-    // Sort seals by date descending
     const sortedSeals = [...userProfile.seals].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // Render Recent (top 5)
     recentContainer.innerHTML = '';
     if (sortedSeals.length === 0) {
-        recentContainer.innerHTML = T.profile.sealsEmpty;
-        document.querySelector('.bento-seals-expand-btn')?.classList.add('hidden');
+        if (yearSelector) yearSelector.innerHTML = '';
+        if (qSwitcher) qSwitcher.querySelectorAll('.seals-q-btn').forEach(b => b.classList.remove('active'));
+        recentContainer.innerHTML = `<p class="bento-seals-empty-q">${T.profile.sealsEmpty}</p>`;
         return;
     }
-    document.querySelector('.bento-seals-expand-btn')?.classList.remove('hidden');
 
-    sortedSeals.slice(0, 5).forEach(seal => {
-        const div = document.createElement('div');
+    const availableYears = [...new Set(sortedSeals.map(s => getSealYear(s.date)))].sort((a, b) => b - a);
+    const todayYear = new Date().getFullYear();
+
+    if (sealsFilter.year === null || !availableYears.includes(sealsFilter.year)) {
+        sealsFilter.year = availableYears.includes(todayYear) ? todayYear : availableYears[0];
+    }
+
+    const sealsInYear = sortedSeals.filter((s) => getSealYear(s.date) === sealsFilter.year);
+
+    // Solo fijar trimestre por defecto si el usuario no eligió uno (p. ej. 1.ª carga o al cambiar de año).
+    // No forzar de vuelta a un Q "con sellos" al pulsar Q2–Q4 vacíos: si no, nunca se ve el vacío.
+    if (sealsFilter.q === null) {
+        const quartersInYear = [...new Set(sealsInYear.map((s) => effectiveSealQuarter(s)))].sort();
+        sealsFilter.q = quartersInYear[0] || 'Q1';
+    }
+
+    // --- year selector (solo si hay más de un año) ---
+    if (yearSelector) {
+        yearSelector.innerHTML = '';
+        if (availableYears.length > 1) {
+            availableYears.forEach(y => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `seals-year-btn${y === sealsFilter.year ? ' active' : ''}`;
+                btn.textContent = y;
+                btn.addEventListener('click', () => { sealsFilter.year = y; sealsFilter.q = null; renderSeals(); });
+                yearSelector.appendChild(btn);
+            });
+        }
+    }
+
+    // --- Q switcher: marcar activo (data-q = 'Q1'…'Q4', alineado con pills.quarter) ---
+    if (qSwitcher) {
+        qSwitcher.querySelectorAll('.seals-q-btn').forEach(btn => {
+            const q = btn.dataset.q;
+            const isActive = q === sealsFilter.q;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            btn.onclick = () => { sealsFilter.q = q; renderSeals(); };
+        });
+    }
+
+    const filtered = sortedSeals.filter((s) => {
+        if (getSealYear(s.date) !== sealsFilter.year) return false;
+        return effectiveSealQuarter(s) === sealsFilter.q;
+    });
+
+    if (filtered.length === 0) {
+        recentContainer.innerHTML = typeof T.profile.sealsQuarterEmpty === 'function'
+            ? T.profile.sealsQuarterEmpty(sealsFilter.q, sealsFilter.year)
+            : `<p class="bento-seals-empty-q">Sin sellos en ${sealsFilter.q} ${sealsFilter.year}</p>`;
+        return;
+    }
+
+    const appendSealVisual = (circleEl, seal) => {
+        const imageUrl = safeHttpUrl(String(seal?.imageUrl || '').trim());
+        if (imageUrl) {
+            const img = document.createElement('img');
+            img.className = 'bento-seal-image';
+            img.src = imageUrl;
+            img.alt = seal?.name || T.common.sealFallback;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            circleEl.appendChild(img);
+            return;
+        }
+        const icon = document.createElement('i');
+        icon.className = `fas ${safeIconClass(seal?.icon)}`;
+        circleEl.appendChild(icon);
+    };
+
+    filtered.forEach((seal) => {
+        const div    = document.createElement('div');
         div.className = 'bento-seal-item';
         const circle = document.createElement('div');
         circle.className = 'bento-seal-circle';
         circle.title = seal.name;
-        const circleIcon = document.createElement('i');
-        circleIcon.className = `fas ${safeIconClass(seal.icon)}`;
-        circle.appendChild(circleIcon);
+        appendSealVisual(circle, seal);
         const nameSpan = document.createElement('span');
         nameSpan.className = 'bento-seal-name';
         nameSpan.textContent = seal.name;
@@ -977,44 +1264,6 @@ function renderSeals() {
         div.appendChild(nameSpan);
         recentContainer.appendChild(div);
     });
-
-    // Render History (grouped by month)
-    historyList.innerHTML = '';
-    const grouped = {};
-    sortedSeals.forEach(seal => {
-        const date = new Date(seal.date);
-        const monthYear = date.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
-        if (!grouped[monthYear]) grouped[monthYear] = [];
-        grouped[monthYear].push(seal);
-    });
-
-    for (const [month, seals] of Object.entries(grouped)) {
-        const monthDiv = document.createElement('div');
-        monthDiv.className = 'seals-history-month';
-        monthDiv.innerHTML = `<h4>${esc(month)}</h4>`;
-        
-        const grid = document.createElement('div');
-        grid.className = 'bento-seals-grid bento-seals-grid--small';
-        
-        seals.forEach(seal => {
-            const item = document.createElement('div');
-            item.className = 'bento-seal-item';
-            const circle = document.createElement('div');
-            circle.className = 'bento-seal-circle bento-seal-circle--small';
-            const circleIcon = document.createElement('i');
-            circleIcon.className = `fas ${safeIconClass(seal.icon)}`;
-            circle.appendChild(circleIcon);
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'bento-seal-name';
-            nameSpan.textContent = seal.name;
-            item.appendChild(circle);
-            item.appendChild(nameSpan);
-            grid.appendChild(item);
-        });
-        
-        monthDiv.appendChild(grid);
-        historyList.appendChild(monthDiv);
-    }
 }
 
 window.toggleSealsAccordion = function() {
@@ -2283,6 +2532,38 @@ async function fetchPillQuestions(pillId) {
         }));
 }
 
+/**
+ * Una sola petición: preguntas V/F activas por pill (misma regla que fetchPillQuestions).
+ * @returns {Promise<Map<string, { id: string, question: string }[]> | null>}
+ *   Map por pill_id, o null si falla la consulta (fallback: mostrar «Contestar» como antes).
+ */
+async function fetchPillQuestionsBatch(pillIds) {
+    const ids = [...new Set((pillIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+    if (!supabase || !ids.length) return new Map();
+
+    const { data, error } = await supabase
+        .from('pill_questions')
+        .select('id, pill_id, question, type, active')
+        .in('pill_id', ids)
+        .eq('active', true);
+
+    if (error) {
+        if (DEBUG) console.warn('fetchPillQuestionsBatch error:', error);
+        return null;
+    }
+
+    const map = new Map();
+    for (const row of data || []) {
+        if (String(row.type || 'true_false').toLowerCase().trim() !== 'true_false') continue;
+        const pid = String(row.pill_id || '').trim();
+        if (!pid) continue;
+        const entry = { id: row.id, question: String(row.question || '').trim() };
+        if (!map.has(pid)) map.set(pid, []);
+        map.get(pid).push(entry);
+    }
+    return map;
+}
+
 async function loadPillRatingsForList(pillIds) {
     pillRatingsSummaryByPillId = {};
     myPillRatingByPillId = {};
@@ -2389,13 +2670,17 @@ async function renderPillsList() {
         return;
     }
 
-    const sorted = [...pillsCatalog].sort((a, b) =>
-        String(a.name || a.id).localeCompare(String(b.name || b.id), 'es')
-    );
+    const sorted = [...pillsCatalog].sort((a, b) => {
+        const ta = getPillPublishedAtMs(a);
+        const tb = getPillPublishedAtMs(b);
+        if (ta !== tb) return tb - ta;
+        return String(a.name || a.id).localeCompare(String(b.name || b.id), 'es');
+    });
     await loadPillRatingsForList(sorted.map((p) => p.id));
+    const batchQs = await fetchPillQuestionsBatch(sorted.map((p) => p.id));
 
     grid.innerHTML = '';
-    sorted.forEach((pill) => {
+    sorted.forEach((pill, index) => {
         const card = document.createElement('div');
         card.className = 'pills-category-card';
         if (pill.id != null && pill.id !== '') card.setAttribute('data-pill-id', String(pill.id));
@@ -2404,13 +2689,94 @@ async function renderPillsList() {
 
         const title = document.createElement('h3');
         title.className = 'pills-category-card__title';
-        title.textContent = pill.name || pill.id || T.common.pillFallback;
+        const pillNameText = String(pill.name || pill.id || T.common.pillFallback).trim();
+        const titleMain = document.createElement('span');
+        titleMain.className = 'pills-category-card__title-main';
+        titleMain.textContent = pillNameText;
+        title.appendChild(titleMain);
+        if (index === 0) {
+            const newTag = document.createElement('span');
+            newTag.className = 'bento-pills-new-tag';
+            newTag.textContent = 'Nueva pill';
+            newTag.setAttribute('aria-hidden', 'false');
+            title.appendChild(newTag);
+        }
 
         const meta = document.createElement('p');
         meta.className = 'pills-category-card__meta';
         const catLine = pill.category ? `${pill.category}` : '';
         const desc = pill.description ? String(pill.description).slice(0, 140) + (pill.description.length > 140 ? '…' : '') : '';
         meta.textContent = [catLine, desc].filter(Boolean).join(' · ') || T.pills.metaFallback;
+
+        const pillIdStr = String(pill.id || '').trim();
+        const pillQuestions =
+            batchQs === null ? null : (batchQs.get(pillIdStr) || []);
+
+
+        const sealUrl = getPillSealUrl(pill);
+        const sealName = getPillSealName(pill);
+        const sealWindow = getPillSealWindowState(pill);
+        const remainingLabel = formatPillSealRemaining(sealWindow.remainingMs);
+        const hasAttempt = Boolean(
+            userProfile.pillScores &&
+            Object.prototype.hasOwnProperty.call(userProfile.pillScores, String(pill.id || '').trim())
+        );
+        const hasQuestions = pillQuestions !== null && pillQuestions.length > 0;
+        if (hasQuestions && !hasAttempt && !sealWindow.isExpired) {
+            const titleTimer = document.createElement('span');
+            titleTimer.className = 'pills-category-card__title-timer';
+            titleTimer.textContent = T.pills.sealTitleTimer(remainingLabel);
+            title.appendChild(titleTimer);
+        }
+        const sealBlock = hasQuestions ? document.createElement('div') : null;
+        if (sealBlock) {
+        sealBlock.className = 'pills-seal-preview';
+
+        const sealLabel = document.createElement('span');
+        sealLabel.className = 'pills-seal-preview__label';
+        if (hasAttempt) {
+            sealLabel.textContent = T.pills.sealAfterAttemptLabel;
+        } else if (sealWindow.isExpired) {
+            sealLabel.textContent = T.pills.sealExpiredLabel;
+        } else {
+            sealLabel.textContent = T.pills.sealInDispute;
+        }
+        sealBlock.appendChild(sealLabel);
+
+        if (hasAttempt) {
+            const sealInfo = document.createElement('span');
+            sealInfo.className = 'pills-seal-preview__empty';
+            sealInfo.textContent = T.pills.sealAfterAttemptMessage;
+            sealBlock.appendChild(sealInfo);
+        } else if (sealWindow.isExpired) {
+            const sealInfo = document.createElement('span');
+            sealInfo.className = 'pills-seal-preview__empty';
+            sealInfo.textContent = T.pills.sealExpiredMessage;
+            sealBlock.appendChild(sealInfo);
+        } else if (sealUrl) {
+            const sealMedia = document.createElement('div');
+            sealMedia.className = 'pills-seal-preview__media';
+            const sealImg = document.createElement('img');
+            sealImg.className = 'pills-seal-preview__img';
+            sealImg.src = sealUrl;
+            sealImg.alt = sealName || T.pills.sealNoImage;
+            sealImg.loading = 'lazy';
+            sealImg.decoding = 'async';
+            sealImg.width = 72;
+            sealImg.height = 72;
+            const sealCaption = document.createElement('span');
+            sealCaption.className = 'pills-seal-preview__name';
+            sealCaption.textContent = T.pills.sealWindowRemaining(remainingLabel);
+            sealMedia.appendChild(sealImg);
+            sealMedia.appendChild(sealCaption);
+            sealBlock.appendChild(sealMedia);
+        } else {
+            const sealEmpty = document.createElement('span');
+            sealEmpty.className = 'pills-seal-preview__empty';
+            sealEmpty.textContent = T.pills.noSealAvailable;
+            sealBlock.appendChild(sealEmpty);
+        }
+        }
 
         const ratingWrap = document.createElement('div');
         ratingWrap.className = 'pills-rating';
@@ -2464,9 +2830,12 @@ async function renderPillsList() {
         btnStart.addEventListener('click', () => window.startPillsQuiz(pill.id));
 
         actions.appendChild(btnPreview);
-        actions.appendChild(btnStart);
+        if (pillQuestions === null || pillQuestions.length > 0) {
+            actions.appendChild(btnStart);
+        }
         content.appendChild(title);
         content.appendChild(meta);
+        if (sealBlock) content.appendChild(sealBlock);
         content.appendChild(ratingWrap);
         card.appendChild(content);
         card.appendChild(actions);
@@ -2535,7 +2904,9 @@ window.startPillsQuiz = async function (pillId) {
         );
         selectedPillMeta = {
             name: String(parent?.name || '').trim(),
-            category: String(parent?.category || '').trim()
+            category: String(parent?.category || '').trim(),
+            sealUrl: getPillSealUrl(parent),
+            sealName: getPillSealName(parent)
         };
 
         pool = getPillSessionRandomizedPool(pool, pillId);
@@ -3748,8 +4119,16 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
 
     try {
         let existingPillAttempt = null;
+        let hasValidExistingPillAttempt = false;
         let isPillFirstAttempt = true;
         let pillAttemptQueryFailed = false;
+        const currentPillScore = Number(finalScore || 0);
+        const currentPillAttemptQualifies = currentPillScore > 0;
+        const selectedPill = currentQuizMode === 'pills'
+            ? pillsCatalog.find((p) => String(p.id || '') === String(selectedPillId || ''))
+            : null;
+        const sealWindowState = getPillSealWindowState(selectedPill);
+        const canAwardSealByTime = !sealWindowState.isExpired;
         if (currentQuizMode === 'pills' && selectedPillId) {
             let firstAttemptRow = null;
             let firstAttemptErr = null;
@@ -3774,7 +4153,8 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                 if (DEBUG) console.warn('saveScoreToCloud: pill attempt lookup fallback failed', firstAttemptErr);
             }
             existingPillAttempt = firstAttemptRow || null;
-            if (existingPillAttempt) isPillFirstAttempt = false;
+            hasValidExistingPillAttempt = isValidPillFirstAttemptRow(existingPillAttempt);
+            if (hasValidExistingPillAttempt) isPillFirstAttempt = false;
         }
 
         // Leer ranking actual
@@ -3789,8 +4169,11 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         const latestPill = getLatestPublishedPill();
         const isLatestPillSession =
             currentQuizMode === 'pills' && latestPill && selectedPillId === latestPill.id;
+        const rankingHasValidPillScore = Number(existing.pills_points || 0) > 0;
         const pillsRankingLockedByRanking =
-            isLatestPillSession && String(existing.pills_rank_pill_id || '') === String(selectedPillId);
+            isLatestPillSession &&
+            rankingHasValidPillScore &&
+            String(existing.pills_rank_pill_id || '') === String(selectedPillId);
         if (pillsRankingLockedByRanking) isPillFirstAttempt = false;
         const pillsRankingLocked =
             currentQuizMode === 'pills' && selectedPillId && (pillsRankingLockedByRanking || !isPillFirstAttempt);
@@ -3814,8 +4197,8 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                 rankingMerge.tests_points = Number(finalScore || 0);
             }
         } else if (currentQuizMode === 'pills') {
-            if (isLatestPillSession && !pillsRankingLockedByRanking) {
-                rankingMerge.pills_points = Number(finalScore || 0);
+            if (isLatestPillSession && !pillsRankingLockedByRanking && currentPillAttemptQualifies) {
+                rankingMerge.pills_points = currentPillScore;
                 rankingMerge.pills_rank_pill_id = selectedPillId;
                 rankingMerge.pills_rank_tiempo = Number(timeSeconds || 0);
             }
@@ -3886,6 +4269,9 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             let scoreToSave = currentQuizMode === 'practice'
                 ? Math.max(currentValue, Number(finalScore || 0))
                 : Number(finalScore || 0);
+            if (currentQuizMode === 'pills' && !currentPillAttemptQualifies) {
+                scoreToSave = currentValue;
+            }
             if (currentQuizMode === 'pills' && pillsRankingLocked) {
                 scoreToSave = currentValue;
             }
@@ -3908,13 +4294,14 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             const canPersistFirstAttemptAux =
                 currentQuizMode === 'pills' &&
                 selectedPillId &&
+                currentPillAttemptQualifies &&
                 isPillFirstAttempt &&
-                !existingPillAttempt &&
+                !hasValidExistingPillAttempt &&
                 !pillAttemptQueryFailed;
             if (canPersistFirstAttemptAux) {
                 const totalQs = Math.max(Number(currentSession?.length || 0), 0);
                 const errCount = Math.max(totalQs - Number(finalScore || 0), 0);
-                const stickerGranted = totalQs > 0 && errCount <= 1;
+                const stickerGranted = totalQs > 0 && errCount <= 1 && canAwardSealByTime;
                 const pillScore = {
                     user_id: userId,
                     pill_id: selectedPillId,
@@ -3946,7 +4333,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                     errors: pillScore.errors,
                     stickerGranted: pillScore.sticker_granted
                 };
-            } else if (currentQuizMode === 'pills' && selectedPillId && existingPillAttempt) {
+            } else if (currentQuizMode === 'pills' && selectedPillId && hasValidExistingPillAttempt && existingPillAttempt) {
                 const legacyTotal = Number(existingPillAttempt.total || 0);
                 const legacyScore = Number(existingPillAttempt.score || 0);
                 const legacyErrors = Math.max(legacyTotal - legacyScore, 0);
@@ -3968,8 +4355,16 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
 
             // Actualizar estado local
             userProfile[profileField] = scoreToSave;
-            if (currentQuizMode === 'pills' && isLatestPillSession && !pillsRankingLockedByRanking) {
+            if (
+                currentQuizMode === 'pills' &&
+                isLatestPillSession &&
+                !pillsRankingLockedByRanking &&
+                currentPillAttemptQualifies
+            ) {
                 userProfile.latestPillRankId = String(selectedPillId || '').trim();
+            }
+            if (currentQuizMode === 'pills') {
+                await loadUserSeals(userId);
             }
             renderProfile();
             updatePracticeRankUI();
@@ -4204,6 +4599,9 @@ async function showPillsResultsInScreen() {
     }
 
     const errCountPill = Math.max(totalAnswered - Number(score || 0), 0);
+    const sealUrl = selectedPillMeta.sealUrl || getPillSealUrl(catalogPill);
+    const sealName = selectedPillMeta.sealName || getPillSealName(catalogPill);
+    const sealWindow = getPillSealWindowState(catalogPill);
     if (stickerEl) {
         stickerEl.classList.remove(
             'results-pills-sticker--win',
@@ -4218,20 +4616,27 @@ async function showPillsResultsInScreen() {
             prizeImg = MATERIAL.pillGeneral;
             prizeAlt = T.pills.stickerAltExtra;
             prizeHtml = T.pills.stickerHtmlNeutral;
-        } else if (errCountPill <= 1) {
+        } else if (sealWindow.isExpired) {
+            stickerEl.classList.add('results-pills-sticker--lose');
+            prizeImg = MATERIAL.pillPerder;
+            prizeAlt = T.pills.stickerAltLose;
+            prizeHtml = T.pills.stickerHtmlExpired;
+        } else if (errCountPill <= 1 && sealUrl) {
             stickerEl.classList.add('results-pills-sticker--win');
-            prizeImg = MATERIAL.pillGanaste;
+            prizeImg = sealUrl;
             prizeAlt = T.pills.stickerAltWin;
             prizeHtml = T.pills.stickerHtmlWin;
         } else {
             stickerEl.classList.add('results-pills-sticker--lose');
             prizeImg = MATERIAL.pillPerder;
             prizeAlt = T.pills.stickerAltLose;
-            prizeHtml = T.pills.stickerHtmlLose;
+            prizeHtml = errCountPill <= 1 && !sealUrl
+                ? T.pills.noSealAvailable
+                : T.pills.stickerHtmlLose;
         }
         if (stickerImgEl) {
             stickerImgEl.src = prizeImg;
-            stickerImgEl.alt = prizeAlt;
+            stickerImgEl.alt = sealName || prizeAlt;
         }
         if (stickerTextEl) stickerTextEl.innerHTML = prizeHtml;
         stickerEl.classList.remove('hidden');

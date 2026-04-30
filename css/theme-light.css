@@ -278,6 +278,36 @@
     border-bottom-color: rgba(13, 11, 30, 0.08);
 }
 
+[data-theme="light"] .seals-q-btn {
+    border-color: rgba(13, 11, 30, 0.14);
+    color: var(--color-text-light);
+}
+
+[data-theme="light"] .seals-q-btn:hover {
+    background: rgba(74, 34, 192, 0.08);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+[data-theme="light"] .seals-q-btn.active {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 12px rgba(74, 34, 192, 0.25);
+}
+
+[data-theme="light"] .seals-year-btn {
+    border-color: rgba(13, 11, 30, 0.14);
+    color: var(--color-text-light);
+}
+
+[data-theme="light"] .seals-year-btn:hover,
+[data-theme="light"] .seals-year-btn.active {
+    background: rgba(74, 34, 192, 0.08);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
 [data-theme="light"] .bento-empty-state {
     color: rgba(13, 11, 30, 0.25);
 }
@@ -627,6 +657,37 @@
 [data-theme="light"] .pills-category-card {
     background: rgba(255, 255, 255, 0.82);
     border-color: rgba(13, 11, 30, 0.11);
+}
+
+[data-theme="light"] .pills-category-card__title-timer {
+    color: #9a3412;
+    border-color: rgba(154, 52, 18, 0.28);
+    background: rgba(251, 191, 36, 0.2);
+}
+
+[data-theme="light"] .pills-category-card__vf-heading {
+    color: rgba(13, 11, 30, 0.55);
+}
+
+[data-theme="light"] .pills-category-card__vf-list {
+    color: rgba(13, 11, 30, 0.88);
+}
+
+[data-theme="light"] .pills-seal-preview__label {
+    color: rgba(13, 11, 30, 0.55);
+}
+
+[data-theme="light"] .pills-seal-preview__media {
+    border-color: transparent;
+    background: transparent;
+}
+
+[data-theme="light"] .pills-seal-preview__img {
+    background: transparent;
+}
+
+[data-theme="light"] .pills-seal-preview__name {
+    color: rgba(13, 11, 30, 0.86);
 }
 
 [data-theme="light"] .pills-question-card {

@@ -54,11 +54,107 @@
     font-size: 1.1rem;
     font-weight: 800;
     color: var(--color-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
+
+.pills-category-card__title-main {
+    display: inline;
+}
+
+.pills-category-card__title-timer {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    background: rgba(251, 191, 36, 0.12);
+    border-radius: 9999px;
+    padding: 0.14rem 0.5rem;
+    line-height: 1.2;
+}
+
 
 .pills-category-card__meta {
     margin: 0;
     font-size: 0.85rem;
+    color: var(--color-text-light);
+}
+
+.pills-category-card__vf-preview {
+    margin-top: 0.65rem;
+}
+
+.pills-category-card__vf-heading {
+    margin: 0 0 0.35rem 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(239, 255, 253, 0.7);
+}
+
+.pills-category-card__vf-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    max-height: 11rem;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--color-text);
+}
+
+.pills-category-card__vf-item {
+    margin: 0.28rem 0;
+    padding-left: 0.15rem;
+}
+
+.pills-seal-preview {
+    margin-top: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.pills-seal-preview__label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(239, 255, 253, 0.65);
+}
+
+.pills-seal-preview__media {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.pills-seal-preview__img {
+    width: 2.9rem;
+    height: 2.9rem;
+    object-fit: contain;
+    border-radius: 9999px;
+    background: transparent;
+}
+
+.pills-seal-preview__name {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.25;
+}
+
+.pills-seal-preview__empty {
+    font-size: 0.77rem;
     color: var(--color-text-light);
 }
 

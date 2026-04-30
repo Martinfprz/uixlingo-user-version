@@ -160,6 +160,12 @@ export const UI_TEXT = {
                 <i class="fas fa-award"></i>
                 <p>Aún no tienes sellos. ¡Sigue practicando!</p>
             </div>`,
+        /** Cuando ya hay sellos en el perfil pero no en el trimestre / año elegido. */
+        sealsQuarterEmpty: (q, year) => `
+            <div class="bento-empty-state bento-empty-state--seals-q">
+                <i class="fas fa-stamp" aria-hidden="true"></i>
+                <p>No tienes sellos en <strong>${q} ${year}</strong>. Prueba otro trimestre o sigue practicando para sumar más.</p>
+            </div>`,
         topicToReview: 'Tema a reforzar',
         explorador: 'Explorador',
         sinRegistrar: 'Sin registrar',
@@ -184,22 +190,36 @@ export const UI_TEXT = {
         viewPill: 'Ver pill',
         noLinkYet: 'Esta pill aún no tiene enlace disponible',
         answerQuestions: 'Contestar preguntas',
+        vfPreviewHeading: (n) => `Preguntas verdadero/falso (${n})`,
+        vfPreviewAria: (n) =>
+            `${n} pregunta${n === 1 ? '' : 's'} tipo verdadero o falso en esta pill`,
         pillPreviewNoActive: 'No hay preguntas activas en esta pill todavía.',
         pillPreviewFair: (n) =>
             `Esta pill incluye ${n} pregunta(s) tipo verdadero/falso. No mostramos el texto de las preguntas aquí para que el reto sea justo.`,
         materialLinkPrefix: 'Enlace al material: ',
         noVotes: 'Sin votos',
+        sealInDispute: 'Sello en disputa',
+        sealExpiredLabel: 'Vigencia finalizada',
+        sealExpiredMessage: 'Ya pasaron 72 horas. Puedes responder esta pill para aprender, pero el sello ya no está disponible.',
+        sealAfterAttemptLabel: 'Participación completada',
+        sealAfterAttemptMessage: '¡Gran esfuerzo!',
+        sealNoImage: 'Sello disponible',
+        noSealAvailable: 'Esta pill aún no tiene sello en disputa.',
+        sealTitleTimer: (timeText) => `Vigencia ${timeText}`,
+        sealWindowRemaining: (timeText) => `Sello disponible por ${timeText} más`,
+        stickerHtmlExpired:
+            'La vigencia para ganar el sello ya finalizó (72 horas). Puedes seguir practicando con esta pill.',
         resultsTitle: 'Resultado de la pill',
         scoreOf: (total) => `de ${total}`,
         stickerAltResult: 'Resultado de la pill',
         stickerAltExtra: 'Intento adicional',
-        stickerAltWin: '¡Ganaste el premio de la pill!',
-        stickerAltLose: 'Sin premio en el primer intento',
-        stickerHtmlNeutral: 'Sigue participando en las pills y podrás ganar stickers.',
+        stickerAltWin: '¡Ganaste el sello de la pill!',
+        stickerAltLose: 'Sin sello en este intento',
+        stickerHtmlNeutral: '¡Gran esfuerzo!',
         stickerHtmlWin:
-            '¡Aprobado en primer intento! Has ganado el <strong>sticker</strong> de esta pill.',
+            '¡Felicidades! ganaste el sello de la pill, sigue participando para ganar recompensas.',
         stickerHtmlLose:
-            'Por el número de errores no obtienes el sticker de esta pill. Repasa el material y vuelve a intentarlo.',
+            '¡No pudiste obtener el sello!, repasa la pill e intenta de nuevo las preguntas, suerte para la próxima.',
     },
 
     feedback: {
