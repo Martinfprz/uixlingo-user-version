@@ -865,9 +865,10 @@ function formatPillSealRemaining(remainingMs) {
     const days = Math.floor(totalMinutes / (24 * 60));
     const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
     const minutes = totalMinutes % 60;
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${Math.max(minutes, 1)}m`;
+    if (days > 0) return days === 1 ? '1 día' : `${days} días`;
+    if (hours > 0) return hours === 1 ? '1 hora' : `${hours} horas`;
+    const m = Math.max(minutes, 1);
+    return m === 1 ? '1 minuto' : `${m} minutos`;
 }
 
 function normalizePillScoreEntry(entry) {

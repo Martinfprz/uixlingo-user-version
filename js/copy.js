@@ -5,7 +5,19 @@
 import {
     EVALUATION_SESSION_LENGTH_UX_UI,
     EVALUATION_SESSION_LENGTH_UX_ONLY,
+    PILLS_SEAL_WINDOW_HOURS,
 } from './constants.js';
+
+const PILLS_SEAL_WINDOW_DAYS = PILLS_SEAL_WINDOW_HOURS / 24;
+
+/** Texto de duración de la ventana del sello (p. ej. «una semana», «7 días»). */
+function getPillsSealWindowDurationLabel() {
+    if (PILLS_SEAL_WINDOW_DAYS === 7) return 'una semana';
+    if (PILLS_SEAL_WINDOW_DAYS === 1) return '1 día';
+    return `${PILLS_SEAL_WINDOW_DAYS} días`;
+}
+
+const PILLS_SEAL_WINDOW_DURATION = getPillsSealWindowDurationLabel();
 
 export const UI_TEXT = {
     common: {
@@ -200,15 +212,14 @@ export const UI_TEXT = {
         noVotes: 'Sin votos',
         sealInDispute: 'Sello en disputa',
         sealExpiredLabel: 'Vigencia finalizada',
-        sealExpiredMessage: 'Ya pasaron 72 horas. Puedes responder esta pill para aprender, pero el sello ya no está disponible.',
+        sealExpiredMessage: `Ya caducó el tiempo (${PILLS_SEAL_WINDOW_DURATION}). Puedes responder esta pill para aprender, pero el sello ya no está disponible.`,
         sealAfterAttemptLabel: 'Participación completada',
         sealAfterAttemptMessage: '¡Gran esfuerzo!',
         sealNoImage: 'Sello disponible',
         noSealAvailable: 'Esta pill aún no tiene sello en disputa.',
         sealTitleTimer: (timeText) => `Vigencia ${timeText}`,
         sealWindowRemaining: (timeText) => `Sello disponible por ${timeText} más`,
-        stickerHtmlExpired:
-            'La vigencia para ganar el sello ya finalizó (72 horas). Puedes seguir practicando con esta pill.',
+        stickerHtmlExpired: `El tiempo para ganar el sello ya caducó. La ventana era de ${PILLS_SEAL_WINDOW_DURATION}. Puedes seguir practicando con esta pill.`,
         resultsTitle: 'Resultado de la pill',
         scoreOf: (total) => `de ${total}`,
         stickerAltResult: 'Resultado de la pill',
