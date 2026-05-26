@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · Importar equipo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --accent:   #6c63ff;
+      --accent-2: #4ecdc4;
+      --text:     #e8eaf0;
+      --muted:    #7b7f95;
+      --ok:       #4caf87;
+      --warn:     #f5a623;
+      --error:    #e05c6a;
+      --radius:   12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 80px;
+      gap: 24px;
+    }
+
+    header {
+      text-align: center;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+    header p  { color: var(--muted); margin-top: 4px; font-size: 13px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .card h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* Step badge */
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .step-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .step-row p { color: var(--muted); line-height: 1.5; font-size: 13px; }
+    .step-row code {
+      background: #262936;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 12px;
+      color: var(--accent-2);
+    }
+
+    /* Drop zone */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #drop-zone:hover,
+    #drop-zone.over {
+      border-color: var(--accent);
+      background: rgba(108, 99, 255, 0.05);
+    }
+    #drop-zone .dz-icon { font-size: 2rem; margin-bottom: 8px; }
+    #drop-zone .dz-label { color: var(--muted); font-size: 13px; }
+    #drop-zone .dz-label strong { color: var(--text); }
+    #file-input { display: none; }
+
+    #selected-file {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--accent-2);
+      min-height: 18px;
+    }
+
+    /* Button */
+    #btn-import {
+      margin-top: 16px;
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    #btn-import:disabled { opacity: 0.4; cursor: not-allowed; }
+    #btn-import:not(:disabled):hover { opacity: 0.85; }
+
+    /* Progress */
+    #progress-bar-wrap {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 16px;
+      overflow: hidden;
+      display: none;
+    }
+    #progress-bar {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.15s;
+    }
+
+    /* Log */
+    #log-card { display: none; }
+    #log {
+      max-height: 320px;
+      overflow-y: auto;
+      font-family: 'Fira Mono', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+    #log .ok    { color: var(--ok); }
+    #log .warn  { color: var(--warn); }
+    #log .err   { color: var(--error); }
+    #log .info  { color: var(--accent-2); }
+
+    /* Summary chips */
+    #summary { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+    .chip {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .chip-ok   { background: rgba(76, 175, 135, 0.15); color: var(--ok);    border: 1px solid rgba(76,175,135,0.3); }
+    .chip-warn { background: rgba(245, 166, 35, 0.15);  color: var(--warn);  border: 1px solid rgba(245,166,35,0.3); }
+    .chip-err  { background: rgba(224, 92, 106, 0.15);  color: var(--error); border: 1px solid rgba(224,92,106,0.3); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Importar equipo desde CSV</h1>
+    <p>Actualiza <code style="color:var(--accent-2)">proyecto</code>, <code style="color:var(--accent-2)">proyecto_2/3/4</code> y <code style="color:var(--accent-2)">formador</code> en <code style="color:var(--accent-2)">ranking_user</code></p>
+  </header>
+
+  <!-- Paso 1 (solo primera vez) -->
+  <div class="card">
+    <h2><span class="step-badge">1</span> Solo la primera vez · SQL Editor</h2>
+    <div class="step-row">
+      <p>
+        Ejecuta en <strong>Supabase → SQL Editor</strong> el archivo
+        <code>supabase/ranking_user_proyectos_seed.sql</code>
+        únicamente el bloque <strong>PASO 1</strong> (ALTER TABLE) para agregar las columnas.
+        Después ya no es necesario.
+      </p>
+    </div>
+  </div>
+
+  <!-- Paso 2: carga del CSV -->
+  <div class="card">
+    <h2><span class="step-badge">2</span> Cargar CSV</h2>
+
+    <div id="drop-zone">
+      <div class="dz-icon">📂</div>
+      <div class="dz-label"><strong>Arrastra el CSV aquí</strong> o haz clic para seleccionarlo</div>
+      <input type="file" id="file-input" accept=".csv,text/csv" />
+    </div>
+    <div id="selected-file"></div>
+
+    <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+
+    <button id="btn-import" disabled>Importar a Supabase</button>
+  </div>
+
+  <!-- Log de resultados -->
+  <div class="card" id="log-card">
+    <h2>Log de importación</h2>
+    <div id="log"></div>
+    <div id="summary"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './js/constants.js';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage },
+    });
+
+    // ── Elementos UI ────────────────────────────────────────────────────────
+    const dropZone   = document.getElementById('drop-zone');
+    const fileInput  = document.getElementById('file-input');
+    const selectedEl = document.getElementById('selected-file');
+    const btnImport  = document.getElementById('btn-import');
+    const progressWrap = document.getElementById('progress-bar-wrap');
+    const progressBar  = document.getElementById('progress-bar');
+    const logCard    = document.getElementById('log-card');
+    const logEl      = document.getElementById('log');
+    const summaryEl  = document.getElementById('summary');
+
+    let parsedRows = [];
+
+    // ── CSV: columnas esperadas ──────────────────────────────────────────────
+    // Nro E | Nombre | Proyecto | Proyecto 2 | Proyecto 3 | Proyecto 4 | Líder
+    const COL = {
+      EMP_ID:   0,
+      NOMBRE:   1,
+      PROYECTO: 2,
+      PROY_2:   3,
+      PROY_3:   4,
+      PROY_4:   5,
+      LIDER:    6,
+    };
+
+    // ── Drag & drop ──────────────────────────────────────────────────────────
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file.name.endsWith('.csv')) {
+        selectedEl.textContent = '⚠ Solo se aceptan archivos .csv';
+        return;
+      }
+      selectedEl.textContent = `📄 ${file.name}`;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const rows = parseCSV(e.target.result);
+        if (rows.length === 0) {
+          selectedEl.textContent = '⚠ El CSV está vacío o no se pudo leer';
+          btnImport.disabled = true;
+          return;
+        }
+        parsedRows = rows;
+        selectedEl.textContent = `📄 ${file.name} · ${rows.length} empleados detectados`;
+        btnImport.disabled = false;
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    // ── CSV parser (sin dependencias) ────────────────────────────────────────
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      const rows  = [];
+      // Saltar primera fila (encabezado)
+      for (let i = 1; i < lines.length; i++) {
+        const cells = splitCSVLine(lines[i]);
+        if (!cells[COL.EMP_ID] || !cells[COL.EMP_ID].trim()) continue;
+        rows.push({
+          emp_id:     cells[COL.EMP_ID].trim(),
+          nombre:     cells[COL.NOMBRE]?.trim()   || null,
+          proyecto:   cells[COL.PROYECTO]?.trim() || null,
+          proyecto_2: cells[COL.PROY_2]?.trim()   || null,
+          proyecto_3: cells[COL.PROY_3]?.trim()   || null,
+          proyecto_4: cells[COL.PROY_4]?.trim()   || null,
+          formador:   cells[COL.LIDER]?.trim()    || null,
+        });
+      }
+      return rows;
+    }
+
+    function splitCSVLine(line) {
+      const result = [];
+      let current  = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    // ── Import ───────────────────────────────────────────────────────────────
+    btnImport.addEventListener('click', runImport);
+
+    async function runImport() {
+      if (parsedRows.length === 0) return;
+
+      // Verificar sesión
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        addLog('err', '✗ No hay sesión activa. Inicia sesión en la app principal primero.');
+        logCard.style.display = 'block';
+        return;
+      }
+
+      btnImport.disabled  = true;
+      logCard.style.display = 'block';
+      logEl.innerHTML     = '';
+      summaryEl.innerHTML = '';
+      progressWrap.style.display = 'block';
+      progressBar.style.width    = '0%';
+
+      let ok = 0, skipped = 0, errors = 0;
+      const total = parsedRows.length;
+
+      addLog('info', `▶ Iniciando importación de ${total} registros…`);
+
+      for (let i = 0; i < total; i++) {
+        const row = parsedRows[i];
+        const empId = row.emp_id;
+
+        // Construir payload solo con campos no vacíos
+        const payload = {};
+        if (row.proyecto)   payload.proyecto   = row.proyecto;
+        if (row.proyecto_2) payload.proyecto_2 = row.proyecto_2;
+        if (row.proyecto_3) payload.proyecto_3 = row.proyecto_3;
+        if (row.proyecto_4) payload.proyecto_4 = row.proyecto_4;
+        if (row.formador)   payload.formador   = row.formador;
+
+        if (Object.keys(payload).length === 0) {
+          addLog('warn', `⚠ emp_id ${empId} — sin datos para actualizar, saltando`);
+          skipped++;
+        } else {
+          // Intentar con emp_id como texto; si no matchea, probar como número
+          let { data, error, count } = await supabase
+            .from('ranking_user')
+            .update(payload)
+            .eq('emp_id', empId)
+            .select('emp_id', { count: 'exact' });
+
+          // Si no matcheó (posible tipo numérico), intentar con parseInt
+          if (!error && (!data || data.length === 0)) {
+            const numId = parseInt(empId, 10);
+            if (!isNaN(numId)) {
+              ({ data, error } = await supabase
+                .from('ranking_user')
+                .update(payload)
+                .eq('emp_id', numId)
+                .select('emp_id'));
+            }
+          }
+
+          if (error) {
+            addLog('err', `✗ emp_id ${empId} — ${error.message}`);
+            errors++;
+          } else if (!data || data.length === 0) {
+            addLog('warn', `⚠ emp_id ${empId} — no se encontró en ranking_user`);
+            skipped++;
+          } else {
+            addLog('ok', `✓ emp_id ${empId} · ${row.nombre || ''} → ${row.proyecto || '—'}`);
+            ok++;
+          }
+        }
+
+        // Actualizar barra
+        progressBar.style.width = `${Math.round(((i + 1) / total) * 100)}%`;
+
+        // Pequeña pausa para no saturar la API
+        if (i % 10 === 9) await sleep(80);
+      }
+
+      addLog('info', `\n■ Importación finalizada.`);
+
+      summaryEl.innerHTML = `
+        <span class="chip chip-ok">✓ ${ok} actualizados</span>
+        <span class="chip chip-warn">⚠ ${skipped} no encontrados</span>
+        <span class="chip chip-err">✗ ${errors} errores</span>
+      `;
+      btnImport.disabled = false;
+    }
+
+    function addLog(type, msg) {
+      const span = document.createElement('div');
+      span.className = type;
+      span.textContent = msg;
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  </script>
+</body>
+</html>

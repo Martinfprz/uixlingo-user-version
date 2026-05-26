@@ -162,6 +162,14 @@ export const UI_TEXT = {
                 <i class="fas fa-puzzle-piece"></i>
                 <p>Aún no tienes habilidades asignadas</p>
             </div>`,
+        talentsSubtitle: 'Conoce en qué consiste cada uno de tus talentos destacados y cómo se reflejan en tu perfil profesional.',
+        talentDescriptionLabel: '¿Qué es?',
+        talentSectionComoVives: '¿Cómo lo vives?',
+        talentSectionRecomendaciones: '¿Qué te recomendamos?',
+        talentSectionHabilidades: 'Habilidades',
+        talentSectionOjoCon: 'Ojo con',
+        talentDescriptionGeneric: (name) =>
+            `${name} es una habilidad destacada en tu perfil. Refleja una forma concreta en la que aportas en proyectos de experiencia de usuario: cómo investigas, diseñas, colaboras o evalúas soluciones.`,
         rankUnavailable: 'Ranking de práctica no disponible',
         rankEmpty: 'Aún no hay ranking de práctica',
         rankNoPosition: 'Aún sin posición en ranking de práctica',
@@ -182,6 +190,15 @@ export const UI_TEXT = {
         explorador: 'Explorador',
         sinRegistrar: 'Sin registrar',
         noSeniorityLabel: 'No definido',
+        teamTitle: 'Mi equipo',
+        teamEmpty: 'Aún no tienes equipo asignado',
+        teamLoading: 'Cargando tu equipo...',
+        teamLoadError: 'No se pudo cargar tu equipo',
+        teamCountLabel: (n) => `${n} ${n === 1 ? 'persona' : 'personas'}`,
+        teamNoSeniority: 'Sin seniority',
+        teamEvalTitle: 'Resultado de evaluación',
+        teamEvalPoints: (pts) => `${pts} puntos`,
+        teamEvalPending: 'Sin evaluación registrada',
     },
 
     dashboard: {

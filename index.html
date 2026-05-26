@@ -50,14 +50,16 @@
         <header id="main-header" class="logged-in-navbar hidden">
             <!-- Izquierda: Logo + Perfil de Usuario -->
             <div id="navbar-left" class="navbar-left">
-                <div class="logo-wrapper" onclick="handleHeaderClick()" role="button" tabindex="0">
-                    <img src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="header-logo" width="11008" height="4044">
+                <div class="navbar-brand">
+                    <div class="logo-wrapper" onclick="handleHeaderClick()" role="button" tabindex="0" aria-label="Ir al inicio">
+                        <img src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/logo.png" alt="UiX-lingo" class="header-logo" width="11008" height="4044">
+                    </div>
+                    <button type="button" id="btn-back-header" class="btn-text-back hidden" aria-label="Volver" title="Volver">
+                        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+                    </button>
                 </div>
                 <div class="navbar-divider"></div>
                 <div class="user-profile-nav">
-                    <button id="btn-back-header" onclick="backToTopicSelection()" class="hidden btn-icon-back" title="Volver al tablero">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
                     <div class="user-avatar-placeholder"></div>
                     <span id="nav-greeting" class="nav-greeting-text">Hola, Usuario</span>
                 </div>
@@ -128,25 +130,31 @@
                                     <h1 id="profile-nickname" class="bento-nickname m-0">Usuario</h1>
                                 </div>
                                 <p id="profile-practice-rank" class="bento-role">Calculando ranking de práctica...</p>
+                                <p id="profile-formador" class="bento-leader">Líder: Sin registrar</p>
                             </div>
                         </div>
-
                         <!-- 2. Seniority Card -->
                         <div class="bento-card bento-card-seniority">
                             <div class="bento-seniority-bg-icon">
                                 <i class="fas fa-gem bento-seniority-bg-icon__gem" aria-hidden="true"></i>
                             </div>
-                            <div class="bento-seniority-top bento-seniority-badges">
-                                <span class="bento-badge">Seniority</span>
-                                <span class="bento-badge bento-badge--secondary">Especialidad</span>
+                            <div class="bento-seniority-header">
+                                <h3 class="bento-talents-title bento-seniority-title">
+                                    <i class="fas fa-gem" aria-hidden="true"></i> Seniority y especialidad
+                                </h3>
                             </div>
-                            <div class="bento-seniority-bottom">
-                                <div class="bento-seniority-values">
+
+                            <div class="bento-seniority-body">
+                                <div class="bento-seniority-metric">
+                                    <p class="bento-seniority-label">Nivel actual</p>
                                     <h2 id="profile-seniority" class="bento-seniority-value">Explorador</h2>
+                                </div>
+                                <div class="bento-seniority-metric">
+                                    <p class="bento-seniority-label">Especialidad</p>
                                     <p id="profile-especialidad" class="bento-especialidad-value">—</p>
                                 </div>
-                                <i class="fas fa-compass bento-seniority-icon text-4xl"></i>
                             </div>
+
                         </div>
 
                         <!-- 4. Talents Card -->
@@ -159,8 +167,39 @@
                             <div id="profile-talents" class="bento-talents-grid">
                                 <!-- Populated by JS -->
                             </div>
+                            <button type="button" class="btn-secondary bento-stat-cta bento-talents-more-btn" onclick="openTalentsView()">
+                                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                                Más información
+                            </button>
                         </div>
 
+                        <!-- Mi equipo (formadores: Product Designers, Customer Success, Administrativo) -->
+                        <div id="profile-team-card" class="bento-card bento-card-team hidden" hidden aria-labelledby="profile-team-title">
+                            <details id="profile-team-accordion" class="bento-team-accordion">
+                                <summary class="bento-team-accordion__summary">
+                                    <div class="bento-team-header">
+                                        <div class="bento-team-header__main">
+                                            <h3 id="profile-team-title" class="bento-team-title">
+                                                <span id="profile-team-title-text">Mi equipo</span>
+                                            </h3>
+                                            <p class="bento-team-subtitle">Personas que reportan a tu liderazgo</p>
+                                        </div>
+                                        <div class="bento-team-header__actions">
+                                            <span id="profile-team-count" class="bento-team-count hidden" aria-live="polite"></span>
+                                            <span class="bento-team-toggle-icon" aria-hidden="true">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div id="profile-team-preview" class="bento-team-preview"></div>
+                                </summary>
+
+                                <div class="bento-team-accordion__content">
+                                    <div id="profile-team-list" class="bento-team-list" role="list"></div>
+                                    <p id="profile-team-empty" class="bento-team-empty hidden">Aún no tienes equipo asignado</p>
+                                </div>
+                            </details>
+                        </div>
                         <!-- 3. Stats Cards -->
                         <div class="bento-card bento-card-stat bento-stat-quest">
                             <div class="bento-stat-icon-wrapper text-purple-600 bg-purple-100">
@@ -213,7 +252,7 @@
                             </div>
                             <h4 id="profile-pills-pts" class="bento-stat-value">320</h4>
                             <div id="profile-pills-actions-single" class="bento-pills-actions-single">
-                                <button type="button" id="profile-pills-btn-ir-single" class="bento-stat-cta">
+                                <button type="button" id="profile-pills-btn-ir-single" class="btn-secondary bento-stat-cta">
                                     Ir a pills
                                 </button>
                             </div>
@@ -221,7 +260,7 @@
                                 <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver">
                                     Ver pill
                                 </button>
-                                <button type="button" id="profile-pills-btn-ir-dual" class="bento-stat-cta bento-pills-btn-secondary">
+                                <button type="button" id="profile-pills-btn-ir-dual" class="btn-secondary bento-stat-cta bento-pills-btn-secondary">
                                     Ir a pills
                                 </button>
                             </div>
@@ -256,6 +295,16 @@
 
                         <!-- 5. Action Area -->
                     </div>
+                </div>
+
+                <!-- TALENTS DETAIL VIEW -->
+                <div id="talents-view" class="hidden talents-view">
+                    <h2 class="view-title talents-view__title">
+                        <i class="fas fa-brain bento-talents-icon--brain" aria-hidden="true"></i>
+                        Mis Talentos
+                    </h2>
+                    <p class="section-subtitle talents-view__subtitle">Conoce en qué consiste cada uno de tus talentos destacados y cómo se reflejan en tu perfil profesional.</p>
+                    <div id="talents-detail-grid" class="talents-detail-grid" role="list"></div>
                 </div>
 
                 <!-- MODE SELECTION VIEW -->
@@ -296,9 +345,6 @@
                 <!-- DASHBOARD VIEW -->
                 <div id="dashboard-view" class="hidden">
                     <h2 id="dashboard-title" class="view-title">Modo Práctica</h2>
-                    <button onclick="backToModes()" class="btn-text-back">
-                        <i class="fas fa-arrow-left"></i> Volver a elegir
-                    </button>
                     <p class="section-subtitle">Elige los temas de tu interés:</p>
 
                     <div class="category-grid">
@@ -376,9 +422,6 @@
                             <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled>
                                 INICIAR EVALUACIÓN
                             </button>
-                            <button type="button" onclick="backToModes()" class="btn-text-back btn-text-back--tertiary">
-                                <i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a elegir
-                            </button>
                         </div>
                     </div>
 
@@ -402,11 +445,6 @@
                             </div>
                         </div>
 
-                        <div class="action-group">
-                            <button type="button" onclick="backToModes()" class="btn-text-back btn-text-back--tertiary">
-                                <i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a elegir
-                            </button>
-                        </div>
                     </div>
 
                 </div>
@@ -418,12 +456,6 @@
 
                     <div id="pills-category-grid" class="pills-category-grid">
                         <!-- Cards por categoría (renderPillsCategoryList) -->
-                    </div>
-
-                    <div class="action-group">
-                        <button type="button" class="btn-outline-blue" onclick="backToModes()">
-                            VOLVER
-                        </button>
                     </div>
                 </div>
             </section>
@@ -597,9 +629,6 @@
                             </div>
 
                             <div class="results-actions">
-                                <button onclick="handleHeaderClick()" class="btn-outline-blue">
-                                    Volver al inicio
-                                </button>
                                 <button id="results-restart-btn" onclick="restartDirectly()" class="btn-primary">
                                     Reiniciar prueba
                                 </button>
@@ -631,9 +660,6 @@
                             <button type="button" onclick="goToPillsHomeFromResults()" class="btn-primary">
                                 Regresar a inicio de pills
                             </button>
-                            <button type="button" onclick="handleHeaderClick()" class="btn-outline-blue">
-                                Volver al inicio
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -642,7 +668,7 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">v4.0.0</span>
+                <span class="footer-version">4.5.0</span>
                 <span class="footer-tagline">
                     Una iniciativa de <span class="footer-brand">UXquisitos | Hecho por Martín Fuentes</span>
                 </span>
@@ -675,6 +701,22 @@
                         Cerrar
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Modal Compañeros de Talento -->
+        <div id="talent-peers-modal" class="hidden talent-peers-modal-overlay" onclick="if(event.target===this)closeTalentPeersModal()">
+            <div class="modal-box talent-peers-modal-box animate-pop">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="talent-peers-modal-title">
+                        <i class="fas fa-users" style="color:#a855f7;" aria-hidden="true"></i>
+                        Compañeros
+                    </h3>
+                    <button type="button" onclick="closeTalentPeersModal()" class="btn-close btn-close--sm" aria-label="Cerrar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="talent-peers-modal-list" class="talent-peers-modal-list"></div>
             </div>
         </div>
 
@@ -809,22 +851,7 @@
         </div>
 
         <script type="module" src="app.js?v=2"></script>
-        <script>
-            document.addEventListener('keydown', function (e) {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                const feedbackPanel = document.getElementById('feedback-panel');
-                const feedbackOpen = feedbackPanel && !feedbackPanel.classList.contains('hidden');
-                if (feedbackOpen && e.target.matches('[role="button"]') && !e.target.closest('#feedback-panel')) {
-                    e.preventDefault();
-                    document.getElementById('btn-next-question')?.click();
-                    return;
-                }
-                if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role="button"]')) {
-                    e.preventDefault();
-                    e.target.click();
-                }
-            });
-        </script>
+        <script src="js/keyboard-nav.js" defer></script>
     </div>
 </body>
 

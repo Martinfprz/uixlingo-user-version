@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UiX-lingo — Design System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+/* ============================================================
+   APP DESIGN TOKENS
+   ============================================================ */
+:root {
+    /* COLOR */
+    --color-bg: #080612;
+    --color-surface: rgba(255,255,255,0.05);
+    --color-surface-elevated: rgba(255,255,255,0.09);
+    --color-text: #EFFFFD;
+    --color-text-light: rgba(239,255,253,0.70);
+    --color-accent: #8c59fe;
+    --color-accent-alt: #597aff;
+    --color-accent-dark: #7040e0;
+    --color-lime: #ace738;
+    --color-lime-dark: #8ec42e;
+    --color-teal: #00c4b3;
+    --color-warning: #fbbf24;
+    --color-error: #ff8a96;
+    --color-success: #4ade80;
+    --color-border: rgba(255,255,255,0.1);
+    --glass-bg: rgba(255,255,255,0.05);
+    --glass-border: rgba(255,255,255,0.12);
+
+    /* SPACING */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+
+    /* TYPOGRAPHY */
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+
+    /* RADIUS */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+    --radius-2xl: 1.5rem;
+    --radius-full: 9999px;
+
+    /* SHADOWS */
+    --shadow-btn: 0 4px 20px rgba(140,89,254,0.35);
+    --shadow-btn-hover: 0 8px 32px rgba(140,89,254,0.5);
+    --shadow-btn-active: 0 2px 10px rgba(140,89,254,0.3);
+    --shadow-card: 0 10px 40px rgba(0,0,0,0.42);
+    --shadow-card-hover: 0 18px 52px rgba(0,0,0,0.5);
+    --shadow-modal: 0 32px 64px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.07);
+    --shadow-dialog: 0 24px 64px rgba(0,0,0,0.55);
+    --shadow-focus: 0 0 0 3px rgba(140,89,254,0.25);
+
+    /* BUTTONS */
+    --btn-height: 3rem;
+    --btn-padding-x: var(--space-4);
+    --btn-font-size: var(--text-lg);
+    --btn-radius: 0.75rem;
+    --btn-icon-size: 2.75rem;
+    --btn-icon-size-sm: 2.25rem;
+
+    /* MOTION */
+    --motion-fast: 180ms;
+    --motion-normal: 280ms;
+    --motion-slow: 420ms;
+    --motion-ease-standard: cubic-bezier(0.22,0.61,0.36,1);
+    --motion-ease-emphasis: cubic-bezier(0.2,0.8,0.2,1);
+}
+[data-theme="light"] {
+    --color-bg: #F5F7FF;
+    --color-surface: rgba(255,255,255,0.75);
+    --color-surface-elevated: rgba(255,255,255,0.92);
+    --color-text: #0D0B1E;
+    --color-text-light: #4A4268;
+    --color-accent: #4A22C0;
+    --color-accent-alt: #2136B8;
+    --color-accent-dark: #3A1A98;
+    --color-lime: #ace738;
+    --color-lime-dark: #3D5900;
+    --color-teal: #006B63;
+    --color-warning: #b45309;
+    --color-error: #B8001A;
+    --color-success: #16a34a;
+    --color-border: rgba(13,11,30,0.12);
+    --glass-bg: rgba(255,255,255,0.7);
+    --glass-border: rgba(74,34,192,0.15);
+    --shadow-btn: 0 4px 20px rgba(74,34,192,0.3);
+    --shadow-btn-hover: 0 8px 32px rgba(74,34,192,0.45);
+    --shadow-btn-active: 0 2px 10px rgba(74,34,192,0.25);
+    --shadow-card: 0 10px 40px rgba(13,11,30,0.08);
+    --shadow-card-hover: 0 18px 52px rgba(13,11,30,0.1);
+    --shadow-modal: 0 32px 64px rgba(13,11,30,0.12);
+    --shadow-dialog: 0 24px 64px rgba(2,6,23,0.24);
+    --shadow-focus: 0 0 0 3px rgba(74,34,192,0.2);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: var(--color-bg); color: var(--color-text); margin: 0; min-height: 100vh; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+/* ============================================================
+   APP COMPONENT STYLES
+   ============================================================ */
+
+/* BUTTONS */
+.btn-primary, .btn-cta, .btn-secondary, .btn-leaderboard, .btn-outline-blue, .pills-action-btn {
+    width: 100%; box-sizing: border-box;
+    min-height: var(--btn-height); padding: 0 var(--btn-padding-x);
+    border-radius: var(--btn-radius); font-size: var(--btn-font-size);
+    font-family: inherit; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    transition: box-shadow var(--motion-normal) var(--motion-ease-standard),
+                transform var(--motion-normal) var(--motion-ease-emphasis),
+                background-color var(--motion-normal) var(--motion-ease-standard),
+                border-color var(--motion-normal) var(--motion-ease-standard);
+}
+.btn-primary { background: linear-gradient(135deg, #5a2ee0 0%, #3d1fb5 100%); color: white; font-weight: 700; box-shadow: var(--shadow-btn); border: none; }
+.btn-primary:hover:not(:disabled) { box-shadow: var(--shadow-btn-hover); transform: translateY(-2px); }
+.btn-primary:active:not(:disabled) { box-shadow: var(--shadow-btn-active); transform: translateY(1px); }
+.btn-primary:disabled { background: rgba(255,255,255,0.07); color: rgba(239,255,253,0.3); cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-primary.btn--success-state { background: var(--color-lime) !important; box-shadow: 0 4px 20px rgba(172,231,56,0.35) !important; color: #17300c !important; }
+[data-theme="light"] .btn-primary:disabled { background: rgba(0,0,0,0.07); color: rgba(13,11,30,0.3); }
+
+.btn-cta { background: linear-gradient(135deg, var(--color-lime) 0%, var(--color-lime-dark) 100%); color: #0a0612; font-weight: 900; box-shadow: 0 4px 20px rgba(172,231,56,0.3); border: none; }
+.btn-cta:hover:not(:disabled) { box-shadow: 0 8px 32px rgba(172,231,56,0.48); transform: translateY(-2px); filter: brightness(1.07); }
+.btn-cta:active:not(:disabled) { box-shadow: 0 2px 10px rgba(172,231,56,0.2); transform: translateY(1px); filter: none; }
+.btn-cta:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; filter: none; }
+[data-theme="light"] .btn-cta { color: #17300c; box-shadow: 0 4px 20px rgba(61,89,0,0.25); }
+[data-theme="light"] .btn-cta:hover:not(:disabled) { box-shadow: 0 8px 32px rgba(61,89,0,0.38); }
+
+.btn-secondary { background: rgba(255,255,255,0.08); color: var(--color-text); border: 1px solid rgba(255,255,255,0.16); font-weight: 700; box-shadow: none; }
+.btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.26); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.26); }
+.btn-secondary:active:not(:disabled) { transform: translateY(0); background: rgba(255,255,255,0.11); box-shadow: 0 4px 14px rgba(0,0,0,0.22); }
+.btn-secondary:disabled { background: rgba(255,255,255,0.05); color: rgba(239,255,253,0.35); border-color: rgba(255,255,255,0.1); cursor: not-allowed; box-shadow: none; transform: none; }
+[data-theme="light"] .btn-secondary { background: rgba(13,11,30,0.06); color: #0D0B1E; border-color: rgba(13,11,30,0.18); }
+[data-theme="light"] .btn-secondary:hover:not(:disabled) { background: rgba(13,11,30,0.10); border-color: rgba(13,11,30,0.28); box-shadow: 0 8px 24px rgba(13,11,30,0.14); }
+[data-theme="light"] .btn-secondary:active:not(:disabled) { background: rgba(13,11,30,0.08); box-shadow: 0 4px 14px rgba(13,11,30,0.12); }
+[data-theme="light"] .btn-secondary:disabled { background: rgba(13,11,30,0.04); color: rgba(13,11,30,0.36); border-color: rgba(13,11,30,0.12); }
+
+.btn-leaderboard { border: 1px solid rgba(234,179,8,0.3); color: var(--color-warning); font-weight: 700; background: rgba(234,179,8,0.05); }
+.btn-leaderboard:hover { background: rgba(234,179,8,0.12); border-color: rgba(234,179,8,0.5); box-shadow: 0 4px 20px rgba(234,179,8,0.15); transform: translateY(-1px); }
+[data-theme="light"] .btn-leaderboard { color: #713000; background: rgba(180,83,9,0.08); border-color: rgba(113,48,0,0.32); }
+[data-theme="light"] .btn-leaderboard:hover { color: #713000; background: rgba(180,83,9,0.14); border-color: rgba(113,48,0,0.44); box-shadow: 0 4px 20px rgba(113,48,0,0.16); }
+
+.btn-outline-blue { border: 1.5px solid rgba(89,122,255,0.45); color: #7b9bff; font-weight: 700; background: rgba(89,122,255,0.05); }
+.btn-outline-blue:hover { background: rgba(89,122,255,0.12); border-color: rgba(89,122,255,0.6); }
+[data-theme="light"] .btn-outline-blue { color: #372ea0; border-color: rgba(55,46,160,0.42); background: rgba(55,46,160,0.06); }
+[data-theme="light"] .btn-outline-blue:hover { color: #372ea0; border-color: rgba(55,46,160,0.56); background: rgba(55,46,160,0.12); }
+
+.btn-auth-tertiary { width: 100%; box-sizing: border-box; text-align: center; font-size: 0.875rem; font-weight: 500; font-family: inherit; cursor: pointer; color: rgba(239,255,253,0.78); background: transparent; border: none; border-radius: var(--btn-radius); padding: 0.55rem 0.85rem; min-height: var(--btn-height); display: inline-flex; align-items: center; justify-content: center; transition: color var(--motion-normal), background var(--motion-normal); }
+.btn-auth-tertiary:hover { color: var(--color-text); background: rgba(255,255,255,0.11); }
+[data-theme="light"] .btn-auth-tertiary { color: rgba(13,11,30,0.7); }
+[data-theme="light"] .btn-auth-tertiary:hover { background: rgba(74,34,192,0.08); }
+
+.btn-text-back { width: var(--btn-icon-size); height: var(--btn-icon-size); display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-full); color: rgba(239,255,253,0.7); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); cursor: pointer; font-family: inherit; transition: color var(--motion-fast), transform var(--motion-fast), box-shadow var(--motion-fast), background var(--motion-fast), border-color var(--motion-fast); }
+.btn-text-back:hover { color: var(--color-accent); transform: translateY(-1px); background: rgba(255,255,255,0.1); border-color: rgba(89,122,255,0.35); box-shadow: 0 4px 14px rgba(89,122,255,0.24); }
+[data-theme="light"] .btn-text-back { color: rgba(13,11,30,0.72); background: rgba(13,11,30,0.04); border-color: rgba(13,11,30,0.12); }
+[data-theme="light"] .btn-text-back:hover { color: var(--color-accent); transform: translateY(-1px); background: rgba(74,34,192,0.1); border-color: rgba(74,34,192,0.28); box-shadow: 0 4px 14px rgba(74,34,192,0.22); }
+
+.btn-text-logout { font-size: 0.875rem; color: rgba(239,255,253,0.70); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 0.14em; font-family: inherit; transition: color var(--motion-fast), transform var(--motion-fast), text-shadow var(--motion-fast); }
+.btn-text-logout:hover { color: var(--color-error); transform: translateY(-1px); text-shadow: 0 2px 10px rgba(255,90,106,0.3); }
+[data-theme="light"] .btn-text-logout { color: rgba(13,11,30,0.72); }
+[data-theme="light"] .btn-text-logout:hover { color: var(--color-error); transform: translateY(-1px); text-shadow: 0 2px 10px rgba(220,38,38,0.22); }
+
+.btn-close, .btn-copy-topic { flex-shrink: 0; width: var(--btn-icon-size); height: var(--btn-icon-size); display: flex; align-items: center; justify-content: center; border-radius: var(--radius-full); padding: 0; cursor: pointer; transition: color var(--motion-fast), background var(--motion-fast); }
+.btn-close { color: rgba(239,255,253,0.4); background: rgba(255,255,255,0.05); border: none; }
+.btn-close:hover { color: var(--color-text); background: rgba(255,255,255,0.1); }
+.btn-close--sm { width: var(--btn-icon-size-sm); height: var(--btn-icon-size-sm); min-width: var(--btn-icon-size-sm); min-height: var(--btn-icon-size-sm); font-size: 0.75rem; background: rgba(255,255,255,0.07); color: rgba(239,255,253,0.70); }
+[data-theme="light"] .btn-close { background: rgba(0,0,0,0.04); color: rgba(13,11,30,0.62); }
+[data-theme="light"] .btn-close:hover { color: var(--color-text); background: rgba(0,0,0,0.08); }
+[data-theme="light"] .btn-close--sm { background: rgba(0,0,0,0.06); color: rgba(13,11,30,0.5); }
+.btn-copy-topic { color: rgba(239,255,253,0.3); background: rgba(255,255,255,0.04); border: 1px solid transparent; font-size: 1rem; }
+.btn-copy-topic:hover { color: var(--color-accent); background: rgba(255,255,255,0.08); }
+.btn-copy-topic--done { color: var(--color-lime); }
+[data-theme="light"] .btn-copy-topic { color: rgba(13,11,30,0.62); background: rgba(13,11,30,0.04); border-color: rgba(13,11,30,0.12); }
+[data-theme="light"] .btn-copy-topic:hover { color: var(--color-accent); background: rgba(74,34,192,0.10); border-color: rgba(74,34,192,0.24); }
+[data-theme="light"] .btn-copy-topic--done { color: #16a34a; }
+
+/* INPUTS */
+.text-input { width: 100%; padding: 1rem 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.1); text-align: center; font-weight: 500; font-size: 1rem; font-family: inherit; background: rgba(255,255,255,0.06); color: var(--color-text); transition: box-shadow var(--motion-normal) var(--motion-ease-standard), border-color var(--motion-normal) var(--motion-ease-standard), background var(--motion-normal) var(--motion-ease-standard); }
+.text-input::placeholder { color: rgba(239,255,253,0.55); }
+.text-input:focus { box-shadow: var(--shadow-focus); border-color: var(--color-accent); background: rgba(255,255,255,0.09); outline: none; }
+.text-input:disabled { opacity: 0.4; cursor: not-allowed; }
+.text-input--error { border-color: var(--color-error); box-shadow: 0 0 0 3px rgba(255,90,106,0.2); }
+.text-input--success { border-color: var(--color-success); box-shadow: 0 0 0 3px rgba(74,222,128,0.2); }
+[data-theme="light"] .text-input { background: #ffffff; border-color: rgba(13,11,30,0.22); color: var(--color-text); }
+[data-theme="light"] .text-input::placeholder { color: #4A4268; }
+[data-theme="light"] .text-input:focus { box-shadow: var(--shadow-focus); border-color: var(--color-accent); background: #ffffff; }
+[data-theme="light"] .text-input--error { border-color: #B8001A; box-shadow: 0 0 0 3px rgba(184,0,26,0.15); }
+[data-theme="light"] .text-input--success { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.15); }
+
+.input-wrapper { position: relative; width: 100%; }
+.input-wrapper .text-input { padding-right: 3.5rem; }
+.btn-eye { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: rgba(239,255,253,0.4); padding: 0.5rem; background: none; border: none; cursor: pointer; transition: color var(--motion-fast); }
+.btn-eye:hover { color: var(--color-accent); }
+.form-fields { display: flex; flex-direction: column; gap: 1rem; }
+.error-msg { color: #ff8a96; font-size: 0.75rem; font-weight: 700; text-align: center; background: rgba(255,138,150,0.1); border: 1px solid rgba(255,138,150,0.2); padding: 0.5rem; border-radius: var(--radius-sm); }
+[data-theme="light"] .error-msg { background: rgba(184,0,26,0.06); border-color: rgba(184,0,26,0.2); color: #B8001A; }
+
+/* DIVIDER */
+.divider { width: 100%; border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 1rem 0; }
+[data-theme="light"] .divider { border-top-color: rgba(13,11,30,0.08); }
+
+/* BENTO CARDS */
+.bento-card { background: rgba(20,18,32,0.82); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 1.5rem; border-radius: var(--radius-2xl); border: 1px solid rgba(255,255,255,0.1); box-shadow: var(--shadow-card); display: flex; flex-direction: column; position: relative; overflow: hidden; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease, border-color 0.3s ease; }
+.bento-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.13); box-shadow: var(--shadow-card-hover); }
+[data-theme="light"] .bento-card { background: rgba(255,255,255,0.82); border-color: rgba(74,34,192,0.12); box-shadow: var(--shadow-card); }
+[data-theme="light"] .bento-card:hover { border-color: rgba(74,34,192,0.22); box-shadow: var(--shadow-card-hover); }
+
+/* BADGES */
+.badge { padding: 0.25rem 0.75rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid; }
+.badge--accent { background: rgba(140,89,254,0.22); color: #c4a1ff; border-color: rgba(140,89,254,0.3); }
+.badge--secondary { background: rgba(255,255,255,0.08); color: var(--color-text-light); border-color: rgba(255,255,255,0.14); }
+.badge--teal { background: rgba(0,196,179,0.15); color: #00c4b3; border-color: rgba(0,196,179,0.3); }
+.badge--success { background: rgba(74,222,128,0.12); color: #4ade80; border-color: rgba(74,222,128,0.3); }
+.badge--error { background: rgba(255,138,150,0.12); color: #ff8a96; border-color: rgba(255,138,150,0.3); }
+.badge--amber { background: rgba(251,191,36,0.12); color: var(--color-warning); border-color: rgba(251,191,36,0.3); }
+[data-theme="light"] .badge--accent { background: rgba(74,34,192,0.12); color: #4A22C0; border-color: rgba(74,34,192,0.25); }
+[data-theme="light"] .badge--secondary { background: rgba(13,11,30,0.06); color: var(--color-text-light); border-color: rgba(13,11,30,0.12); }
+[data-theme="light"] .badge--teal { background: rgba(0,107,99,0.08); color: #006B63; border-color: rgba(0,107,99,0.22); }
+[data-theme="light"] .badge--success { background: rgba(22,163,74,0.1); color: #16a34a; border-color: rgba(22,163,74,0.22); }
+[data-theme="light"] .badge--error { background: rgba(184,0,26,0.08); color: #B8001A; border-color: rgba(184,0,26,0.18); }
+[data-theme="light"] .badge--amber { background: rgba(180,83,9,0.1); color: var(--color-warning); border-color: rgba(180,83,9,0.25); }
+
+.talent-pill { padding: 0.35rem 0.75rem; background: rgba(140,89,254,0.15); color: #c4a1ff; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(140,89,254,0.25); }
+[data-theme="light"] .talent-pill { background: rgba(74,34,192,0.1); color: #4A22C0; border-color: rgba(74,34,192,0.2); }
+
+.timer-tag { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-warning); border: 1px solid rgba(251,191,36,0.45); background: rgba(251,191,36,0.12); border-radius: var(--radius-full); padding: 0.14rem 0.5rem; }
+[data-theme="light"] .timer-tag { color: var(--color-warning); border-color: rgba(180,83,9,0.35); background: rgba(180,83,9,0.08); }
+
+.seniority-tag { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.28rem 0.52rem; border-radius: var(--radius-full); border: 1px solid rgba(196,161,255,0.35); background: rgba(196,161,255,0.12); color: #c4a1ff; }
+[data-theme="light"] .seniority-tag { background: rgba(74,34,192,0.1); color: #4A22C0; border-color: rgba(74,34,192,0.25); }
+.specialty-tag { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.24rem 0.48rem; border-radius: var(--radius-full); border: 1px solid rgba(56,189,248,0.34); background: rgba(56,189,248,0.14); color: #7dd3fc; }
+[data-theme="light"] .specialty-tag { background: rgba(33,54,184,0.1); color: #2136B8; border-color: rgba(33,54,184,0.25); }
+
+.new-tag { display: inline-flex; align-items: center; font-size: 0.625rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: #064e3b; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 0.32rem 0.65rem; border-radius: var(--radius-full); border: 1px solid rgba(6,78,59,0.3); animation: pillsTagPulse 2.4s ease-in-out infinite; }
+
+/* MODAL */
+.modal-box { background: rgba(13,11,26,0.95); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); width: 100%; border-radius: var(--radius-2xl); padding: 1.5rem; box-shadow: var(--shadow-modal); border: 1px solid rgba(255,255,255,0.1); position: relative; }
+[data-theme="light"] .modal-box { background: rgba(250,248,255,0.97); border-color: rgba(74,34,192,0.1); box-shadow: var(--shadow-modal); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 1rem; }
+[data-theme="light"] .modal-header { border-bottom-color: rgba(13,11,30,0.06); }
+.modal-title { font-size: 1.25rem; font-weight: 900; color: var(--color-text); display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.modal-footer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.07); text-align: center; }
+[data-theme="light"] .modal-footer { border-top-color: rgba(13,11,30,0.06); }
+.modal-footer-text { font-size: 0.75rem; color: var(--color-text-light); margin: 0; }
+.modal-icon-wrap { width: 4rem; height: 4rem; border-radius: var(--radius-full); background: rgba(140,89,254,0.15); border: 1px solid rgba(140,89,254,0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+.modal-icon { font-size: 1.5rem; color: var(--color-accent); }
+.modal-desc { color: var(--color-text-light); margin-bottom: 1.5rem; text-align: center; font-size: 0.875rem; }
+
+/* APP DIALOG */
+.app-dialog { width: 100%; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.1); box-shadow: var(--shadow-dialog); padding: 1.25rem; background: rgba(18,14,34,0.96); }
+[data-theme="light"] .app-dialog { background: #ffffff; border-color: rgba(15,23,42,0.08); box-shadow: var(--shadow-dialog); }
+.app-dialog-icon-wrap { width: 3rem; height: 3rem; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-size: 1.25rem; }
+.app-dialog-title { margin: 0 0 0.5rem; text-align: center; font-size: 1.15rem; font-weight: 800; color: var(--color-text); }
+[data-theme="light"] .app-dialog-title { color: #111827; }
+.app-dialog-message { margin: 0; text-align: center; color: var(--color-text-light); line-height: 1.6; }
+[data-theme="light"] .app-dialog-message { color: #4b5563; }
+.app-dialog-actions { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+/* dialog variants dark */
+.v-info .app-dialog-icon-wrap { background: rgba(3,105,161,0.18); color: #38bdf8; }
+.v-warning .app-dialog-icon-wrap { background: rgba(180,83,9,0.18); color: #fbbf24; }
+.v-error .app-dialog-icon-wrap { background: rgba(185,28,28,0.18); color: #f87171; }
+.v-success .app-dialog-icon-wrap { background: rgba(21,128,61,0.18); color: #4ade80; }
+/* dialog variants light */
+[data-theme="light"] .v-info .app-dialog-icon-wrap { background: #e0f2fe; color: #0369a1; }
+[data-theme="light"] .v-warning .app-dialog-icon-wrap { background: #fef3c7; color: #b45309; }
+[data-theme="light"] .v-error .app-dialog-icon-wrap { background: #fee2e2; color: #b91c1c; }
+[data-theme="light"] .v-success .app-dialog-icon-wrap { background: #dcfce7; color: #15803d; }
+
+/* TOAST */
+.streak-toast { background: linear-gradient(135deg, #FF6B00, #ff4500); color: white; padding: 0.75rem 1.5rem; border-radius: var(--radius-full); box-shadow: 0 20px 40px rgba(255,107,0,0.35); display: inline-flex; align-items: center; gap: 0.75rem; border: 1px solid rgba(255,150,50,0.4); }
+[data-theme="light"] .streak-toast { box-shadow: 0 20px 40px rgba(255,107,0,0.25); }
+.toast-icon { color: #fde68a; font-size: 1.25rem; }
+.toast-title { font-weight: 900; font-size: 0.875rem; text-transform: uppercase; margin: 0; }
+.toast-sub { font-size: 0.75rem; font-weight: 700; color: #fed7aa; margin: 0; }
+
+/* LEADERBOARD */
+.lb-item { padding: 0.75rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+.lb-item--me { background: rgba(234,179,8,0.1); border-color: rgba(234,179,8,0.25); }
+[data-theme="light"] .lb-item { background: rgba(0,0,0,0.02); border-color: rgba(13,11,30,0.06); }
+[data-theme="light"] .lb-item--me { background: rgba(180,83,9,0.16); border-color: rgba(180,83,9,0.42); box-shadow: inset 0 0 0 1px rgba(180,83,9,0.12); }
+.lb-left { display: flex; align-items: center; gap: 0.75rem; }
+.lb-rank { font-weight: 900; color: #DEE8FF; width: 1.5rem; text-align: right; }
+[data-theme="light"] .lb-rank { color: #4A4268; }
+.lb-name { font-weight: 700; color: var(--color-text); }
+.lb-name--me { color: #fbbf24; }
+[data-theme="light"] .lb-name--me { color: #b45309; }
+.lb-pts { font-weight: 900; color: var(--color-accent); font-size: 0.9rem; }
+.lb-time { font-size: 0.625rem; color: var(--color-text-light); }
+
+/* EMPTY STATE */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 2rem 1rem; color: rgba(239,255,253,0.25); width: 100%; }
+.empty-state i { font-size: 2.5rem; opacity: 0.4; }
+.empty-state p { font-size: 0.9rem; font-weight: 500; margin: 0; text-align: center; }
+[data-theme="light"] .empty-state { color: #4A4268; }
+[data-theme="light"] .empty-state i { color: #5b547b; opacity: 0.8; }
+
+/* PILLS CARD */
+.pills-card { text-align: left; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; padding: 1.1rem 1.25rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); backdrop-filter: blur(12px); }
+[data-theme="light"] .pills-card { background: rgba(255,255,255,0.85); border-color: rgba(74,34,192,0.15); }
+.pills-card__title { margin: 0 0 0.35rem 0; font-size: 1.1rem; font-weight: 800; color: var(--color-text); display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pills-card__meta { margin: 0; font-size: 0.85rem; color: var(--color-text-light); }
+.pills-card__actions { display: flex; flex-direction: column; gap: 0.5rem; min-width: 9.5rem; }
+.pills-action-btn { font-size: 0.85rem; font-weight: 700; min-height: var(--btn-height); padding: 0.55rem var(--btn-padding-x); border-radius: var(--btn-radius); line-height: 1.25; }
+
+/* TALENT ITEMS */
+.talent-item { padding: 0.75rem 1.25rem; border-radius: var(--radius-full); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--color-text-light); cursor: default; transition: background var(--motion-normal), border-color var(--motion-normal), color var(--motion-normal); }
+.talent-item:hover { background: rgba(140,89,254,0.12); border-color: rgba(140,89,254,0.35); color: var(--color-accent); }
+.talent-item i { color: var(--color-accent); }
+[data-theme="light"] .talent-item { background: rgba(74,34,192,0.04); border-color: rgba(74,34,192,0.14); }
+[data-theme="light"] .talent-item:hover { background: rgba(74,34,192,0.1); }
+
+/* REVIEW ITEM */
+.review-item { padding: 1rem; background: rgba(255,255,255,0.04); border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.07); }
+[data-theme="light"] .review-item { background: rgba(74,34,192,0.03); border-color: rgba(74,34,192,0.08); }
+.review-q { font-size: 0.875rem; color: var(--color-text); font-weight: 500; margin: 0 0 0.5rem 0; }
+.review-topic-label { font-size: 0.625rem; color: var(--color-text-light); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.25rem; }
+.review-topic-name { font-size: 0.875rem; font-weight: 700; color: var(--color-accent); }
+
+/* AVATAR */
+.avatar-wrap { position: relative; border-radius: var(--radius-full); border: 3px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 0 3px rgba(140,89,254,0.25); flex-shrink: 0; }
+[data-theme="light"] .avatar-wrap { border-color: rgba(74,34,192,0.15); box-shadow: 0 8px 24px rgba(13,11,30,0.12), 0 0 0 3px rgba(74,34,192,0.2); }
+.peer-avatar { width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 2px solid rgba(20,18,32,0.9); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: 0.75rem; font-weight: 700; color: #fff; }
+[data-theme="light"] .peer-avatar { border-color: rgba(250,248,255,0.95); }
+.peer-avatar--lg { width: 2.75rem; height: 2.75rem; font-size: 1rem; }
+.peer-avatar--gradient { background: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt)); }
+.peer-avatar--more { background: linear-gradient(135deg, var(--color-accent), var(--color-accent-alt)); border-color: rgba(255,255,255,0.32); cursor: pointer; }
+
+/* TABS / QUARTER SELECTOR */
+.q-btn { padding: 0.3rem 1rem; border-radius: var(--radius-full); border: 1px solid var(--color-border); background: transparent; color: var(--color-text-light); font-size: 0.8rem; font-weight: 800; cursor: pointer; letter-spacing: 0.04em; font-family: inherit; transition: background var(--motion-fast) var(--motion-ease-standard), color var(--motion-fast) var(--motion-ease-standard), border-color var(--motion-fast) var(--motion-ease-standard); }
+.q-btn:hover { background: rgba(140,89,254,0.1); color: var(--color-accent); border-color: var(--color-accent); }
+.q-btn.active { background: var(--color-accent); color: #fff; border-color: var(--color-accent); box-shadow: var(--shadow-btn-active); }
+[data-theme="light"] .q-btn.active { box-shadow: var(--shadow-btn-active); }
+
+/* SEAL CIRCLE */
+.seal-circle { width: 5rem; height: 5rem; border-radius: 50%; background: rgba(249,115,22,0.12); border: 2px solid rgba(249,115,22,0.3); box-shadow: 0 4px 16px rgba(249,115,22,0.2); display: flex; align-items: center; justify-content: center; color: #f97316; font-size: 1.85rem; transition: transform 0.3s ease; cursor: default; }
+.seal-circle:hover { transform: translateY(-4px) rotate(8deg); }
+[data-theme="light"] .seal-circle { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.22); box-shadow: 0 4px 12px rgba(249,115,22,0.12); }
+.seal-name { font-size: 0.8rem; font-weight: 600; text-align: center; color: var(--color-text-light); margin-top: 0.4rem; }
+
+/* ACCORDION */
+.accordion { border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-lg); overflow: hidden; }
+[data-theme="light"] .accordion { border-color: rgba(74,34,192,0.1); }
+.accordion summary { padding: 0.9rem 1.25rem; cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--color-text); background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: space-between; list-style: none; transition: background var(--motion-fast); }
+[data-theme="light"] .accordion summary { background: rgba(74,34,192,0.04); }
+.accordion summary:hover { background: rgba(255,255,255,0.07); }
+[data-theme="light"] .accordion summary:hover { background: rgba(74,34,192,0.08); }
+.accordion summary::-webkit-details-marker { display: none; }
+.accordion-content { padding: 1rem 1.25rem; font-size: 0.875rem; color: var(--color-text-light); border-top: 1px solid rgba(255,255,255,0.06); }
+[data-theme="light"] .accordion-content { border-top-color: rgba(74,34,192,0.06); }
+
+/* BOTTOM SHEET */
+.sheet-preview { background: rgba(13,11,26,0.97); border: 1px solid rgba(255,255,255,0.1); border-bottom: none; width: 100%; border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; padding: 1.5rem; box-shadow: 0 -20px 40px rgba(0,0,0,0.4); }
+[data-theme="light"] .sheet-preview { background: rgba(250,248,255,0.97); border-color: rgba(74,34,192,0.1); }
+.sheet-handle { width: 3rem; height: 6px; background: rgba(255,255,255,0.15); border-radius: var(--radius-full); margin: 0 auto 1.25rem; }
+[data-theme="light"] .sheet-handle { background: rgba(13,11,30,0.12); }
+
+/* PROGRESS BAR */
+.progress { height: 0.4rem; border-radius: var(--radius-full); background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 0.5rem; }
+[data-theme="light"] .progress { background: rgba(74,34,192,0.08); }
+.progress-bar { height: 100%; border-radius: var(--radius-full); background: linear-gradient(90deg, var(--color-accent), var(--color-accent-alt)); }
+
+/* STAT ICON WRAP */
+.stat-icon { width: 2.75rem; height: 2.75rem; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.stat-icon--purple { color: #8c59fe; background: rgba(140,89,254,0.15); }
+.stat-icon--teal { color: #00c4b3; background: rgba(0,196,179,0.15); }
+.stat-icon--blue { color: #597aff; background: rgba(89,122,255,0.15); }
+[data-theme="light"] .stat-icon--purple { color: #4A22C0; }
+[data-theme="light"] .stat-icon--teal { color: #006B63; }
+[data-theme="light"] .stat-icon--blue { color: #2136B8; }
+
+/* COMING SOON TAPE */
+.tape-wrap { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; border-radius: 1.5rem; }
+.tape-strip { position: absolute; width: 180%; left: -40%; padding: 9px 0; background: repeating-linear-gradient(90deg, rgba(176,138,18,0.82) 0px, rgba(176,138,18,0.82) 52px, rgba(130,100,10,0.82) 52px, rgba(130,100,10,0.82) 104px); transform: rotate(-11deg); top: 30%; font-size: 0.6rem; font-weight: 900; letter-spacing: 0.18em; color: rgba(255,245,195,0.92); text-align: center; white-space: nowrap; }
+
+/* TOOLTIP */
+.tip-wrap { position: relative; display: inline-block; }
+.tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: rgba(13,11,26,0.92); color: #fff; font-size: 0.7rem; font-weight: 700; white-space: nowrap; padding: 0.25rem 0.55rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.1); pointer-events: none; opacity: 0; transition: opacity var(--motion-fast); z-index: 30; }
+.tip-wrap:hover .tip { opacity: 1; }
+[data-theme="light"] .tip { background: rgba(250,248,255,0.97); color: #0D0B1E; border-color: rgba(13,11,30,0.1); }
+
+/* GLASS UTILITY */
+.glass { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); }
+
+/* SELECT */
+.form-select { width: 100%; padding: 1rem 3rem 1rem 1.5rem; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.1); font-weight: 500; font-size: 1rem; font-family: inherit; background-color: rgba(255,255,255,0.06); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='rgba(239,255,253,0.4)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; background-size: 0.75rem; color: var(--color-text); cursor: pointer; appearance: none; -webkit-appearance: none; transition: box-shadow var(--motion-normal) var(--motion-ease-standard), border-color var(--motion-normal) var(--motion-ease-standard), background-color var(--motion-normal); }
+.form-select:focus { box-shadow: var(--shadow-focus); border-color: var(--color-accent); outline: none; background-color: rgba(255,255,255,0.09); }
+.form-select:disabled { opacity: 0.4; cursor: not-allowed; }
+[data-theme="light"] .form-select { background-color: rgba(255,255,255,0.8); border-color: rgba(13,11,30,0.12); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='rgba(13,11,30,0.6)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+[data-theme="light"] .form-select:focus { box-shadow: var(--shadow-focus); border-color: var(--color-accent); background-color: rgba(255,255,255,0.95); }
+
+/* CHECKBOX */
+.form-checkbox { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.875rem; color: var(--color-text); user-select: none; }
+.form-checkbox__input { appearance: none; -webkit-appearance: none; width: 1.25rem; height: 1.25rem; border: 1.5px solid rgba(255,255,255,0.2); border-radius: var(--radius-sm); background: rgba(255,255,255,0.06); flex-shrink: 0; cursor: pointer; transition: background var(--motion-fast), border-color var(--motion-fast); }
+.form-checkbox__input:checked { background: var(--color-accent); border-color: var(--color-accent); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; background-size: 0.75rem; }
+.form-checkbox__input:focus-visible { box-shadow: var(--shadow-focus); outline: none; }
+.form-checkbox__input:disabled { opacity: 0.4; cursor: not-allowed; }
+[data-theme="light"] .form-checkbox__input { background: rgba(255,255,255,0.8); border-color: rgba(13,11,30,0.2); }
+
+/* RADIO */
+.form-radio { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.875rem; color: var(--color-text); user-select: none; }
+.form-radio__input { appearance: none; -webkit-appearance: none; width: 1.25rem; height: 1.25rem; border: 1.5px solid rgba(255,255,255,0.2); border-radius: var(--radius-full); background: rgba(255,255,255,0.06); flex-shrink: 0; cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast); }
+.form-radio__input:checked { border-color: var(--color-accent); border-width: 4px; background: rgba(140,89,254,0.18); }
+.form-radio__input:focus-visible { box-shadow: var(--shadow-focus); outline: none; }
+.form-radio__input:disabled { opacity: 0.4; cursor: not-allowed; }
+[data-theme="light"] .form-radio__input { background: rgba(255,255,255,0.8); border-color: rgba(13,11,30,0.2); }
+[data-theme="light"] .form-radio__input:checked { border-color: var(--color-accent); background: rgba(74,34,192,0.1); }
+
+/* TOGGLE / SWITCH */
+.form-toggle { display: inline-flex; align-items: center; gap: 0.75rem; cursor: pointer; font-size: 0.875rem; color: var(--color-text); user-select: none; }
+.form-toggle__input { position: absolute; opacity: 0; width: 0; height: 0; }
+.form-toggle__track { position: relative; width: 3rem; height: 1.625rem; background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.15); border-radius: var(--radius-full); flex-shrink: 0; transition: background var(--motion-normal) var(--motion-ease-standard), border-color var(--motion-normal) var(--motion-ease-standard); }
+.form-toggle__thumb { position: absolute; top: 0.1875rem; left: 0.1875rem; width: 1.125rem; height: 1.125rem; border-radius: var(--radius-full); background: rgba(255,255,255,0.5); transition: transform var(--motion-normal) var(--motion-ease-emphasis), background var(--motion-normal); }
+.form-toggle__input:checked + .form-toggle__track { background: var(--color-accent); border-color: var(--color-accent); }
+.form-toggle__input:checked + .form-toggle__track .form-toggle__thumb { transform: translateX(1.375rem); background: #fff; }
+.form-toggle__input:focus-visible + .form-toggle__track { box-shadow: var(--shadow-focus); }
+[data-theme="light"] .form-toggle__track { background: rgba(13,11,30,0.1); border-color: rgba(13,11,30,0.15); }
+[data-theme="light"] .form-toggle__thumb { background: rgba(13,11,30,0.35); }
+
+/* SKELETON LOADER */
+@keyframes skeletonShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%); background-size: 200% 100%; border-radius: var(--radius-md); animation: skeletonShimmer 1.5s ease-in-out infinite; }
+.skeleton--text { height: 0.875rem; border-radius: var(--radius-sm); }
+.skeleton--title { height: 1.25rem; border-radius: var(--radius-sm); }
+.skeleton--avatar { width: 2.75rem; height: 2.75rem; border-radius: var(--radius-full); }
+.skeleton--btn { height: 3rem; border-radius: var(--radius-lg); }
+[data-theme="light"] .skeleton { background: linear-gradient(90deg, rgba(13,11,30,0.06) 25%, rgba(13,11,30,0.1) 50%, rgba(13,11,30,0.06) 75%); background-size: 200% 100%; }
+
+/* LOADING BUTTON STATE */
+.btn-primary.btn--loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn-primary.btn--loading::after { content: ''; position: absolute; width: 1.25rem; height: 1.25rem; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: var(--radius-full); animation: spin 0.65s linear infinite; }
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(-25%); animation-timing-function: cubic-bezier(0.8,0,1,1); } 50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); } }
+.animate-bounce { animation: bounce 1s infinite; }
+@keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.animate-pop { animation: popIn var(--motion-normal) var(--motion-ease-emphasis); }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.animate-slide-up { animation: slideUp var(--motion-slow) var(--motion-ease-standard) forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn var(--motion-slow) var(--motion-ease-standard) both; }
+@keyframes flameGlow { 0%,100% { filter: drop-shadow(0 0 4px rgba(249,115,22,0.6)); transform: scale(1); } 50% { filter: drop-shadow(0 0 10px rgba(249,115,22,0.9)); transform: scale(1.18); } }
+.flame-sparking { animation: flameGlow 0.7s ease-in-out infinite; color: #f97316; }
+@keyframes pillsTagPulse { 0%,100% { box-shadow: 0 0 0 1px rgba(6,78,59,0.25) inset, 0 4px 14px rgba(16,185,129,0.45); } 50% { box-shadow: 0 0 0 1px rgba(6,78,59,0.35) inset, 0 4px 18px rgba(16,185,129,0.65); } }
+@media (prefers-reduced-motion: reduce) { :root { --motion-fast:1ms; --motion-normal:1ms; --motion-slow:1ms; } *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
+
+/* ============================================================
+   DS PAGE SHELL
+   ============================================================ */
+.ds-header { position: sticky; top: 0; z-index: 200; background: rgba(8,6,18,0.96); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255,255,255,0.07); padding: 0.875rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+.ds-logo { display: flex; align-items: center; gap: 0.75rem; font-size: 1rem; font-weight: 900; color: #EFFFFD; letter-spacing: -0.01em; }
+.ds-logo-icon { width: 2rem; height: 2rem; background: linear-gradient(135deg, #8c59fe, #597aff); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 0.875rem; color: white; }
+.ds-version { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(239,255,253,0.3); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.2rem 0.65rem; border-radius: var(--radius-full); }
+.ds-layout { display: flex; min-height: calc(100vh - 3.25rem); }
+.ds-nav { width: 210px; flex-shrink: 0; position: sticky; top: 3.25rem; height: calc(100vh - 3.25rem); overflow-y: auto; padding: 1.5rem 0.75rem; border-right: 1px solid rgba(255,255,255,0.06); background: rgba(5,4,12,0.6); }
+.ds-nav::-webkit-scrollbar { width: 3px; }
+.ds-nav::-webkit-scrollbar-thumb { background: rgba(140,89,254,0.25); border-radius: 2px; }
+.ds-nav-group { margin-bottom: 1.5rem; }
+.ds-nav-group-label { font-size: 0.58rem; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(239,255,253,0.22); padding: 0 0.75rem; margin-bottom: 0.35rem; }
+.ds-nav a { display: block; padding: 0.38rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 500; color: rgba(239,255,253,0.70); text-decoration: none; transition: background var(--motion-fast), color var(--motion-fast); }
+.ds-nav a:hover { background: rgba(140,89,254,0.1); color: rgba(239,255,253,0.9); }
+.ds-nav a.active { background: rgba(140,89,254,0.14); color: #c4a1ff; font-weight: 700; }
+.ds-main { flex: 1; padding: 2.5rem 2rem; max-width: 1100px; min-width: 0; }
+.ds-section { margin-bottom: 4rem; }
+.ds-section-header { margin-bottom: 1.75rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.ds-section-title { font-size: 1.5rem; font-weight: 900; color: #EFFFFD; margin: 0 0 0.4rem 0; display: flex; align-items: center; gap: 0.6rem; }
+.ds-section-title i { font-size: 1.1rem; color: #8c59fe; opacity: 0.8; }
+.ds-section-desc { font-size: 0.85rem; color: rgba(239,255,253,0.4); margin: 0; line-height: 1.6; }
+.ds-sub { margin-bottom: 2.5rem; }
+.ds-sub-label { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(239,255,253,0.28); margin: 0 0 0.85rem 0; }
+.ds-preview { display: grid; grid-template-columns: 1fr 1fr; border-radius: var(--radius-xl); overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+.ds-panel { padding: 2rem; }
+.ds-panel--dark { background: #080612; background-image: radial-gradient(ellipse 400px 400px at -5% -5%, rgba(140,89,254,0.18) 0%, transparent 65%), radial-gradient(ellipse 300px 300px at 105% 105%, rgba(0,196,179,0.12) 0%, transparent 65%); }
+.ds-panel--light { background: #F5F7FF; border-left: 1px solid rgba(255,255,255,0.08); }
+.ds-panel-label { font-size: 0.58rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.4rem; }
+.ds-panel--dark .ds-panel-label { color: rgba(239,255,253,0.22); }
+.ds-panel--light .ds-panel-label { color: rgba(13,11,30,0.3); }
+.ds-panel-label::before { content: ''; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; opacity: 0.7; }
+.state-label { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(239,255,253,0.25); display: block; margin-bottom: 0.4rem; margin-top: 0.75rem; }
+.ds-panel--light .state-label { color: rgba(13,11,30,0.35); }
+.state-label:first-child { margin-top: 0; }
+.state-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; }
+.state-col { display: flex; flex-direction: column; min-width: 9rem; flex: 1; }
+
+/* Token table */
+.token-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.token-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.58rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(239,255,253,0.25); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.token-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+.token-table tr:last-child td { border-bottom: none; }
+.t-name { font-family: 'Courier New', monospace; font-size: 0.72rem; color: #c4a1ff; white-space: nowrap; }
+.t-val { font-family: 'Courier New', monospace; font-size: 0.72rem; color: rgba(239,255,253,0.70); }
+.t-role { color: rgba(239,255,253,0.38); font-size: 0.75rem; }
+
+/* Color grid */
+.color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.75rem; }
+.swatch { border-radius: var(--radius-md); overflow: hidden; border: 1px solid rgba(255,255,255,0.07); }
+.swatch__sample { height: 3.5rem; }
+.swatch__info { padding: 0.55rem 0.65rem; background: rgba(255,255,255,0.03); }
+.swatch__name { font-size: 0.62rem; font-weight: 700; color: rgba(239,255,253,0.65); margin-bottom: 0.12rem; }
+.swatch__val { font-family: monospace; font-size: 0.6rem; color: rgba(239,255,253,0.3); }
+
+/* Spacing visual */
+.space-row { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.space-row:last-child { border-bottom: none; }
+.space-bar { background: linear-gradient(90deg, rgba(140,89,254,0.6), rgba(89,122,255,0.4)); height: 1.15rem; border-radius: 0.2rem; flex-shrink: 0; }
+.space-lbl { font-family: monospace; font-size: 0.68rem; color: rgba(239,255,253,0.38); width: 5rem; flex-shrink: 0; }
+.space-val { font-family: monospace; font-size: 0.68rem; color: rgba(239,255,253,0.22); }
+
+/* Radius visual */
+.radius-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end; }
+.radius-item { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.radius-box { width: 3.75rem; height: 3.75rem; background: rgba(140,89,254,0.2); border: 1.5px solid rgba(140,89,254,0.4); }
+.radius-lbl { font-size: 0.62rem; font-family: monospace; color: rgba(239,255,253,0.38); }
+.radius-role { font-size: 0.58rem; color: rgba(239,255,253,0.2); }
+
+/* Type row */
+.type-row { display: flex; align-items: baseline; gap: 1.5rem; padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.type-row:last-child { border-bottom: none; }
+.type-meta { width: 5.5rem; flex-shrink: 0; }
+.type-token { font-family: monospace; font-size: 0.62rem; color: rgba(239,255,253,0.35); display: block; }
+.type-size { font-size: 0.6rem; color: rgba(239,255,253,0.2); }
+
+/* Motion row */
+.motion-row { display: flex; align-items: center; gap: 1.25rem; padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.motion-row:last-child { border-bottom: none; }
+.anim-box { width: 2.5rem; height: 2.5rem; border-radius: var(--radius-sm); background: linear-gradient(135deg, #8c59fe, #597aff); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.875rem; flex-shrink: 0; }
+
+/* Anim grid */
+.anim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+.anim-card { padding: 1.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-lg); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.anim-card-name { font-size: 0.78rem; font-weight: 700; color: #EFFFFD; }
+.anim-card-role { font-size: 0.68rem; color: rgba(239,255,253,0.35); }
+
+/* Shadow samples */
+.shadow-grid { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.shadow-item { display: flex; flex-direction: column; gap: 0.65rem; align-items: center; }
+.shadow-box { width: 4.5rem; height: 3rem; border-radius: var(--radius-md); background: rgba(20,18,32,0.92); }
+
+/* A11y */
+.a11y-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.a11y-card { padding: 1.5rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-lg); }
+.a11y-card-title { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(239,255,253,0.28); margin: 0 0 1rem 0; }
+.a11y-chip { padding: 0.65rem 0.9rem; border-radius: var(--radius-md); font-size: 0.75rem; }
+.a11y-chip--purple { background: rgba(140,89,254,0.08); border: 1px solid rgba(140,89,254,0.2); color: #c4a1ff; }
+.a11y-chip--green { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); color: #4ade80; }
+.a11y-chip--teal { background: rgba(0,196,179,0.06); border: 1px solid rgba(0,196,179,0.2); color: #00c4b3; }
+.a11y-chip code { font-size: 0.7rem; font-family: monospace; display: block; margin-bottom: 0.25rem; }
+
+@media (max-width: 768px) {
+    .ds-nav { display: none; }
+    .ds-main { padding: 1.5rem 1rem; }
+    .ds-preview { grid-template-columns: 1fr; }
+    .ds-panel--light { border-left: none; border-top: 1px solid rgba(255,255,255,0.08); }
+    .a11y-grid { grid-template-columns: 1fr; }
+}
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="ds-header">
+    <div class="ds-logo">
+        <div class="ds-logo-icon"><i class="fa-solid fa-language"></i></div>
+        UiX-lingo Design System
+    </div>
+    <span class="ds-version">v4.0 · 2026</span>
+</header>
+
+<div class="ds-layout">
+
+<!-- SIDEBAR -->
+<nav class="ds-nav" aria-label="Design system sections">
+    <div class="ds-nav-group">
+        <div class="ds-nav-group-label">Foundation</div>
+        <a href="#colors">Colors</a>
+        <a href="#typography">Typography</a>
+        <a href="#spacing">Spacing</a>
+        <a href="#radius">Border Radius</a>
+        <a href="#shadows">Shadows & Glow</a>
+        <a href="#motion">Motion</a>
+    </div>
+    <div class="ds-nav-group">
+        <div class="ds-nav-group-label">Atoms</div>
+        <a href="#buttons">Buttons</a>
+        <a href="#icon-buttons">Icon Buttons</a>
+        <a href="#inputs">Form Inputs</a>
+        <a href="#form-atoms">Form Atoms</a>
+        <a href="#badges">Badges & Chips</a>
+        <a href="#dividers">Dividers</a>
+    </div>
+    <div class="ds-nav-group">
+        <div class="ds-nav-group-label">Molecules</div>
+        <a href="#cards">Cards</a>
+        <a href="#avatars">Avatars</a>
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="#toasts">Toasts</a>
+        <a href="#empty-states">Empty States</a>
+    </div>
+    <div class="ds-nav-group">
+        <div class="ds-nav-group-label">Organisms</div>
+        <a href="#modals">Modals & Dialogs</a>
+        <a href="#sheets">Bottom Sheet</a>
+        <a href="#pills">Pills Cards</a>
+        <a href="#talent">Talent Items</a>
+        <a href="#seals">Seals & Tabs</a>
+        <a href="#accordion">Accordion</a>
+    </div>
+    <div class="ds-nav-group">
+        <div class="ds-nav-group-label">Motion & A11y</div>
+        <a href="#animations">Animations</a>
+        <a href="#loading">Loading States</a>
+        <a href="#a11y">Accessibility</a>
+    </div>
+</nav>
+
+<!-- MAIN -->
+<main class="ds-main">
+
+<!-- ══════════════════════════════
+     COLORS
+     ══════════════════════════════ -->
+<section id="colors" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-palette"></i> Colors</h2>
+        <p class="ds-section-desc">Dark is the primary experience. Light mode achieves AAA (≥7:1) contrast on all text tokens. Never use --color-lime (#ace738) as text — backgrounds only.</p>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Dark palette</p>
+        <div class="color-grid">
+            <div class="swatch"><div class="swatch__sample" style="background:#080612;"></div><div class="swatch__info"><div class="swatch__name">--color-bg</div><div class="swatch__val">#080612</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);"></div><div class="swatch__info"><div class="swatch__name">--color-surface</div><div class="swatch__val">rgba(255,255,255, 0.05)</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#EFFFFD;"></div><div class="swatch__info"><div class="swatch__name">--color-text</div><div class="swatch__val">#EFFFFD</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#8c59fe;"></div><div class="swatch__info"><div class="swatch__name">--color-accent</div><div class="swatch__val">#8c59fe</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#597aff;"></div><div class="swatch__info"><div class="swatch__name">--color-accent-alt</div><div class="swatch__val">#597aff</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#ace738;"></div><div class="swatch__info"><div class="swatch__name">--color-lime</div><div class="swatch__val">#ace738</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#00c4b3;"></div><div class="swatch__info"><div class="swatch__name">--color-teal</div><div class="swatch__val">#00c4b3</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#ff8a96;"></div><div class="swatch__info"><div class="swatch__name">--color-error</div><div class="swatch__val">#ff8a96</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#4ade80;"></div><div class="swatch__info"><div class="swatch__name">--color-success</div><div class="swatch__val">#4ade80</div></div></div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Light palette — AAA contrast</p>
+        <div class="color-grid" style="background:#F5F7FF;padding:1rem;border-radius:1rem;">
+            <div class="swatch"><div class="swatch__sample" style="background:#F5F7FF;border:1px solid rgba(13,11,30,0.1);"></div><div class="swatch__info" style="background:rgba(13,11,30,0.03);"><div class="swatch__name" style="color:rgba(13,11,30,0.65);">--color-bg</div><div class="swatch__val" style="color:rgba(13,11,30,0.3);">#F5F7FF</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#0D0B1E;"></div><div class="swatch__info" style="background:rgba(13,11,30,0.03);"><div class="swatch__name" style="color:rgba(13,11,30,0.65);">--color-text</div><div class="swatch__val" style="color:rgba(13,11,30,0.3);">#0D0B1E</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#4A22C0;"></div><div class="swatch__info" style="background:rgba(13,11,30,0.03);"><div class="swatch__name" style="color:rgba(13,11,30,0.65);">--color-accent</div><div class="swatch__val" style="color:rgba(13,11,30,0.3);">7.75:1 AAA</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#2136B8;"></div><div class="swatch__info" style="background:rgba(13,11,30,0.03);"><div class="swatch__name" style="color:rgba(13,11,30,0.65);">--color-accent-alt</div><div class="swatch__val" style="color:rgba(13,11,30,0.3);">7.91:1 AAA</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#006B63;"></div><div class="swatch__info" style="background:rgba(13,11,30,0.03);"><div class="swatch__name" style="color:rgba(13,11,30,0.65);">--color-teal</div><div class="swatch__val" style="color:rgba(13,11,30,0.3);">7.62:1 AAA</div></div></div>
+            <div class="swatch"><div class="swatch__sample" style="background:#B8001A;"></div><div class="swatch__info" style="background:rgba(13,11,30,0.03);"><div class="swatch__name" style="color:rgba(13,11,30,0.65);">--color-error</div><div class="swatch__val" style="color:rgba(13,11,30,0.3);">7.48:1 AAA</div></div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     TYPOGRAPHY
+     ══════════════════════════════ -->
+<section id="typography" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-font"></i> Typography</h2>
+        <p class="ds-section-desc">Inter — sole typeface. 8 size steps. Weights used: 400 body · 500 supporting · 600 emphasis · 700 headings · 800 display · 900 emphasis/display.</p>
+    </div>
+    <div style="padding:1.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:1rem;">
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-4xl</span><span class="type-size">2.25rem · 800</span></div><div style="font-size:2.25rem;font-weight:800;color:#EFFFFD;line-height:1.15;">Display</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-3xl</span><span class="type-size">1.875rem · 800</span></div><div style="font-size:1.875rem;font-weight:800;color:#EFFFFD;line-height:1.2;">Heading</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-2xl</span><span class="type-size">1.5rem · 700</span></div><div style="font-size:1.5rem;font-weight:700;color:#EFFFFD;">Card Title</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-xl</span><span class="type-size">1.25rem · 700</span></div><div style="font-size:1.25rem;font-weight:700;color:#EFFFFD;">Modal Title</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-lg</span><span class="type-size">1.125rem · 700</span></div><div style="font-size:1.125rem;font-weight:700;color:#EFFFFD;">Button Label</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-base</span><span class="type-size">1rem · 400–500</span></div><div style="font-size:1rem;font-weight:500;color:rgba(239,255,253,0.8);line-height:1.6;">Body text — The quick brown fox jumps over the lazy dog</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-sm</span><span class="type-size">0.875rem · 500</span></div><div style="font-size:0.875rem;font-weight:500;color:rgba(239,255,253,0.55);line-height:1.6;">Supporting text, descriptions, form labels</div></div>
+        <div class="type-row"><div class="type-meta"><span class="type-token">--text-xs</span><span class="type-size">0.75rem · 800–900</span></div><div style="font-size:0.75rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:rgba(239,255,253,0.3);">BADGE · KICKER · TAB LABEL</div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     SPACING
+     ══════════════════════════════ -->
+<section id="spacing" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-ruler-horizontal"></i> Spacing</h2>
+        <p class="ds-section-desc">Base unit 4px. Scale starts at space-2 (8px). Never use raw values — always reference a token.</p>
+    </div>
+    <div style="padding:1.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:1rem;">
+        <div class="space-row"><div class="space-lbl">--space-2</div><div class="space-bar" style="width:0.5rem;"></div><div class="space-val">0.5rem · 8px · icon gaps, tight</div></div>
+        <div class="space-row"><div class="space-lbl">--space-3</div><div class="space-bar" style="width:0.75rem;"></div><div class="space-val">0.75rem · 12px · badge padding</div></div>
+        <div class="space-row"><div class="space-lbl">--space-4</div><div class="space-bar" style="width:1rem;"></div><div class="space-val">1rem · 16px · button px, item gaps</div></div>
+        <div class="space-row"><div class="space-lbl">--space-5</div><div class="space-bar" style="width:1.25rem;"></div><div class="space-val">1.25rem · 20px</div></div>
+        <div class="space-row"><div class="space-lbl">--space-6</div><div class="space-bar" style="width:1.5rem;"></div><div class="space-val">1.5rem · 24px · card padding, modal</div></div>
+        <div class="space-row"><div class="space-lbl">--space-8</div><div class="space-bar" style="width:2rem;"></div><div class="space-val">2rem · 32px · section rhythm</div></div>
+        <div class="space-row"><div class="space-lbl">--space-10</div><div class="space-bar" style="width:2.5rem;"></div><div class="space-val">2.5rem · 40px</div></div>
+        <div class="space-row"><div class="space-lbl">--space-12</div><div class="space-bar" style="width:3rem;"></div><div class="space-val">3rem · 48px · page section gaps</div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     BORDER RADIUS
+     ══════════════════════════════ -->
+<section id="radius" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-vector-square"></i> Border Radius</h2>
+        <p class="ds-section-desc">Each radius value has a semantic role. Never swap them between component types.</p>
+    </div>
+    <div class="radius-grid" style="padding:1.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:1rem;">
+        <div class="radius-item"><div class="radius-box" style="border-radius:0.5rem;"></div><span class="radius-lbl">0.5rem</span><span class="radius-role">Nav items</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:0.75rem;"></div><span class="radius-lbl">0.75rem</span><span class="radius-role">Buttons · <code style="font-size:0.55rem;color:rgba(239,255,253,0.3);">--btn-radius</code></span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:1rem;"></div><span class="radius-lbl">1rem</span><span class="radius-role">Inputs · Small cards</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:1.25rem;"></div><span class="radius-lbl">1.25rem</span><span class="radius-role">Pills cards</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:1.5rem;"></div><span class="radius-lbl">1.5rem</span><span class="radius-role">Bento cards / Modals</span></div>
+        <div class="radius-item"><div class="radius-box" style="border-radius:9999px;width:3.75rem;"></div><span class="radius-lbl">9999px</span><span class="radius-role">Pill / Avatar / Toast</span></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     SHADOWS & GLOW
+     ══════════════════════════════ -->
+<section id="shadows" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-sun"></i> Shadows & Glow</h2>
+        <p class="ds-section-desc">Shadows carry chromatic tint from the accent palette — they communicate both depth and color hierarchy simultaneously.</p>
+    </div>
+    <div class="shadow-grid" style="padding:2rem;background:#080612;border-radius:1rem;border:1px solid rgba(255,255,255,0.06);">
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 4px 20px rgba(140,89,254,0.35);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">btn-primary<br>default</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 8px 32px rgba(140,89,254,0.5);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">btn-primary<br>hover</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 4px 20px rgba(172,231,56,0.3);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">lime · success<br>default</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 8px 32px rgba(172,231,56,0.45);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">lime · success<br>hover</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 10px 40px rgba(0,0,0,0.42);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">bento-card<br>default</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 18px 52px rgba(0,0,0,0.5);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">bento-card<br>hover</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 32px 64px rgba(0,0,0,0.6),inset 0 0 0 1px rgba(255,255,255,0.07);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">modal-box<br>deep</span></div>
+        <div class="shadow-item"><div class="shadow-box" style="box-shadow:0 0 0 3px rgba(140,89,254,0.25);"></div><span style="font-size:0.62rem;color:rgba(239,255,253,0.3);text-align:center;">focus ring<br>3px glow</span></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     MOTION
+     ══════════════════════════════ -->
+<section id="motion" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-wind"></i> Motion</h2>
+        <p class="ds-section-desc">Three speed tiers + two easing curves. All durations collapse to 1ms when prefers-reduced-motion is active.</p>
+    </div>
+    <div style="padding:1.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:1rem;">
+        <div class="motion-row">
+            <div class="anim-box animate-spin"><i class="fa-solid fa-circle-notch"></i></div>
+            <div><div style="font-size:0.8rem;font-weight:700;color:#EFFFFD;">--motion-fast · 180ms</div><div style="font-size:0.72rem;color:rgba(239,255,253,0.38);margin-top:0.15rem;">Quick feedback, icons, micro-interactions</div></div>
+        </div>
+        <div class="motion-row">
+            <div class="anim-box animate-pulse"></div>
+            <div><div style="font-size:0.8rem;font-weight:700;color:#EFFFFD;">--motion-normal · 280ms</div><div style="font-size:0.72rem;color:rgba(239,255,253,0.38);margin-top:0.15rem;">Button states, border/color transitions (global default)</div></div>
+        </div>
+        <div class="motion-row">
+            <div class="anim-box animate-bounce"></div>
+            <div><div style="font-size:0.8rem;font-weight:700;color:#EFFFFD;">--motion-slow · 420ms</div><div style="font-size:0.72rem;color:rgba(239,255,253,0.38);margin-top:0.15rem;">Page transitions, modals entrances, sheet slides</div></div>
+        </div>
+        <div class="motion-row" style="border:none;flex-wrap:wrap;gap:0.75rem;">
+            <div style="padding:0.65rem 1rem;background:rgba(140,89,254,0.08);border:1px solid rgba(140,89,254,0.18);border-radius:0.75rem;font-size:0.72rem;color:#c4a1ff;font-family:monospace;">ease-standard<br><span style="color:rgba(239,255,253,0.3);">cubic-bezier(.22,.61,.36,1)</span></div>
+            <div style="padding:0.65rem 1rem;background:rgba(89,122,255,0.08);border:1px solid rgba(89,122,255,0.18);border-radius:0.75rem;font-size:0.72rem;color:#7b9bff;font-family:monospace;">ease-emphasis<br><span style="color:rgba(239,255,253,0.3);">cubic-bezier(.2,.8,.2,1)</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     BUTTONS
+     ══════════════════════════════ -->
+<section id="buttons" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-hand-pointer"></i> Buttons</h2>
+        <p class="ds-section-desc">5-level hierarchy: Primary · CTA · Secondary · Contextual · Text. All action buttons share height 3rem (--btn-height) and radius 0.75rem (--btn-radius). Hover lifts translateY(-2px); active pushes down +1px. Fully interactive — hover and click each one.</p>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Tokens de botones</p>
+        <table class="token-table" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:0.75rem;">
+            <thead><tr><th>Token</th><th>Value</th><th>Uso</th></tr></thead>
+            <tbody>
+                <tr><td class="t-name">--btn-height</td><td class="t-val">3rem (48px)</td><td class="t-role">Altura fija de todos los botones de acción</td></tr>
+                <tr><td class="t-name">--btn-padding-x</td><td class="t-val">var(--space-4) · 1rem</td><td class="t-role">Padding horizontal interno</td></tr>
+                <tr><td class="t-name">--btn-font-size</td><td class="t-val">var(--text-lg) · 1.125rem</td><td class="t-role">Tamaño de texto en botones de acción</td></tr>
+                <tr><td class="t-name">--btn-radius</td><td class="t-val">0.75rem</td><td class="t-role">Border-radius para todos los botones de acción</td></tr>
+                <tr><td class="t-name">--btn-icon-size</td><td class="t-val">2.75rem (44px)</td><td class="t-role">Tamaño de botones icónicos estándar · WCAG 2.5.5</td></tr>
+                <tr><td class="t-name">--btn-icon-size-sm</td><td class="t-val">2.25rem (36px)</td><td class="t-role">Variante compacta — usar solo en espacios muy reducidos</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">btn-primary — purple gradient · main action</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-primary">Continue</button></div>
+                    <div class="state-col"><span class="state-label">With icon</span><button class="btn-primary"><i class="fa-solid fa-arrow-right"></i> Next step</button></div>
+                    <div class="state-col"><span class="state-label">Loading</span><button class="btn-primary btn--loading" aria-label="Loading">Continue</button></div>
+                    <div class="state-col"><span class="state-label">Success</span><button class="btn-primary btn--success-state"><i class="fa-solid fa-check"></i> Saved!</button></div>
+                    <div class="state-col"><span class="state-label">Disabled</span><button class="btn-primary" disabled>Continue</button></div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-primary">Continue</button></div>
+                    <div class="state-col"><span class="state-label">With icon</span><button class="btn-primary"><i class="fa-solid fa-arrow-right"></i> Next step</button></div>
+                    <div class="state-col"><span class="state-label">Loading</span><button class="btn-primary btn--loading" aria-label="Loading">Continue</button></div>
+                    <div class="state-col"><span class="state-label">Success</span><button class="btn-primary btn--success-state"><i class="fa-solid fa-check"></i> Saved!</button></div>
+                    <div class="state-col"><span class="state-label">Disabled</span><button class="btn-primary" disabled>Continue</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">btn-cta — lime · maximum emphasis · start practice / confirm flow</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-cta"><i class="fa-solid fa-play"></i> Start Practice</button></div>
+                    <div class="state-col"><span class="state-label">Confirm</span><button class="btn-cta"><i class="fa-solid fa-check"></i> Confirm</button></div>
+                    <div class="state-col"><span class="state-label">Disabled</span><button class="btn-cta" disabled>Start Practice</button></div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-cta"><i class="fa-solid fa-play"></i> Start Practice</button></div>
+                    <div class="state-col"><span class="state-label">Confirm</span><button class="btn-cta"><i class="fa-solid fa-check"></i> Confirm</button></div>
+                    <div class="state-col"><span class="state-label">Disabled</span><button class="btn-cta" disabled>Start Practice</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">btn-secondary — supporting action</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-secondary">Maybe later</button></div>
+                    <div class="state-col"><span class="state-label">With icon</span><button class="btn-secondary"><i class="fa-solid fa-bookmark"></i> Save draft</button></div>
+                    <div class="state-col"><span class="state-label">Neutral action</span><button class="btn-secondary"><i class="fa-solid fa-eye"></i> Preview</button></div>
+                    <div class="state-col"><span class="state-label">Disabled</span><button class="btn-secondary" disabled>Maybe later</button></div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-secondary">Maybe later</button></div>
+                    <div class="state-col"><span class="state-label">With icon</span><button class="btn-secondary"><i class="fa-solid fa-bookmark"></i> Save draft</button></div>
+                    <div class="state-col"><span class="state-label">Neutral action</span><button class="btn-secondary"><i class="fa-solid fa-eye"></i> Preview</button></div>
+                    <div class="state-col"><span class="state-label">Disabled</span><button class="btn-secondary" disabled>Maybe later</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Contextual edge-case buttons — leaderboard, outline-blue, tertiary</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <button class="btn-leaderboard"><i class="fa-solid fa-trophy"></i> View Ranking</button>
+                    <button class="btn-outline-blue"><i class="fa-solid fa-eye"></i> View Material</button>
+                    <button class="btn-auth-tertiary">Already have an account? Log in</button>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <button class="btn-leaderboard"><i class="fa-solid fa-trophy"></i> View Ranking</button>
+                    <button class="btn-outline-blue"><i class="fa-solid fa-eye"></i> View Material</button>
+                    <button class="btn-auth-tertiary">Already have an account? Log in</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Text buttons — destructive action</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center;">
+                    <button class="btn-text-logout">Log out</button>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center;">
+                    <button class="btn-text-logout">Log out</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     ICON BUTTONS
+     ══════════════════════════════ -->
+<section id="icon-buttons" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-circle-dot"></i> Icon Buttons</h2>
+        <p class="ds-section-desc">Circular touch targets (2.75rem / 44px). All meet WCAG 2.5.5 minimum touch area.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-text-back" type="button" aria-label="Go back"><i class="fa-solid fa-chevron-left"></i></button><span class="state-label">back · 2.75rem</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-close"><i class="fa-solid fa-xmark"></i></button><span class="state-label">close · 2.75rem</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-close btn-close--sm"><i class="fa-solid fa-xmark"></i></button><span class="state-label">close–sm · 2.25rem</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-copy-topic"><i class="fa-solid fa-copy"></i></button><span class="state-label">copy</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-copy-topic btn-copy-topic--done"><i class="fa-solid fa-check"></i></button><span class="state-label">copied!</span></div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-text-back" type="button" aria-label="Go back"><i class="fa-solid fa-chevron-left"></i></button><span class="state-label">back · 2.75rem</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-close"><i class="fa-solid fa-xmark"></i></button><span class="state-label">close · 2.75rem</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-close btn-close--sm"><i class="fa-solid fa-xmark"></i></button><span class="state-label">close–sm · 2.25rem</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-copy-topic"><i class="fa-solid fa-copy"></i></button><span class="state-label">copy</span></div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:0.5rem;"><button class="btn-copy-topic btn-copy-topic--done"><i class="fa-solid fa-check"></i></button><span class="state-label">copied!</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     FORM INPUTS
+     ══════════════════════════════ -->
+<section id="inputs" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-keyboard"></i> Form Inputs</h2>
+        <p class="ds-section-desc">Center-aligned (auth form aesthetic). Focus: 3px purple glow. Click any input below to see focus state live.</p>
+    </div>
+    <div class="ds-sub">
+        <p class="ds-sub-label">Tokens de inputs</p>
+        <table class="token-table" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:0.75rem;">
+            <thead><tr><th>Token / clase</th><th>Valor</th><th>Uso</th></tr></thead>
+            <tbody>
+                <tr><td class="t-name">border-radius</td><td class="t-val">var(--radius-lg) · 1rem</td><td class="t-role">Radio del campo de texto</td></tr>
+                <tr><td class="t-name">border</td><td class="t-val">1px solid rgba(255,255,255,0.1)</td><td class="t-role">Borde en reposo</td></tr>
+                <tr><td class="t-name">focus ring</td><td class="t-val">var(--shadow-focus) + border accent</td><td class="t-role">3px glow al hacer :focus</td></tr>
+                <tr><td class="t-name">.text-input--error</td><td class="t-val">--color-error border</td><td class="t-role">Validación fallida</td></tr>
+                <tr><td class="t-name">.text-input--success</td><td class="t-val">--color-success border</td><td class="t-role">Validación exitosa</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div class="form-fields" style="max-width:22rem;">
+                <span class="state-label">Default</span>
+                <input class="text-input" type="text" placeholder="email@example.com">
+                <span class="state-label">Error state</span>
+                <input class="text-input text-input--error" type="text" value="invalid@">
+                <span class="state-label">Success state</span>
+                <input class="text-input text-input--success" type="text" value="valid@email.com">
+                <span class="state-label">Disabled</span>
+                <input class="text-input" type="text" placeholder="Disabled" disabled>
+                <span class="state-label">Password + eye toggle (click the eye)</span>
+                <div class="input-wrapper">
+                    <input class="text-input" type="password" value="mypassword123">
+                    <button class="btn-eye" type="button"><i class="fa-solid fa-eye"></i></button>
+                </div>
+                <span class="state-label">Error message</span>
+                <div class="error-msg"><i class="fa-solid fa-circle-exclamation"></i> Incorrect password. Please try again.</div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div class="form-fields" style="max-width:22rem;">
+                <span class="state-label">Default</span>
+                <input class="text-input" type="text" placeholder="email@example.com">
+                <span class="state-label">Error state</span>
+                <input class="text-input text-input--error" type="text" value="invalid@">
+                <span class="state-label">Success state</span>
+                <input class="text-input text-input--success" type="text" value="valid@email.com">
+                <span class="state-label">Disabled</span>
+                <input class="text-input" type="text" placeholder="Disabled" disabled>
+                <span class="state-label">Password + eye toggle</span>
+                <div class="input-wrapper">
+                    <input class="text-input" type="password" value="mypassword123">
+                    <button class="btn-eye" type="button"><i class="fa-solid fa-eye"></i></button>
+                </div>
+                <span class="state-label">Error message</span>
+                <div class="error-msg"><i class="fa-solid fa-circle-exclamation"></i> Incorrect password. Please try again.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     FORM ATOMS
+     ══════════════════════════════ -->
+<section id="form-atoms" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-list-check"></i> Form Atoms</h2>
+        <p class="ds-section-desc">Select, checkbox, radio and toggle. All share the same focus ring (--shadow-focus) and transition system. Fully keyboard-accessible.</p>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Select dropdown</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="form-fields" style="max-width:22rem;">
+                    <span class="state-label">Default</span>
+                    <select class="form-select"><option>UX Design</option><option>UI Design</option><option>Research</option></select>
+                    <span class="state-label">Disabled</span>
+                    <select class="form-select" disabled><option>Disabled</option></select>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="form-fields" style="max-width:22rem;">
+                    <span class="state-label">Default</span>
+                    <select class="form-select"><option>UX Design</option><option>UI Design</option><option>Research</option></select>
+                    <span class="state-label">Disabled</span>
+                    <select class="form-select" disabled><option>Disabled</option></select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Checkbox & Radio</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <label class="form-checkbox"><input type="checkbox" class="form-checkbox__input" checked> Remember me</label>
+                    <label class="form-checkbox"><input type="checkbox" class="form-checkbox__input"> Send notifications</label>
+                    <label class="form-checkbox"><input type="checkbox" class="form-checkbox__input" disabled> Disabled option</label>
+                    <hr class="divider" style="margin:0.25rem 0;">
+                    <label class="form-radio"><input type="radio" name="level-d" class="form-radio__input" checked> Beginner</label>
+                    <label class="form-radio"><input type="radio" name="level-d" class="form-radio__input"> Advanced</label>
+                    <label class="form-radio"><input type="radio" name="level-d" class="form-radio__input" disabled> Disabled</label>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <label class="form-checkbox"><input type="checkbox" class="form-checkbox__input" checked> Remember me</label>
+                    <label class="form-checkbox"><input type="checkbox" class="form-checkbox__input"> Send notifications</label>
+                    <label class="form-checkbox"><input type="checkbox" class="form-checkbox__input" disabled> Disabled option</label>
+                    <hr class="divider" style="margin:0.25rem 0;">
+                    <label class="form-radio"><input type="radio" name="level-l" class="form-radio__input" checked> Beginner</label>
+                    <label class="form-radio"><input type="radio" name="level-l" class="form-radio__input"> Advanced</label>
+                    <label class="form-radio"><input type="radio" name="level-l" class="form-radio__input" disabled> Disabled</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Toggle / Switch</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <label class="form-toggle"><input type="checkbox" class="form-toggle__input" checked><span class="form-toggle__track"><span class="form-toggle__thumb"></span></span>Dark mode</label>
+                    <label class="form-toggle"><input type="checkbox" class="form-toggle__input"><span class="form-toggle__track"><span class="form-toggle__thumb"></span></span>Notifications</label>
+                    <label class="form-toggle" style="opacity:0.4;pointer-events:none;"><input type="checkbox" class="form-toggle__input" disabled><span class="form-toggle__track"><span class="form-toggle__thumb"></span></span>Disabled</label>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <label class="form-toggle"><input type="checkbox" class="form-toggle__input" checked><span class="form-toggle__track"><span class="form-toggle__thumb"></span></span>Dark mode</label>
+                    <label class="form-toggle"><input type="checkbox" class="form-toggle__input"><span class="form-toggle__track"><span class="form-toggle__thumb"></span></span>Notifications</label>
+                    <label class="form-toggle" style="opacity:0.4;pointer-events:none;"><input type="checkbox" class="form-toggle__input" disabled><span class="form-toggle__track"><span class="form-toggle__thumb"></span></span>Disabled</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     BADGES & CHIPS
+     ══════════════════════════════ -->
+<section id="badges" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-tag"></i> Badges & Chips</h2>
+        <p class="ds-section-desc">Pill-shaped (9999px). Every semantic color has a badge variant. Used for status, categories, role labels, and animated timers.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center;">
+                <span class="badge badge--accent">Senior</span>
+                <span class="badge badge--secondary">UX Design</span>
+                <span class="badge badge--teal"><i class="fa-solid fa-check"></i> Complete</span>
+                <span class="badge badge--success"><i class="fa-solid fa-circle-check"></i> Passed</span>
+                <span class="badge badge--error"><i class="fa-solid fa-circle-xmark"></i> Failed</span>
+                <span class="badge badge--amber"><i class="fa-solid fa-clock"></i> 5 min left</span>
+                <span class="timer-tag"><i class="fa-solid fa-clock"></i> 12 min</span>
+                <span class="new-tag">NEW</span>
+                <span class="talent-pill"><i class="fa-solid fa-paintbrush"></i> UI Design</span>
+                <span class="seniority-tag">Semi-Senior</span>
+                <span class="specialty-tag">UX Research</span>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center;">
+                <span class="badge badge--accent">Senior</span>
+                <span class="badge badge--secondary">UX Design</span>
+                <span class="badge badge--teal"><i class="fa-solid fa-check"></i> Complete</span>
+                <span class="badge badge--success"><i class="fa-solid fa-circle-check"></i> Passed</span>
+                <span class="badge badge--error"><i class="fa-solid fa-circle-xmark"></i> Failed</span>
+                <span class="badge badge--amber"><i class="fa-solid fa-clock"></i> 5 min left</span>
+                <span class="timer-tag"><i class="fa-solid fa-clock"></i> 12 min</span>
+                <span class="new-tag">NEW</span>
+                <span class="talent-pill"><i class="fa-solid fa-paintbrush"></i> UI Design</span>
+                <span class="seniority-tag">Semi-Senior</span>
+                <span class="specialty-tag">UX Research</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     DIVIDERS
+     ══════════════════════════════ -->
+<section id="dividers" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-minus"></i> Dividers</h2>
+        <p class="ds-section-desc">Subtle hairline rules. Used inside forms and modals to separate logical sections without adding visual weight.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <p style="margin:0 0 0.5rem;font-size:0.875rem;color:rgba(239,255,253,0.70);">Content above the divider</p>
+            <hr class="divider">
+            <p style="margin:0;font-size:0.875rem;color:rgba(239,255,253,0.70);">Content below the divider</p>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <p style="margin:0 0 0.5rem;font-size:0.875rem;color:#4A4268;">Content above the divider</p>
+            <hr class="divider">
+            <p style="margin:0;font-size:0.875rem;color:#4A4268;">Content below the divider</p>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     CARDS
+     ══════════════════════════════ -->
+<section id="cards" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-square"></i> Cards</h2>
+        <p class="ds-section-desc">Glassmorphism: backdrop-blur(20px) + semi-transparent fill. Hover spring lifts 2px (cubic-bezier .34,1.56). Radius 1.5rem. Hover each card.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="bento-card">
+                    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                        <div class="stat-icon stat-icon--purple"><i class="fa-solid fa-bolt"></i></div>
+                        <div>
+                            <div style="font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;color:rgba(239,255,253,0.85);">QUESTS</div>
+                            <div style="font-size:0.72rem;color:rgba(239,255,253,0.38);">Practice mode</div>
+                        </div>
+                    </div>
+                    <div style="font-size:1.5rem;font-weight:800;color:#EFFFFD;margin-bottom:0.2rem;">24</div>
+                    <div style="font-size:0.875rem;color:rgba(239,255,253,0.70);margin-bottom:0.75rem;">completed quests</div>
+                    <div class="progress"><div class="progress-bar" style="width:65%;"></div></div>
+                </div>
+                <div class="bento-card" style="background:linear-gradient(135deg,rgba(140,89,254,0.18) 0%,rgba(89,122,255,0.1) 100%);border-color:rgba(140,89,254,0.22);overflow:visible;">
+                    <span class="badge badge--accent" style="margin-bottom:0.75rem;align-self:flex-start;">Semi-Senior</span>
+                    <div style="font-size:1.1rem;font-weight:500;color:rgba(239,255,253,0.9);margin:0;">UX Designer</div>
+                    <div style="font-size:2.25rem;font-weight:800;color:#EFFFFD;margin-top:1rem;">L3</div>
+                    <div class="tape-wrap"><div class="tape-strip">PRÓXIMAMENTE · PRÓXIMAMENTE · PRÓXIMAMENTE</div></div>
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="bento-card">
+                    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                        <div class="stat-icon stat-icon--purple"><i class="fa-solid fa-bolt"></i></div>
+                        <div>
+                            <div style="font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;color:rgba(13,11,30,0.8);">QUESTS</div>
+                            <div style="font-size:0.72rem;color:#4A4268;">Practice mode</div>
+                        </div>
+                    </div>
+                    <div style="font-size:1.5rem;font-weight:800;color:#0D0B1E;margin-bottom:0.2rem;">24</div>
+                    <div style="font-size:0.875rem;color:#4A4268;margin-bottom:0.75rem;">completed quests</div>
+                    <div class="progress"><div class="progress-bar" style="width:65%;"></div></div>
+                </div>
+                <div class="bento-card" style="background:linear-gradient(135deg,rgba(74,34,192,0.1) 0%,rgba(33,54,184,0.06) 100%);border-color:rgba(74,34,192,0.18);">
+                    <span class="badge badge--accent" style="margin-bottom:0.75rem;align-self:flex-start;">Semi-Senior</span>
+                    <div style="font-size:1.1rem;font-weight:500;color:rgba(13,11,30,0.8);">UX Designer</div>
+                    <div style="font-size:2.25rem;font-weight:800;color:#0D0B1E;margin-top:1rem;">L3</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     AVATARS
+     ══════════════════════════════ -->
+<section id="avatars" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-circle-user"></i> Avatars</h2>
+        <p class="ds-section-desc">Circular with accent ring. Stacked peers use margin-left: -0.55rem. Tooltips appear on hover. Placeholder uses the accent gradient.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                <div>
+                    <span class="state-label">Profile avatar</span>
+                    <div class="avatar-wrap" style="width:5rem;height:5rem;display:inline-flex;align-items:center;justify-content:center;">
+                        <div style="width:100%;height:100%;border-radius:9999px;background:linear-gradient(135deg,#8c59fe,#597aff);display:flex;align-items:center;justify-content:center;color:white;font-size:1.4rem;font-weight:800;border:2px solid #8c59fe;">MF</div>
+                    </div>
+                </div>
+                <div>
+                    <span class="state-label">Stacked peers + tooltip (hover them)</span>
+                    <div style="display:flex;align-items:center;margin-top:0.5rem;">
+                        <div class="tip-wrap" style="z-index:5;"><div class="peer-avatar peer-avatar--gradient">A</div><div class="tip">Ana</div></div>
+                        <div class="tip-wrap" style="margin-left:-0.55rem;z-index:4;"><div class="peer-avatar" style="background:linear-gradient(135deg,#00c4b3,#597aff);">L</div><div class="tip">Luis</div></div>
+                        <div class="tip-wrap" style="margin-left:-0.55rem;z-index:3;"><div class="peer-avatar" style="background:linear-gradient(135deg,#ace738,#00c4b3);color:#0a0612;">S</div><div class="tip">Sara</div></div>
+                        <div class="peer-avatar peer-avatar--more" style="margin-left:-0.55rem;z-index:2;">+4</div>
+                    </div>
+                </div>
+                <div>
+                    <span class="state-label">Large peer avatar</span>
+                    <div class="peer-avatar peer-avatar--gradient peer-avatar--lg" style="margin-top:0.5rem;">MF</div>
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                <div>
+                    <span class="state-label">Profile avatar</span>
+                    <div class="avatar-wrap" style="width:5rem;height:5rem;display:inline-flex;align-items:center;justify-content:center;">
+                        <div style="width:100%;height:100%;border-radius:9999px;background:linear-gradient(135deg,#4A22C0,#2136B8);display:flex;align-items:center;justify-content:center;color:white;font-size:1.4rem;font-weight:800;border:2px solid #4A22C0;">MF</div>
+                    </div>
+                </div>
+                <div>
+                    <span class="state-label">Stacked peers</span>
+                    <div style="display:flex;align-items:center;margin-top:0.5rem;">
+                        <div class="peer-avatar peer-avatar--gradient" style="z-index:5;position:relative;">A</div>
+                        <div class="peer-avatar" style="background:linear-gradient(135deg,#006B63,#2136B8);margin-left:-0.55rem;z-index:4;position:relative;">L</div>
+                        <div class="peer-avatar" style="background:linear-gradient(135deg,#3D5900,#006B63);color:#fff;margin-left:-0.55rem;z-index:3;position:relative;">S</div>
+                        <div class="peer-avatar peer-avatar--more" style="margin-left:-0.55rem;z-index:2;">+4</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     LEADERBOARD
+     ══════════════════════════════ -->
+<section id="leaderboard" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-ranking-star"></i> Leaderboard</h2>
+        <p class="ds-section-desc">Current user row uses amber highlight to distinguish from the crowd at a glance.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:0.5rem;max-width:22rem;">
+                <div class="lb-item"><div class="lb-left"><span class="lb-rank">1</span><span class="lb-name">María García</span></div><div><div class="lb-pts">2,840 pts</div><div class="lb-time">2h 15m</div></div></div>
+                <div class="lb-item"><div class="lb-left"><span class="lb-rank">2</span><span class="lb-name">Carlos López</span></div><div><div class="lb-pts">2,310 pts</div><div class="lb-time">1h 58m</div></div></div>
+                <div class="lb-item lb-item--me"><div class="lb-left"><span class="lb-rank" style="color:#fbbf24;">5</span><span class="lb-name lb-name--me">You</span></div><div><div class="lb-pts">1,820 pts</div><div class="lb-time">3h 02m</div></div></div>
+                <div class="lb-item"><div class="lb-left"><span class="lb-rank">6</span><span class="lb-name">Elena Mora</span></div><div><div class="lb-pts">1,790 pts</div><div class="lb-time">2h 44m</div></div></div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:0.5rem;max-width:22rem;">
+                <div class="lb-item"><div class="lb-left"><span class="lb-rank">1</span><span class="lb-name">María García</span></div><div><div class="lb-pts">2,840 pts</div><div class="lb-time">2h 15m</div></div></div>
+                <div class="lb-item lb-item--me"><div class="lb-left"><span class="lb-rank" style="color:#b45309;">5</span><span class="lb-name lb-name--me">You</span></div><div><div class="lb-pts">1,820 pts</div><div class="lb-time">3h 02m</div></div></div>
+                <div class="lb-item"><div class="lb-left"><span class="lb-rank">6</span><span class="lb-name">Elena Mora</span></div><div><div class="lb-pts">1,790 pts</div><div class="lb-time">2h 44m</div></div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     TOASTS
+     ══════════════════════════════ -->
+<section id="toasts" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-bell"></i> Toasts</h2>
+        <p class="ds-section-desc">Fixed-position pill toasts. Animate in from top-center with translateY. Auto-dismiss after 3–4s.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:1rem;align-items:flex-start;">
+                <div class="streak-toast">
+                    <span class="toast-icon"><i class="fa-solid fa-fire"></i></span>
+                    <div><p class="toast-title">Racha × 3</p><p class="toast-sub">¡Respuestas seguidas!</p></div>
+                </div>
+                <div style="background:rgba(3,105,161,0.88);color:white;padding:0.75rem 1.25rem;border-radius:9999px;display:inline-flex;align-items:center;gap:0.6rem;border:1px solid rgba(56,189,248,0.3);font-size:0.875rem;font-weight:600;">
+                    <i class="fa-solid fa-circle-check" style="color:#38bdf8;"></i> Progress saved
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:1rem;align-items:flex-start;">
+                <div class="streak-toast">
+                    <span class="toast-icon"><i class="fa-solid fa-fire"></i></span>
+                    <div><p class="toast-title">Racha × 3</p><p class="toast-sub">¡Respuestas seguidas!</p></div>
+                </div>
+                <div style="background:rgba(3,105,161,0.92);color:white;padding:0.75rem 1.25rem;border-radius:9999px;display:inline-flex;align-items:center;gap:0.6rem;border:1px solid rgba(56,189,248,0.4);font-size:0.875rem;font-weight:600;">
+                    <i class="fa-solid fa-circle-check" style="color:#38bdf8;"></i> Progress saved
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     EMPTY STATES
+     ══════════════════════════════ -->
+<section id="empty-states" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-inbox"></i> Empty States</h2>
+        <p class="ds-section-desc">Low-opacity centered icon + supporting text. Always explain why content is missing and what the user can do.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div class="bento-card">
+                <div class="empty-state">
+                    <i class="fa-solid fa-medal"></i>
+                    <p>No seals earned yet.<br>Complete a quest to unlock your first.</p>
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div class="bento-card">
+                <div class="empty-state">
+                    <i class="fa-solid fa-medal"></i>
+                    <p>No seals earned yet.<br>Complete a quest to unlock your first.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     MODALS & DIALOGS
+     ══════════════════════════════ -->
+<section id="modals" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-window-restore"></i> Modals & Dialogs</h2>
+        <p class="ds-section-desc">Two patterns: glass modal-box (content) and app-dialog (4 alert variants). Both use backdrop-filter blur on the overlay.</p>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">modal-box — content modal</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="modal-box">
+                    <div class="modal-header">
+                        <h3 class="modal-title"><i class="fa-solid fa-trophy" style="color:#fbbf24;"></i> Ranking</h3>
+                        <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                        <div class="lb-item"><div class="lb-left"><span class="lb-rank">1</span><span class="lb-name">Ana Torres</span></div><div class="lb-pts">2840 pts</div></div>
+                        <div class="lb-item lb-item--me"><div class="lb-left"><span class="lb-rank" style="color:#fbbf24;">3</span><span class="lb-name lb-name--me">You</span></div><div class="lb-pts">1820 pts</div></div>
+                    </div>
+                    <div class="modal-footer"><p class="modal-footer-text">Updated every hour</p></div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="modal-box">
+                    <div class="modal-header">
+                        <h3 class="modal-title"><i class="fa-solid fa-trophy" style="color:#b45309;"></i> Ranking</h3>
+                        <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                        <div class="lb-item"><div class="lb-left"><span class="lb-rank">1</span><span class="lb-name">Ana Torres</span></div><div class="lb-pts">2840 pts</div></div>
+                        <div class="lb-item lb-item--me"><div class="lb-left"><span class="lb-rank" style="color:#b45309;">3</span><span class="lb-name lb-name--me">You</span></div><div class="lb-pts">1820 pts</div></div>
+                    </div>
+                    <div class="modal-footer"><p class="modal-footer-text">Updated every hour</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">app-dialog — 4 alert variants</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div class="app-dialog v-info">
+                        <div class="app-dialog-icon-wrap"><i class="fa-solid fa-circle-info"></i></div>
+                        <p class="app-dialog-title">Session expiring</p>
+                        <p class="app-dialog-message">Your session expires in 5 minutes.</p>
+                        <div class="app-dialog-actions"><button class="btn-primary">OK, understood</button></div>
+                    </div>
+                    <div class="app-dialog v-error">
+                        <div class="app-dialog-icon-wrap"><i class="fa-solid fa-circle-exclamation"></i></div>
+                        <p class="app-dialog-title">Connection error</p>
+                        <p class="app-dialog-message">Could not save progress. Try again.</p>
+                        <div class="app-dialog-actions"><button class="btn-primary">Retry</button><button class="btn-outline-blue">Cancel</button></div>
+                    </div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div class="app-dialog v-success">
+                        <div class="app-dialog-icon-wrap"><i class="fa-solid fa-circle-check"></i></div>
+                        <p class="app-dialog-title">Quest complete!</p>
+                        <p class="app-dialog-message">You earned a new seal. Check your profile.</p>
+                        <div class="app-dialog-actions"><button class="btn-primary"><i class="fa-solid fa-medal"></i> View seal</button></div>
+                    </div>
+                    <div class="app-dialog v-warning">
+                        <div class="app-dialog-icon-wrap"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <p class="app-dialog-title">Exit quiz?</p>
+                        <p class="app-dialog-message">Your progress will be lost.</p>
+                        <div class="app-dialog-actions"><button class="btn-primary">Stay</button><button class="btn-outline-blue">Exit anyway</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     BOTTOM SHEET
+     ══════════════════════════════ -->
+<section id="sheets" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-arrow-up-from-line"></i> Bottom Sheet</h2>
+        <p class="ds-section-desc">Slides up from the bottom of the viewport over a blur backdrop. Drag handle at top. Used for "topics to review" after a quiz.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div class="sheet-preview">
+                <div class="sheet-handle"></div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+                    <h3 style="font-size:1.25rem;font-weight:700;color:#EFFFFD;margin:0;">Topics to review</h3>
+                    <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <div class="review-item"><p class="review-q">What is the difference between UX and UI?</p><div><span class="review-topic-label">Topic</span><span class="review-topic-name">UX Fundamentals</span></div></div>
+                    <div class="review-item"><p class="review-q">Name the 10 Nielsen heuristics.</p><div><span class="review-topic-label">Topic</span><span class="review-topic-name">Usability</span></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div class="sheet-preview">
+                <div class="sheet-handle"></div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;">
+                    <h3 style="font-size:1.25rem;font-weight:700;color:#0D0B1E;margin:0;">Topics to review</h3>
+                    <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <div class="review-item"><p class="review-q">What is the difference between UX and UI?</p><div><span class="review-topic-label">Topic</span><span class="review-topic-name">UX Fundamentals</span></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     PILLS CARDS
+     ══════════════════════════════ -->
+<section id="pills" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-capsules"></i> Pills Cards</h2>
+        <p class="ds-section-desc">Content category cards. Two-column grid: info left, actions right. Timer tag appears inline with the title when a session is active.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <div class="pills-card">
+                    <div>
+                        <h3 class="pills-card__title">UX Fundamentals <span class="timer-tag"><i class="fa-solid fa-clock"></i> 8 min</span></h3>
+                        <p class="pills-card__meta">15 flash cards · Beginner</p>
+                    </div>
+                    <div class="pills-card__actions">
+                        <button class="btn-primary pills-action-btn"><i class="fa-solid fa-bolt"></i> Challenge</button>
+                        <button class="btn-outline-blue pills-action-btn"><i class="fa-solid fa-book-open"></i> Study</button>
+                    </div>
+                </div>
+                <div class="pills-card">
+                    <div>
+                        <h3 class="pills-card__title">Nielsen Heuristics</h3>
+                        <p class="pills-card__meta">10 flash cards · Advanced</p>
+                    </div>
+                    <div class="pills-card__actions">
+                        <button class="btn-primary pills-action-btn" disabled>Challenge</button>
+                        <button class="btn-outline-blue pills-action-btn"><i class="fa-solid fa-book-open"></i> Study</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <div class="pills-card">
+                    <div>
+                        <h3 class="pills-card__title">UX Fundamentals <span class="timer-tag"><i class="fa-solid fa-clock"></i> 8 min</span></h3>
+                        <p class="pills-card__meta">15 flash cards · Beginner</p>
+                    </div>
+                    <div class="pills-card__actions">
+                        <button class="btn-primary pills-action-btn"><i class="fa-solid fa-bolt"></i> Challenge</button>
+                        <button class="btn-outline-blue pills-action-btn"><i class="fa-solid fa-book-open"></i> Study</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     TALENT ITEMS
+     ══════════════════════════════ -->
+<section id="talent" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-star"></i> Talent Items</h2>
+        <p class="ds-section-desc">Pill-shaped skill tags. Hover tints purple. Used in the bento talents card on the profile.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                <div class="talent-item"><i class="fa-solid fa-paintbrush"></i> UI Design</div>
+                <div class="talent-item"><i class="fa-solid fa-magnifying-glass"></i> UX Research</div>
+                <div class="talent-item"><i class="fa-solid fa-code"></i> Prototyping</div>
+                <div class="talent-item"><i class="fa-solid fa-users"></i> Facilitation</div>
+                <div class="talent-item"><i class="fa-solid fa-pen-nib"></i> Copywriting</div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                <div class="talent-item"><i class="fa-solid fa-paintbrush"></i> UI Design</div>
+                <div class="talent-item"><i class="fa-solid fa-magnifying-glass"></i> UX Research</div>
+                <div class="talent-item"><i class="fa-solid fa-code"></i> Prototyping</div>
+                <div class="talent-item"><i class="fa-solid fa-users"></i> Facilitation</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     SEALS & TABS
+     ══════════════════════════════ -->
+<section id="seals" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-medal"></i> Seals & Tab Selectors</h2>
+        <p class="ds-section-desc">Circular achievement badges that hover-lift and rotate. Q1–Q4 and year tabs filter the seals grid. Click the tabs to see the active state.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:1.25rem;">
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="q-btn active">Q1</button>
+                    <button class="q-btn">Q2</button>
+                    <button class="q-btn">Q3</button>
+                    <button class="q-btn">Q4</button>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle"><i class="fa-solid fa-star"></i></div>
+                        <span class="seal-name">First Quest</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle" style="background:rgba(140,89,254,0.12);border-color:rgba(140,89,254,0.3);color:#8c59fe;box-shadow:0 4px 16px rgba(140,89,254,0.2);"><i class="fa-solid fa-brain"></i></div>
+                        <span class="seal-name">Deep Thinker</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle" style="background:rgba(0,196,179,0.12);border-color:rgba(0,196,179,0.3);color:#00c4b3;box-shadow:0 4px 16px rgba(0,196,179,0.2);"><i class="fa-solid fa-fire"></i></div>
+                        <span class="seal-name">On Fire</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle" style="background:rgba(172,231,56,0.1);border-color:rgba(172,231,56,0.3);color:#ace738;box-shadow:0 4px 12px rgba(172,231,56,0.15);"><i class="fa-solid fa-trophy"></i></div>
+                        <span class="seal-name">Champion</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:1.25rem;">
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                    <button class="q-btn active">Q1</button>
+                    <button class="q-btn">Q2</button>
+                    <button class="q-btn">Q3</button>
+                    <button class="q-btn">Q4</button>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle"><i class="fa-solid fa-star"></i></div>
+                        <span class="seal-name">First Quest</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle" style="background:rgba(74,34,192,0.08);border-color:rgba(74,34,192,0.22);color:#4A22C0;box-shadow:0 4px 12px rgba(74,34,192,0.12);"><i class="fa-solid fa-brain"></i></div>
+                        <span class="seal-name">Deep Thinker</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem;">
+                        <div class="seal-circle" style="background:rgba(0,107,99,0.08);border-color:rgba(0,107,99,0.22);color:#006B63;box-shadow:0 4px 12px rgba(0,107,99,0.1);"><i class="fa-solid fa-fire"></i></div>
+                        <span class="seal-name">On Fire</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     ACCORDION
+     ══════════════════════════════ -->
+<section id="accordion" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-chevron-down"></i> Accordion</h2>
+        <p class="ds-section-desc">Native HTML &lt;details&gt;/&lt;summary&gt; — no JS needed. Used for seals history and team member drill-down.</p>
+    </div>
+    <div class="ds-preview">
+        <div class="ds-panel ds-panel--dark">
+            <div class="ds-panel-label">Dark</div>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <details class="accordion">
+                    <summary>Seals History 2025 <i class="fa-solid fa-chevron-down" style="font-size:0.72rem;color:rgba(239,255,253,0.35);"></i></summary>
+                    <div class="accordion-content">Q1: 3 seals · Q2: 5 seals · Q3: 2 seals · Q4: —</div>
+                </details>
+                <details class="accordion" open>
+                    <summary>Ana Torres — team member <i class="fa-solid fa-chevron-down" style="font-size:0.72rem;color:rgba(239,255,253,0.35);"></i></summary>
+                    <div class="accordion-content">Specialty: UX Research · Level: Semi-Senior · Quests: 24</div>
+                </details>
+            </div>
+        </div>
+        <div class="ds-panel ds-panel--light" data-theme="light">
+            <div class="ds-panel-label">Light</div>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <details class="accordion">
+                    <summary>Seals History 2025 <i class="fa-solid fa-chevron-down" style="font-size:0.72rem;color:rgba(13,11,30,0.35);"></i></summary>
+                    <div class="accordion-content">Q1: 3 seals · Q2: 5 seals · Q3: 2 seals</div>
+                </details>
+                <details class="accordion" open>
+                    <summary>Ana Torres — team member <i class="fa-solid fa-chevron-down" style="font-size:0.72rem;color:rgba(13,11,30,0.35);"></i></summary>
+                    <div class="accordion-content">Specialty: UX Research · Level: Semi-Senior</div>
+                </details>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     ANIMATIONS
+     ══════════════════════════════ -->
+<section id="animations" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-film"></i> Animations</h2>
+        <p class="ds-section-desc">All keyframes used in the app. Running continuously here for visibility — in production most are triggered on mount or interaction.</p>
+    </div>
+    <div class="anim-grid">
+        <div class="anim-card"><div class="anim-box animate-spin"><i class="fa-solid fa-circle-notch"></i></div><div><div class="anim-card-name">.animate-spin</div><div class="anim-card-role">Loading states</div></div></div>
+        <div class="anim-card"><div class="anim-box animate-pulse"></div><div><div class="anim-card-name">.animate-pulse</div><div class="anim-card-role">Skeleton / loading</div></div></div>
+        <div class="anim-card"><div class="anim-box animate-bounce"></div><div><div class="anim-card-name">.animate-bounce</div><div class="anim-card-role">Scroll hint</div></div></div>
+        <div class="anim-card"><div style="font-size:2rem;" class="flame-sparking"><i class="fa-solid fa-fire"></i></div><div><div class="anim-card-name">.flame-sparking</div><div class="anim-card-role">Streak indicator</div></div></div>
+        <div class="anim-card"><div class="anim-box animate-pop"></div><div><div class="anim-card-name">.animate-pop</div><div class="anim-card-role">Element entrance</div></div></div>
+        <div class="anim-card"><div class="anim-box animate-fade-in" style="animation-iteration-count:infinite;animation-direction:alternate;"></div><div><div class="anim-card-name">.animate-fade-in</div><div class="anim-card-role">View transitions</div></div></div>
+        <div class="anim-card"><div class="anim-box animate-slide-up" style="animation-iteration-count:infinite;animation-direction:alternate;"></div><div><div class="anim-card-name">.animate-slide-up</div><div class="anim-card-role">Panel entrances</div></div></div>
+        <div class="anim-card"><div class="new-tag" style="font-size:0.65rem;">NEW</div><div><div class="anim-card-name">pills-tag-pulse</div><div class="anim-card-role">NEW badge glow</div></div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     LOADING STATES
+     ══════════════════════════════ -->
+<section id="loading" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-hourglass-half"></i> Loading States</h2>
+        <p class="ds-section-desc">Two patterns: skeleton loader for content placeholders, and btn--loading for in-progress actions. Both respect prefers-reduced-motion.</p>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">Skeleton loader — shimmer on data fetch</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="bento-card" style="gap:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <div class="skeleton skeleton--avatar"></div>
+                        <div style="flex:1;display:flex;flex-direction:column;gap:0.4rem;">
+                            <div class="skeleton skeleton--title" style="width:60%;"></div>
+                            <div class="skeleton skeleton--text" style="width:40%;"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton skeleton--text" style="width:100%;"></div>
+                    <div class="skeleton skeleton--text" style="width:80%;"></div>
+                    <div class="skeleton skeleton--btn"></div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="bento-card" style="gap:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <div class="skeleton skeleton--avatar"></div>
+                        <div style="flex:1;display:flex;flex-direction:column;gap:0.4rem;">
+                            <div class="skeleton skeleton--title" style="width:60%;"></div>
+                            <div class="skeleton skeleton--text" style="width:40%;"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton skeleton--text" style="width:100%;"></div>
+                    <div class="skeleton skeleton--text" style="width:80%;"></div>
+                    <div class="skeleton skeleton--btn"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-sub">
+        <p class="ds-sub-label">btn--loading — spinner replaces label during async action</p>
+        <div class="ds-preview">
+            <div class="ds-panel ds-panel--dark">
+                <div class="ds-panel-label">Dark</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-primary">Save changes</button></div>
+                    <div class="state-col"><span class="state-label">Loading</span><button class="btn-primary btn--loading">Save changes</button></div>
+                </div>
+            </div>
+            <div class="ds-panel ds-panel--light" data-theme="light">
+                <div class="ds-panel-label">Light</div>
+                <div class="state-row">
+                    <div class="state-col"><span class="state-label">Default</span><button class="btn-primary">Save changes</button></div>
+                    <div class="state-col"><span class="state-label">Loading</span><button class="btn-primary btn--loading">Save changes</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════
+     ACCESSIBILITY
+     ══════════════════════════════ -->
+<section id="a11y" class="ds-section">
+    <div class="ds-section-header">
+        <h2 class="ds-section-title"><i class="fa-solid fa-universal-access"></i> Accessibility</h2>
+        <p class="ds-section-desc">WCAG 2.1 AA/AAA. All interactive elements have visible focus rings. Reduced motion collapses all timings to 1ms.</p>
+    </div>
+
+    <div class="a11y-grid">
+        <div class="a11y-card">
+            <p class="a11y-card-title">Focus states — Tab through these</p>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <button class="btn-primary" style="outline:2px solid #8c59fe;outline-offset:2px;">Focused button</button>
+                <input class="text-input" style="box-shadow:0 0 0 3px rgba(140,89,254,0.25);border-color:#8c59fe;outline:none;" placeholder="Focused input">
+                <div style="display:flex;gap:0.75rem;">
+                    <button class="btn-close" style="outline:2px solid #8c59fe;outline-offset:2px;"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="q-btn active" style="outline:2px solid #8c59fe;outline-offset:2px;">Q1</button>
+                </div>
+            </div>
+        </div>
+        <div class="a11y-card">
+            <p class="a11y-card-title">Utilities & constraints</p>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <div class="a11y-chip a11y-chip--purple"><code>.sr-only</code>Hidden visually, readable by screen readers. Apply to icon-only button labels.</div>
+                <div class="a11y-chip a11y-chip--green"><code>prefers-reduced-motion</code>All --motion-* tokens collapse to 1ms. No animation runs.</div>
+                <div class="a11y-chip a11y-chip--teal"><code>min touch target: 44×44px</code>btn-icon-size = 2.75rem = 44px. btn-close--sm uses min-width/height to preserve visual density while meeting WCAG 2.5.5.</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top:1.5rem;padding:1.5rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:1rem;">
+        <p class="a11y-card-title" style="margin-bottom:0.75rem;">Contrast reference</p>
+        <table class="token-table">
+            <thead><tr><th>Color pair</th><th>Mode</th><th>Ratio</th><th>Level</th></tr></thead>
+            <tbody>
+                <tr><td><span style="color:#EFFFFD;">#EFFFFD</span> on <span style="background:#080612;padding:0 4px;border-radius:3px;">#080612</span></td><td class="t-val">Dark body</td><td class="t-val">~18:1</td><td><span class="badge badge--success">AAA</span></td></tr>
+                <tr><td><span style="color:#0D0B1E;background:#F5F7FF;padding:0 4px;border-radius:3px;">#0D0B1E on #F5F7FF</span></td><td class="t-val">Light body</td><td class="t-val">~18:1</td><td><span class="badge badge--success">AAA</span></td></tr>
+                <tr><td><span style="color:#4A22C0;">#4A22C0</span> on <span style="background:#F5F7FF;padding:0 4px;border-radius:3px;color:#4A22C0;">#F5F7FF</span></td><td class="t-val">Light accent</td><td class="t-val">7.75:1</td><td><span class="badge badge--success">AAA</span></td></tr>
+                <tr><td><span style="color:#8c59fe;">#8c59fe</span> on <span style="background:#080612;padding:0 4px;border-radius:3px;">#080612</span></td><td class="t-val">Dark accent</td><td class="t-val">~5.2:1</td><td><span class="badge badge--amber">AA</span></td></tr>
+                <tr><td><span style="color:#0a0612;background:#ace738;padding:0 4px;border-radius:3px;">#0a0612 on #ace738</span></td><td class="t-val">Lime (success state)</td><td class="t-val">~9.1:1</td><td><span class="badge badge--success">AAA</span></td></tr>
+                <tr><td><span style="color:#B8001A;">#B8001A</span> on <span style="background:#F5F7FF;padding:0 4px;border-radius:3px;color:#B8001A;">#F5F7FF</span></td><td class="t-val">Light error</td><td class="t-val">7.48:1</td><td><span class="badge badge--success">AAA</span></td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+</main>
+</div>
+
+<script>
+// Active nav on scroll
+const sections = document.querySelectorAll('.ds-section[id]');
+const links = document.querySelectorAll('.ds-nav a');
+const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        if (e.isIntersecting) {
+            links.forEach(l => l.classList.remove('active'));
+            const a = document.querySelector(`.ds-nav a[href="#${e.target.id}"]`);
+            if (a) a.classList.add('active');
+        }
+    });
+}, { threshold: 0.25, rootMargin: '-56px 0px -55% 0px' });
+sections.forEach(s => io.observe(s));
+
+// Eye toggle
+document.querySelectorAll('.btn-eye').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = btn.previousElementSibling;
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.innerHTML = show ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+    });
+});
+
+// Tab switcher
+document.querySelectorAll('.q-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        btn.closest('div').querySelectorAll('.q-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    });
+});
+</script>
+</body>
+</html>

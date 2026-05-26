@@ -25,6 +25,9 @@ import { showAppAlert, showAppConfirm } from './ui.js';
 import { exposeToWindow } from './global-handlers.js';
 import { UI_TEXT as T } from './copy.js';
 
+const debugWarn = DEBUG ? console.warn.bind(console) : () => {};
+const debugError = DEBUG ? console.error.bind(console) : () => {};
+
 let supabaseSession = null;
 /** True cuando el usuario llegó desde un link de recuperación y aún no guarda la nueva contraseña. */
 let isPasswordRecoveryFlow = false;
@@ -136,7 +139,7 @@ async function loadPracticeQuestions() {
             updatePoolCount();
         }
     } catch (e) {
-        console.error("Error al cargar preguntas de práctica:", e);
+        debugError("Error al cargar preguntas de práctica:", e);
     }
 }
 
@@ -151,7 +154,7 @@ async function loadEvaluationQuestions() {
             updatePoolCount();
         }
     } catch (e) {
-        console.error("Error al cargar preguntas de evaluación:", e);
+        debugError("Error al cargar preguntas de evaluación:", e);
     }
 }
 
@@ -183,11 +186,76 @@ async function loadPillsCatalog() {
             renderProfilePillsCard();
         }
     } catch (e) {
-        console.error("Error al cargar píldoras:", e);
+        debugError("Error al cargar píldoras:", e);
     }
 }
 
-// Listener de autenticación: solo maneja sesión (datos se cargan bajo demanda)
+/** Evita restaurar el dashboard dos veces (INITIAL_SESSION + fallback getSession). */
+let sessionRestoreHandled = false;
+
+function isResetPasswordRoute() {
+    return window.location.pathname === RESET_PASSWORD_PATH
+        || window.location.pathname === `${RESET_PASSWORD_PATH}/`;
+}
+
+function isProfileDashboardVisible() {
+    const profileView = document.getElementById('profile-view');
+    return profileView && !profileView.classList.contains('hidden');
+}
+
+/**
+ * Si hay sesión guardada en el navegador, entra al perfil sin pedir login de nuevo.
+ * El refresh token de Supabase renueva el access token en segundo plano.
+ */
+async function restoreAuthenticatedSession(user) {
+    if (!supabase || !user || sessionRestoreHandled) return;
+    if (isPasswordRecoveryFlow || _recoveryFlowPending || isResetPasswordRoute()) return;
+    if (isProfileDashboardVisible()) {
+        sessionRestoreHandled = true;
+        return;
+    }
+
+    sessionRestoreHandled = true;
+    supabaseSession = (await supabase.auth.getSession()).data?.session ?? supabaseSession;
+
+    try {
+        userEmail = (user.email || '').trim().toLowerCase();
+        if (!userEmail) {
+            await supabase.auth.signOut();
+            sessionRestoreHandled = false;
+            return;
+        }
+
+        const role = user.app_metadata?.role || 'user';
+        const { data: rankingRow } = await supabase
+            .from('ranking_user')
+            .select('nombre')
+            .eq('email', userEmail)
+            .maybeSingle();
+
+        if (!rankingRow) {
+            await supabase.auth.signOut();
+            supabaseSession = null;
+            sessionRestoreHandled = false;
+            return;
+        }
+
+        userName = rankingRow.nombre || user.user_metadata?.nombre || (role === 'admin' ? 'Administrador' : 'Usuario');
+        emailVerified = true;
+
+        if (user.app_metadata?.force_password_change === true) {
+            promptChangePassword(user.id, '', 'ranking_user');
+            return;
+        }
+
+        await showDashboard(userName);
+    } catch (e) {
+        debugWarn('restoreAuthenticatedSession:', e);
+        sessionRestoreHandled = false;
+    }
+}
+
+// Listener de autenticación: recovery + restaurar sesión al recargar
 if (supabase) {
     supabase.auth.onAuthStateChange((event, session) => {
         supabaseSession = session;
@@ -205,14 +273,17 @@ if (supabase) {
             return;
         }
 
-        // INITIAL_SESSION: el SDK ya procesó el hash ANTES de que este listener se registrara.
-        // Si hay sesión activa y estamos en /reset-password, es un flujo de recovery.
-        if (event === 'INITIAL_SESSION' && session) {
-            const onResetRoute = window.location.pathname === RESET_PASSWORD_PATH
-                || window.location.pathname === `${RESET_PASSWORD_PATH}/`;
-            if (onResetRoute || _recoveryFlowPending) {
+        if (event === 'INITIAL_SESSION') {
+            if (session && (isResetPasswordRoute() || _recoveryFlowPending)) {
                 _recoveryFlowPending = false;
                 openRecoveryModal();
+                sessionRestoreHandled = true;
+                return;
+            }
+            if (session?.user) {
+                restoreAuthenticatedSession(session.user);
+            } else {
+                sessionRestoreHandled = true;
             }
         }
     });
@@ -306,8 +377,24 @@ function _showRecoveryError() {
     });
 }
 
-// Iniciar detección de recovery inmediatamente (sin await para no bloquear el render del splash)
-initPasswordRecoveryFlow();
+/**
+ * Recovery de contraseña + fallback si INITIAL_SESSION ya se emitió antes del listener.
+ */
+async function initAppAuth() {
+    await initPasswordRecoveryFlow();
+    if (!supabase || sessionRestoreHandled) return;
+    if (isPasswordRecoveryFlow || _recoveryFlowPending || isResetPasswordRoute()) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+        supabaseSession = session;
+        await restoreAuthenticatedSession(session.user);
+    } else {
+        sessionRestoreHandled = true;
+    }
+}
+
+initAppAuth();
 
 let questions = [];
 let currentSession = [];
@@ -439,6 +526,7 @@ let userProfile = {
     nickname: '',
     seniority: '',
     especialidad: '',
+    formador: '',
     questPoints: 0,
     testsPoints: 0,
     pillsPoints: 0,
@@ -534,7 +622,7 @@ async function loadUserProfile(uid) {
             };
         });
     } catch (e) {
-        console.warn('loadUserProfile error:', e);
+        debugWarn('loadUserProfile error:', e);
     }
 }
 
@@ -558,9 +646,10 @@ function pickSeniorityFromRankingData(data) {
 async function loadRankingUserStats() {
     if (!supabase || !userEmail || !userEmail.includes('@')) return;
     try {
+        const userId = supabaseSession?.user?.id;
         const { data, error } = await supabase
             .from('ranking_user')
-            .select('seniority, especialidad, quest_points, tests_points, pills_points, pills_rank_pill_id')
+            .select('seniority, especialidad, formador')
             .eq('email', userEmail.toLowerCase())
             .single();
         if (error) throw error;
@@ -572,14 +661,26 @@ async function loadRankingUserStats() {
             if (data.especialidad && String(data.especialidad).trim()) {
                 userProfile.especialidad = String(data.especialidad).trim();
             }
-            userProfile.questPoints = Number(data.quest_points || 0);
-            userProfile.testsPoints = Number(data.tests_points || 0);
-            userProfile.pillsPoints = Number(data.pills_points || 0);
-            userProfile.latestPillRankId = String(data.pills_rank_pill_id || '').trim();
-            userProfile.evalCompleted = data.tests_points != null;
+            if (data.formador && String(data.formador).trim()) {
+                userProfile.formador = String(data.formador).trim();
+            }
+        }
+        if (userId) {
+            const { data: scores } = await supabase
+                .from('user_scores')
+                .select('quest_points, tests_points, pills_points, pills_rank_pill_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            if (scores) {
+                userProfile.questPoints = Number(scores.quest_points || 0);
+                userProfile.testsPoints = Number(scores.tests_points || 0);
+                userProfile.pillsPoints = Number(scores.pills_points || 0);
+                userProfile.latestPillRankId = String(scores.pills_rank_pill_id || '').trim();
+                userProfile.evalCompleted = scores.tests_points != null;
+            }
         }
     } catch (e) {
-        console.warn('loadRankingUserStats error:', e);
+        debugWarn('loadRankingUserStats error:', e);
     }
 }
 
@@ -620,7 +721,7 @@ async function loadUserSeals(uid) {
 
         let pillSeals = [];
         if (pillScoresErr) {
-            console.warn('loadUserSeals user_pill_scores:', pillScoresErr);
+            debugWarn('loadUserSeals user_pill_scores:', pillScoresErr);
         } else {
             const qualifyingPillRows = (pillScoreRows || []).filter((row) => {
                 if (!isValidPillFirstAttemptRow(row)) return false;
@@ -680,7 +781,7 @@ async function loadUserSeals(uid) {
             .eq('user_id', uid);
 
         if (pillBadgesErr) {
-            console.warn('loadUserSeals user_pill_badges:', pillBadgesErr);
+            debugWarn('loadUserSeals user_pill_badges:', pillBadgesErr);
         }
 
         const pillBadgeSeals = (pillBadgesErr ? [] : (badgeRows || [])).map((row) => {
@@ -710,7 +811,7 @@ async function loadUserSeals(uid) {
         });
         userProfile.seals = [...byId.values()];
     } catch (e) {
-        console.warn('loadUserSeals error:', e);
+        debugWarn('loadUserSeals error:', e);
     }
 }
 
@@ -745,10 +846,20 @@ async function loadUserSkills(uid) {
             return;
         }
 
-        const { data: habRows, error: hErr } = await supabase
-            .from('habilidades')
-            .select('id, nombre, icono, imagen_url')
-            .in('id', orderedIds);
+        const habilidadesSelects = [
+            'id, nombre, icono, imagen_url, descripcion, como_lo_vives, recomendaciones, habilidades_clave, ojo_con, sort_order',
+            'id, nombre, icono, imagen_url, descripcion',
+            'id, nombre, icono, imagen_url'
+        ];
+        let habRows;
+        let hErr;
+        for (const cols of habilidadesSelects) {
+            ({ data: habRows, error: hErr } = await supabase
+                .from('habilidades')
+                .select(cols)
+                .in('id', orderedIds));
+            if (!hErr) break;
+        }
         if (hErr) throw hErr;
 
         const byId = new Map();
@@ -759,14 +870,20 @@ async function loadUserSkills(uid) {
         userProfile.talents = orderedIds.map((id) => {
             const h = byId.get(String(id));
             return {
+                habilidadId: String(id),
                 name: (h && h.nombre) || T.common.skillFallback,
                 icon: (h && h.icono) || 'fa-brain',
                 imageUrl: (h && h.imagen_url) || '',
-                sortOrder: 0
+                description: String((h && h.descripcion) || '').trim(),
+                comoLoVives: String((h && h.como_lo_vives) || '').trim(),
+                recomendaciones: String((h && h.recomendaciones) || '').trim(),
+                habilidadesClave: String((h && h.habilidades_clave) || '').trim(),
+                ojoCon: String((h && h.ojo_con) || '').trim(),
+                sortOrder: Number(h && h.sort_order) || 0
             };
         });
     } catch (e) {
-        console.warn('loadUserSkills error:', e);
+        debugWarn('loadUserSkills error:', e);
     }
 }
 
@@ -789,6 +906,266 @@ function renderProfileSeniorityEspecialidadCard() {
     if (eEl) {
         const esp = String(userProfile.especialidad || '').trim();
         eEl.textContent = esp || T.profile.sinRegistrar;
+    }
+}
+
+/** Especialidades que pueden ver el bloque «Mi equipo» (formador por nombre completo en `formador`). */
+const TEAM_MANAGER_ESPECIALIDAD_KEYS = new Set([
+    'product designers',
+    'product designer',
+    'customer success',
+    'administrativo',
+]);
+
+function isTeamManagerEspecialidad(especialidadRaw) {
+    const key = normalizeLabelKey(especialidadRaw);
+    return TEAM_MANAGER_ESPECIALIDAD_KEYS.has(key);
+}
+
+function formadorNameKey(name) {
+    return String(name || '').trim().toLowerCase();
+}
+
+function hideProfileTeamCard() {
+    const card = document.getElementById('profile-team-card');
+    if (!card) return;
+    card.classList.add('hidden');
+    card.hidden = true;
+}
+
+/**
+ * Reportes cuyo `ranking_user.formador` coincide con el nombre completo del usuario (case-insensitive).
+ */
+async function loadTeamReports() {
+    if (!supabase) return [];
+    const bossName = String(userName || '').trim();
+    if (!bossName) return [];
+
+    const bossKey = formadorNameKey(bossName);
+    const myUid = supabaseSession?.user?.id;
+    const myEmail = String(userEmail || '').trim().toLowerCase();
+
+    try {
+        const { data, error } = await supabase
+            .from('ranking_user')
+            .select('user_id, nombre, email, seniority, especialidad, formador')
+            .not('formador', 'is', null);
+        if (error) throw error;
+
+        const rows = (data || []).filter((row) => {
+            const formador = String(row.formador || '').trim();
+            if (!formador || formadorNameKey(formador) !== bossKey) return false;
+            if (myUid && row.user_id && String(row.user_id) === String(myUid)) return false;
+            if (myEmail && row.email && String(row.email).trim().toLowerCase() === myEmail) return false;
+            return true;
+        });
+
+        if (rows.length === 0) return [];
+
+        const peerIds = [...new Set(
+            rows.map((r) => String(r.user_id || '')).filter(Boolean)
+        )];
+
+        let profileMap = new Map();
+        let scoresMap = new Map();
+        if (peerIds.length > 0) {
+            const { data: profiles, error: profilesErr } = await supabase
+                .from('user_profiles')
+                .select('id, nickname, avatar_url')
+                .in('id', peerIds);
+            if (profilesErr) debugWarn('loadTeamReports user_profiles:', profilesErr);
+            (profiles || []).forEach((p) => {
+                profileMap.set(String(p.id), {
+                    nickname: String(p.nickname || '').trim(),
+                    avatarUrl: p.avatar_url || '',
+                });
+            });
+
+            const { data: peerScores } = await supabase
+                .from('user_scores')
+                .select('user_id, tests_points')
+                .in('user_id', peerIds);
+            (peerScores || []).forEach(s => scoresMap.set(String(s.user_id), s));
+        }
+
+        return rows
+            .map((row) => {
+                const uid = String(row.user_id || '');
+                const profile = profileMap.get(uid) || {};
+                const nombre = String(row.nombre || '').trim();
+                return {
+                    uid,
+                    name: nombre || profile.nickname || T.common.anonymous,
+                    especialidad: String(row.especialidad || '').trim(),
+                    seniority: String(row.seniority || '').trim(),
+                    testsPoints: scoresMap.get(uid)?.tests_points,
+                    avatarUrl: profile.avatarUrl || '',
+                };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    } catch (e) {
+        debugWarn('loadTeamReports error:', e);
+        throw e;
+    }
+}
+
+function renderProfileTeamMember(member) {
+    const item = document.createElement('article');
+    item.className = 'bento-team-member';
+    item.setAttribute('role', 'listitem');
+
+    const top = document.createElement('div');
+    top.className = 'bento-team-member__top';
+
+    const left = document.createElement('div');
+    left.className = 'bento-team-member__left';
+
+    const avatar = buildPeerAvatarEl(
+        { name: member.name, avatarUrl: member.avatarUrl },
+        'lg'
+    );
+    left.appendChild(avatar);
+
+    const meta = document.createElement('div');
+    meta.className = 'bento-team-member__meta';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'bento-team-member__name';
+    nameEl.textContent = member.name;
+    meta.appendChild(nameEl);
+
+    left.appendChild(meta);
+    item.appendChild(left);
+
+    const tags = document.createElement('div');
+    tags.className = 'bento-team-member__tags';
+
+    const especialidadEl = document.createElement('span');
+    const especialidad = String(member.especialidad || '').trim();
+    if (especialidad) {
+        especialidadEl.className = 'bento-team-member__especialidad';
+        especialidadEl.textContent = especialidad;
+    } else {
+        especialidadEl.className = 'bento-team-member__especialidad bento-team-member__especialidad--empty';
+        especialidadEl.textContent = T.profile.sinRegistrar;
+    }
+    tags.appendChild(especialidadEl);
+
+    const seniorityEl = document.createElement('span');
+    const seniority = String(member.seniority || '').trim();
+    if (seniority) {
+        seniorityEl.className = 'bento-team-member__seniority';
+        seniorityEl.textContent = seniority;
+    } else {
+        seniorityEl.className = 'bento-team-member__seniority bento-team-member__seniority--empty';
+        seniorityEl.textContent = T.profile.teamNoSeniority;
+    }
+    tags.appendChild(seniorityEl);
+
+    top.appendChild(left);
+    top.appendChild(tags);
+    item.appendChild(top);
+
+    const accordion = document.createElement('details');
+    accordion.className = 'bento-team-member__accordion';
+
+    const summary = document.createElement('summary');
+    summary.className = 'bento-team-member__accordion-summary';
+    summary.textContent = T.profile.teamEvalTitle;
+    accordion.appendChild(summary);
+
+    const content = document.createElement('div');
+    content.className = 'bento-team-member__accordion-content';
+    const pointsRaw = member.testsPoints;
+    const pointsNum = Number(pointsRaw);
+    const hasPoints = pointsRaw !== null && pointsRaw !== undefined && Number.isFinite(pointsNum);
+    content.textContent = hasPoints
+        ? T.profile.teamEvalPoints(pointsNum)
+        : T.profile.teamEvalPending;
+    accordion.appendChild(content);
+
+    item.appendChild(accordion);
+    return item;
+}
+
+function teamFirstName(fullName) {
+    return String(fullName || '').trim().split(/\s+/)[0] || T.common.anonymous;
+}
+
+function renderProfileTeamPreviewMember(member) {
+    const item = document.createElement('div');
+    item.className = 'bento-team-preview-item';
+
+    const avatar = buildPeerAvatarEl(
+        { name: member.name, avatarUrl: member.avatarUrl },
+        'lg'
+    );
+    avatar.classList.add('bento-team-preview-item__avatar');
+    item.appendChild(avatar);
+
+    const name = document.createElement('span');
+    name.className = 'bento-team-preview-item__name';
+    name.textContent = teamFirstName(member.name);
+    item.appendChild(name);
+
+    return item;
+}
+
+async function renderProfileTeam() {
+    const accordion = document.getElementById('profile-team-accordion');
+    const preview = document.getElementById('profile-team-preview');
+    const card = document.getElementById('profile-team-card');
+    const list = document.getElementById('profile-team-list');
+    const empty = document.getElementById('profile-team-empty');
+    const titleText = document.getElementById('profile-team-title-text');
+    const count = document.getElementById('profile-team-count');
+    if (!card || !accordion || !preview || !list || !empty || !titleText || !count) return;
+
+    if (!isTeamManagerEspecialidad(userProfile.especialidad)) {
+        hideProfileTeamCard();
+        return;
+    }
+
+    card.classList.remove('hidden');
+    card.hidden = false;
+    accordion.open = false; // Siempre iniciar cerrado
+    titleText.textContent = T.profile.teamTitle;
+    count.classList.add('hidden');
+    count.textContent = '';
+
+    preview.innerHTML = '';
+    list.innerHTML = '';
+    list.classList.remove('hidden');
+    list.classList.add('bento-team-list--loading');
+    list.textContent = T.profile.teamLoading;
+    empty.classList.add('hidden');
+    empty.textContent = T.profile.teamEmpty;
+
+    try {
+        const reports = await loadTeamReports();
+        list.classList.remove('bento-team-list--loading');
+        list.innerHTML = '';
+
+        if (reports.length === 0) {
+            empty.classList.remove('hidden');
+            count.classList.add('hidden');
+            return;
+        }
+
+        count.textContent = T.profile.teamCountLabel(reports.length);
+        count.classList.remove('hidden');
+        reports.slice(0, 8).forEach((member) => {
+            preview.appendChild(renderProfileTeamPreviewMember(member));
+        });
+        reports.forEach((member) => {
+            list.appendChild(renderProfileTeamMember(member));
+        });
+    } catch (e) {
+        list.classList.remove('bento-team-list--loading');
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        empty.textContent = T.profile.teamLoadError;
+        count.classList.add('hidden');
     }
 }
 
@@ -1083,6 +1460,11 @@ function renderProfile() {
     // Basic Info
     document.getElementById('profile-avatar-img').src = userProfile.avatarUrl;
     document.getElementById('profile-nickname').innerText = userProfile.nickname || userName;
+    const formadorEl = document.getElementById('profile-formador');
+    if (formadorEl) {
+        const formador = toTitleWordsCase(userProfile.formador);
+        formadorEl.textContent = formador ? `Líder: ${formador}` : 'Líder: Sin registrar';
+    }
 
     // Stats
     renderProfileSeniorityEspecialidadCard();
@@ -1092,42 +1474,528 @@ function renderProfile() {
     const rankEl = document.getElementById('profile-practice-rank');
     if (rankEl) rankEl.innerText = T.profile.rankCalculating;
     renderSeals();
+    renderProfileTalentsPreview();
+    renderProfileTeam().catch((e) => debugWarn('renderProfileTeam:', e));
+}
 
-    // Talents
-    const talentsContainer = document.getElementById('profile-talents');
-    talentsContainer.innerHTML = '';
-    if (userProfile.talents.length === 0) {
-        talentsContainer.innerHTML = T.profile.talentsEmpty;
-    } else {
-        userProfile.talents.forEach((talent) => {
-            const div = document.createElement('div');
-            div.className = 'talent-item talent-item--badge';
-            const label = String(talent.name || T.common.skillFallback);
-            div.setAttribute('title', label);
-            div.setAttribute('aria-label', label);
-            const imgSrc = safeTalentImageUrl(talent.imageUrl);
-            if (imgSrc) {
-                const img = document.createElement('img');
-                img.className = 'talent-item__img';
-                img.src = imgSrc;
-                img.alt = label;
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                div.appendChild(img);
-            } else {
-                const iconEl = document.createElement('i');
-                iconEl.className = `fas ${safeIconClass(talent.icon)}`;
-                iconEl.setAttribute('aria-hidden', 'true');
-                div.appendChild(iconEl);
-            }
-            const span = document.createElement('span');
-            span.className = 'talent-item__name';
-            span.textContent = label;
-            div.appendChild(span);
-            talentsContainer.appendChild(div);
+function getTalentDescription(talent) {
+    const stored = String(talent.description || '').trim();
+    if (stored) return stored;
+
+    const label = String(talent.name || T.common.skillFallback);
+    return T.profile.talentDescriptionGeneric(label);
+}
+
+function toTitleSentenceCase(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function toTitleWordsCase(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return '';
+    return normalized
+        .split(/\s+/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function createTalentDetailSection(parent, label, extraClass, collapsible = false) {
+    const baseClass = `talent-detail-card__section${extraClass ? ` ${extraClass}` : ''}`;
+    if (!collapsible) {
+        const block = document.createElement('section');
+        block.className = baseClass;
+
+        const kicker = document.createElement('p');
+        kicker.className = 'talent-detail-card__kicker';
+        kicker.textContent = label;
+        block.appendChild(kicker);
+
+        parent.appendChild(block);
+        return block;
+    }
+
+    const block = document.createElement('details');
+    block.className = `${baseClass} talent-detail-card__section--collapsible`;
+
+    const summary = document.createElement('summary');
+    summary.className = 'talent-detail-card__kicker talent-detail-card__summary';
+    summary.textContent = label;
+
+    const content = document.createElement('div');
+    content.className = 'talent-detail-card__section-content';
+
+    block.appendChild(summary);
+    block.appendChild(content);
+    parent.appendChild(block);
+    return content;
+}
+
+function appendTalentDetailTextSection(parent, label, text, extraClass, options = {}) {
+    const { collapsible = false } = options;
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return;
+
+    const target = createTalentDetailSection(parent, label, extraClass, collapsible);
+
+    const desc = document.createElement('p');
+    desc.className = 'talent-detail-card__desc';
+    desc.textContent = trimmed;
+
+    target.appendChild(desc);
+}
+
+function appendTalentDetailListSection(parent, label, rawText, options = {}) {
+    const { collapsible = false } = options;
+    const lines = String(rawText || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    if (lines.length === 0) return;
+
+    const target = createTalentDetailSection(parent, label, '', collapsible);
+
+    const list = document.createElement('ul');
+    list.className = 'talent-detail-card__list';
+    lines.forEach((line) => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        list.appendChild(li);
+    });
+
+    target.appendChild(list);
+}
+
+function appendTalentDetailSkillsSection(parent, label, rawText, options = {}) {
+    const { collapsible = false } = options;
+    const items = String(rawText || '')
+        .split('|')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (items.length === 0) return;
+
+    const target = createTalentDetailSection(parent, label, 'talent-detail-card__section--skills', collapsible);
+
+    const chips = document.createElement('div');
+    chips.className = 'talent-detail-card__chips';
+    chips.setAttribute('role', 'list');
+    items.forEach((item) => {
+        const chip = document.createElement('span');
+        chip.className = 'talent-detail-card__chip';
+        chip.setAttribute('role', 'listitem');
+        chip.textContent = item;
+        chips.appendChild(chip);
+    });
+
+    target.appendChild(chips);
+}
+
+function appendTalentVisual(parent, talent, label) {
+    const imgSrc = safeTalentImageUrl(talent.imageUrl);
+    if (imgSrc) {
+        const img = document.createElement('img');
+        img.className = 'talent-item__img';
+        img.src = imgSrc;
+        img.alt = label;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        parent.appendChild(img);
+        return;
+    }
+
+    const iconEl = document.createElement('i');
+    iconEl.className = `fas ${safeIconClass(talent.icon)}`;
+    iconEl.setAttribute('aria-hidden', 'true');
+    parent.appendChild(iconEl);
+}
+
+function createTalentItemElement(talent) {
+    const div = document.createElement('div');
+    div.className = 'talent-item talent-item--badge';
+
+    const label = String(talent.name || T.common.skillFallback);
+    div.setAttribute('title', label);
+    div.setAttribute('aria-label', label);
+
+    appendTalentVisual(div, talent, label);
+
+    const span = document.createElement('span');
+    span.className = 'talent-item__name';
+    span.textContent = label;
+    div.appendChild(span);
+    return div;
+}
+
+const TALENT_PEER_LIMIT = 9;
+const TALENT_PEER_LIMIT_MOBILE = 5;
+
+function getTalentPeerVisibleLimit() {
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 767px)').matches) {
+        return TALENT_PEER_LIMIT_MOBILE;
+    }
+    return TALENT_PEER_LIMIT;
+}
+
+/**
+ * Devuelve compañeros que comparten el talento `habilidadId`.
+ * Nombre: `ranking_user.nombre` por `user_id` (fuente principal).
+ * Avatar: `user_profiles.avatar_url`.
+ */
+async function loadTalentPeers(habilidadId) {
+    if (!supabase || !habilidadId) return [];
+    const myUid = supabaseSession?.user?.id;
+
+    try {
+        const { data: rows, error } = await supabase
+            .from('user_habilidades')
+            .select('user_id, habilidad_id_1, habilidad_id_2, habilidad_id_3, habilidad_id_4, habilidad_id_5')
+            .or(
+                `habilidad_id_1.eq.${habilidadId},habilidad_id_2.eq.${habilidadId},habilidad_id_3.eq.${habilidadId},habilidad_id_4.eq.${habilidadId},habilidad_id_5.eq.${habilidadId}`
+            );
+        if (error) throw error;
+        if (!rows || rows.length === 0) return [];
+
+        const peerIds = [...new Set(
+            rows
+                .map((r) => String(r.user_id))
+                .filter((id) => id && id !== String(myUid))
+        )];
+
+        if (peerIds.length === 0) return [];
+
+        const [{ data: profiles, error: profilesErr }, { data: rankingRows, error: rankingErr }] = await Promise.all([
+            supabase
+                .from('user_profiles')
+                .select('id, nickname, avatar_url')
+                .in('id', peerIds),
+            supabase
+                .from('ranking_user')
+                .select('user_id, nombre')
+                .in('user_id', peerIds),
+        ]);
+
+        if (profilesErr) debugWarn('loadTalentPeers user_profiles:', profilesErr);
+        if (rankingErr) debugWarn('loadTalentPeers ranking_user:', rankingErr);
+
+        const profileMap = new Map();
+        (profiles || []).forEach((p) => {
+            profileMap.set(String(p.id), {
+                nickname: String(p.nickname || '').trim(),
+                avatarUrl: p.avatar_url || '',
+            });
         });
+
+        const rankingMap = new Map();
+        (rankingRows || []).forEach((r) => {
+            const uid = String(r.user_id || '');
+            if (!uid) return;
+            const nombre = String(r.nombre || '').trim();
+            if (nombre) rankingMap.set(uid, nombre);
+        });
+
+        return peerIds.map((uid) => {
+            const profile = profileMap.get(uid) || {};
+            const name =
+                rankingMap.get(uid) ||
+                profile.nickname ||
+                T.common.anonymous;
+            return {
+                uid,
+                name,
+                avatarUrl: profile.avatarUrl || '',
+            };
+        });
+    } catch (e) {
+        debugWarn('loadTalentPeers error:', e);
+        return [];
     }
 }
+
+/** Abre el modal con la lista completa de peers de un talento. */
+window.openTalentPeersModal = function (talentName, peersJson) {
+    const peers = JSON.parse(peersJson);
+    const modal = document.getElementById('talent-peers-modal');
+    if (!modal) return;
+
+    document.getElementById('talent-peers-modal-title').textContent = talentName;
+    const list = document.getElementById('talent-peers-modal-list');
+    list.innerHTML = '';
+
+    if (peers.length === 0) {
+        list.innerHTML = `<p class="talent-peers-empty">Ningún otro UIXer comparte este talento todavía.</p>`;
+    } else {
+        peers.forEach((peer) => {
+            const item = document.createElement('div');
+            item.className = 'talent-peer-list-item';
+
+            const avatar = buildPeerAvatarEl(peer, 'lg');
+            const name = document.createElement('span');
+            name.className = 'talent-peer-list-item__name';
+            name.textContent = peer.name;
+
+            item.appendChild(avatar);
+            item.appendChild(name);
+            list.appendChild(item);
+        });
+    }
+
+    modal.classList.remove('hidden');
+};
+
+window.closeTalentPeersModal = function () {
+    document.getElementById('talent-peers-modal')?.classList.add('hidden');
+};
+
+function _peerFirstName(fullName) {
+    return String(fullName || '').trim().split(/\s+/)[0] || fullName || '?';
+}
+
+/** Avatar circular (sin tooltip; el wrap lo añade en el stack). */
+function buildPeerAvatarInner(peer, size = 'sm') {
+    if (peer.avatarUrl) {
+        const img = document.createElement('img');
+        img.className = `talent-peer-avatar talent-peer-avatar--${size}`;
+        img.src = peer.avatarUrl;
+        img.alt = peer.name;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = function () {
+            const placeholder = buildPeerAvatarPlaceholderInner(peer, size);
+            img.replaceWith(placeholder);
+        };
+        return img;
+    }
+    return buildPeerAvatarPlaceholderInner(peer, size);
+}
+
+function buildPeerAvatarPlaceholderInner(peer, size = 'sm') {
+    const el = document.createElement('span');
+    el.className = `talent-peer-avatar talent-peer-avatar--${size} talent-peer-avatar--placeholder`;
+    el.textContent = String(peer.name || '?').charAt(0).toUpperCase();
+    el.setAttribute('aria-label', peer.name);
+    return el;
+}
+
+/**
+ * En el stack: wrap con tooltip de primer nombre (los <img> no admiten ::after).
+ * En el modal (lg): solo el avatar interior.
+ */
+function buildPeerAvatarEl(peer, size = 'sm') {
+    const inner = buildPeerAvatarInner(peer, size);
+    if (size !== 'sm') return inner;
+
+    const firstName = _peerFirstName(peer.name);
+    const wrap = document.createElement('span');
+    wrap.className = 'talent-peer-avatar-wrap';
+    wrap.setAttribute('data-firstname', firstName);
+    wrap.setAttribute('aria-label', peer.name);
+    wrap.appendChild(inner);
+    return wrap;
+}
+
+/** Inyecta la sección de peers en una card ya construida (se llama después del await). */
+function injectTalentPeersSection(card, talentName, peers) {
+    const existing = card.querySelector('.talent-detail-card__peers');
+    if (existing) existing.remove();
+
+    const footer = document.createElement('footer');
+    footer.className = 'talent-detail-card__peers';
+
+    if (peers.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'talent-peers-empty talent-peers-empty--inline';
+        empty.textContent = 'Aún ningún UIXer comparte este talento.';
+        footer.appendChild(empty);
+        card.appendChild(footer);
+        return;
+    }
+
+    const kicker = document.createElement('p');
+    kicker.className = 'talent-detail-card__kicker';
+    kicker.textContent = 'Comparten este talento';
+    footer.appendChild(kicker);
+
+    const stack = document.createElement('div');
+    stack.className = 'talent-peer-stack';
+
+    const limit = getTalentPeerVisibleLimit();
+    const visible = peers.slice(0, limit);
+    const overflow = peers.slice(limit);
+
+    visible.forEach((peer, index) => {
+        const avatarWrap = buildPeerAvatarEl(peer, 'sm');
+        avatarWrap.style.zIndex = String(index + 1);
+        stack.appendChild(avatarWrap);
+    });
+
+    if (overflow.length > 0) {
+        const moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'talent-peer-avatar talent-peer-avatar--sm talent-peer-avatar--more';
+        moreBtn.textContent = `+${overflow.length}`;
+        moreBtn.style.zIndex = String(visible.length + 10);
+        moreBtn.setAttribute('aria-label', `Ver todos: ${peers.length} compañeros`);
+        moreBtn.addEventListener('click', () => window.openTalentPeersModal(talentName, JSON.stringify(peers)));
+        stack.appendChild(moreBtn);
+    }
+
+    footer.appendChild(stack);
+    card.appendChild(footer);
+}
+
+function createTalentDetailCardElement(talent) {
+    const card = document.createElement('article');
+    card.className = 'talent-detail-card';
+    card.setAttribute('role', 'listitem');
+
+    const label = String(talent.name || T.common.skillFallback);
+    const displayLabel = toTitleSentenceCase(label);
+    card.setAttribute('aria-label', displayLabel);
+
+    const header = document.createElement('header');
+    header.className = 'talent-detail-card__header';
+
+    const visual = document.createElement('div');
+    visual.className = 'talent-detail-card__visual';
+    appendTalentVisual(visual, talent, label);
+
+    const title = document.createElement('h3');
+    title.className = 'talent-detail-card__title';
+    title.textContent = displayLabel;
+
+    header.appendChild(visual);
+    header.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'talent-detail-card__body';
+
+    appendTalentDetailSkillsSection(
+        body,
+        T.profile.talentSectionHabilidades,
+        talent.habilidadesClave
+    );
+    appendTalentDetailTextSection(body, T.profile.talentDescriptionLabel, getTalentDescription(talent));
+    appendTalentDetailTextSection(
+        body,
+        T.profile.talentSectionComoVives,
+        talent.comoLoVives,
+        '',
+        { collapsible: true }
+    );
+    appendTalentDetailListSection(
+        body,
+        T.profile.talentSectionRecomendaciones,
+        talent.recomendaciones,
+        { collapsible: true }
+    );
+    appendTalentDetailTextSection(
+        body,
+        T.profile.talentSectionOjoCon,
+        talent.ojoCon,
+        'talent-detail-card__section--warning',
+        { collapsible: true }
+    );
+
+    card.appendChild(header);
+    card.appendChild(body);
+
+    // Sección de peers con spinner mientras carga
+    const peersPlaceholder = document.createElement('footer');
+    peersPlaceholder.className = 'talent-detail-card__peers talent-detail-card__peers--loading';
+    const spinner = document.createElement('i');
+    spinner.className = 'fas fa-circle-notch animate-spin';
+    spinner.setAttribute('aria-hidden', 'true');
+    peersPlaceholder.appendChild(spinner);
+    card.appendChild(peersPlaceholder);
+
+    return card;
+}
+
+function renderProfileTalentsPreview() {
+    const container = document.getElementById('profile-talents');
+    const moreBtn = document.querySelector('.bento-talents-more-btn');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (userProfile.talents.length === 0) {
+        container.innerHTML = T.profile.talentsEmpty;
+        if (moreBtn) moreBtn.classList.add('hidden');
+        return;
+    }
+
+    if (moreBtn) moreBtn.classList.remove('hidden');
+    userProfile.talents.forEach((talent) => {
+        container.appendChild(createTalentItemElement(talent));
+    });
+}
+
+function renderTalentsDetail() {
+    const container = document.getElementById('talents-detail-grid');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (userProfile.talents.length === 0) {
+        container.innerHTML = T.profile.talentsEmpty;
+        return;
+    }
+
+    userProfile.talents.forEach((talent) => {
+        const card = createTalentDetailCardElement(talent);
+        container.appendChild(card);
+
+        // Carga de peers en background — no bloquea la apertura de la vista
+        if (talent.habilidadId) {
+            loadTalentPeers(talent.habilidadId).then((peers) => {
+                injectTalentPeersSection(card, talent.name, peers);
+            }).catch(() => {
+                const placeholder = card.querySelector('.talent-detail-card__peers--loading');
+                if (placeholder) placeholder.remove();
+            });
+        } else {
+            const placeholder = card.querySelector('.talent-detail-card__peers--loading');
+            if (placeholder) placeholder.remove();
+        }
+    });
+}
+
+window.openTalentsView = function () {
+    const profileView = document.getElementById('profile-view');
+    const talentsView = document.getElementById('talents-view');
+    if (!profileView || !talentsView) return;
+
+    const subtitle = talentsView.querySelector('.talents-view__subtitle');
+    if (subtitle) subtitle.textContent = T.profile.talentsSubtitle;
+
+    renderTalentsDetail();
+
+    profileView.classList.add('animate-fade-out');
+    setTimeout(() => {
+        window.scrollTo(0, 0);
+        profileView.classList.add('hidden');
+        profileView.classList.remove('animate-fade-out');
+        talentsView.classList.remove('hidden');
+        talentsView.classList.add('animate-fade-in');
+        updateHeaderBackButton();
+    }, 280);
+};
+
+window.backFromTalentsView = function () {
+    const profileView = document.getElementById('profile-view');
+    const talentsView = document.getElementById('talents-view');
+    if (!profileView || !talentsView) return;
+
+    talentsView.classList.remove('animate-fade-in');
+    talentsView.classList.add('animate-fade-out');
+    setTimeout(() => {
+        window.scrollTo(0, 0);
+        talentsView.classList.add('hidden');
+        talentsView.classList.remove('animate-fade-out');
+        profileView.classList.remove('hidden');
+        profileView.classList.add('animate-fade-in');
+        updateHeaderBackButton();
+    }, 280);
+};
 
 async function updatePracticeRankUI() {
     const rankEl = document.getElementById('profile-practice-rank');
@@ -1138,9 +2006,10 @@ async function updatePracticeRankUI() {
     }
 
     try {
+        const myUid = supabaseSession?.user?.id;
         const { data: users, error } = await supabase
-            .from('ranking_user')
-            .select('email, quest_points')
+            .from('user_scores')
+            .select('user_id, quest_points')
             .order('quest_points', { ascending: false });
         if (error) throw error;
         if (!users || users.length === 0) {
@@ -1148,9 +2017,7 @@ async function updatePracticeRankUI() {
             return;
         }
 
-        const index = users.findIndex(u =>
-            u.email && String(u.email).toLowerCase() === String(userEmail).toLowerCase()
-        );
+        const index = users.findIndex(u => myUid && String(u.user_id) === String(myUid));
 
         if (index === -1) {
             rankEl.innerText = T.profile.rankNoPosition;
@@ -1228,9 +2095,11 @@ function renderSeals() {
     });
 
     if (filtered.length === 0) {
+        const safeQ = esc(String(sealsFilter.q || ''));
+        const safeYear = esc(String(sealsFilter.year || ''));
         recentContainer.innerHTML = typeof T.profile.sealsQuarterEmpty === 'function'
-            ? T.profile.sealsQuarterEmpty(sealsFilter.q, sealsFilter.year)
-            : `<p class="bento-seals-empty-q">Sin sellos en ${sealsFilter.q} ${sealsFilter.year}</p>`;
+            ? T.profile.sealsQuarterEmpty(safeQ, safeYear)
+            : `<p class="bento-seals-empty-q">Sin sellos en ${safeQ} ${safeYear}</p>`;
         return;
     }
 
@@ -1406,7 +2275,7 @@ function normalize() {
         // Validación de seguridad: Verificar que existe una respuesta correcta
         if (opts.length > 0 && !opts.some(o => o.correct)) {
             if (DEBUG) {
-                console.warn("Pregunta sin respuesta correcta detectada:", getQuestionField(q, ['Q', 'q']));
+                debugWarn("Pregunta sin respuesta correcta detectada:", getQuestionField(q, ['Q', 'q']));
             }
         }
 
@@ -1527,7 +2396,7 @@ async function verifyEmail() {
     } catch (e) {
         emailInput.disabled = false;
         emailStatus.classList.remove('is-visible');
-        console.warn('verifyEmail error:', e);
+        debugWarn('verifyEmail error:', e);
         showAppAlert({
             title: T.alerts.verifyConnectionTitle,
             message: T.alerts.verifyConnectionMessage,
@@ -1609,7 +2478,7 @@ window.sendPasswordReset = async function () {
         });
 
         if (error) {
-            console.warn('sendPasswordReset error:', error);
+            debugWarn('sendPasswordReset error:', error);
             const alert = getResetPasswordAlert(error);
             btn.textContent = originalText;
             btn.disabled = false;
@@ -1634,7 +2503,7 @@ window.sendPasswordReset = async function () {
             confirmText: T.common.understood
         });
     } catch (e) {
-        console.warn('sendPasswordReset unexpected error:', e);
+        debugWarn('sendPasswordReset unexpected error:', e);
         btn.textContent = originalText;
         btn.disabled = false;
         showAppAlert({
@@ -1721,7 +2590,7 @@ async function doLogin() {
         try {
             await showDashboard(userName);
         } catch (dashErr) {
-            console.warn('showDashboard error:', dashErr);
+            debugWarn('showDashboard error:', dashErr);
             btnLogin.innerHTML = T.auth.loginButton;
             btnLogin.disabled = false;
             showAppAlert({
@@ -1733,7 +2602,7 @@ async function doLogin() {
         }
 
     } catch (e) {
-        console.warn('doLogin error:', e);
+        debugWarn('doLogin error:', e);
         btnLogin.innerHTML = T.auth.loginButton;
         btnLogin.disabled = false;
         showAppAlert({
@@ -1932,15 +2801,15 @@ async function showDashboard(name) {
     try {
         // Carga de datos: errores aislados para no romper la transición
         if (userId) {
-            try { await loadAllUserData(userId); } catch (e) { console.warn('loadAllUserData:', e); }
+            try { await loadAllUserData(userId); } catch (e) { debugWarn('loadAllUserData:', e); }
         }
         if (pillsCatalog.length === 0) {
-            try { await loadPillsCatalog(); } catch (e) { console.warn('loadPillsCatalog:', e); }
+            try { await loadPillsCatalog(); } catch (e) { debugWarn('loadPillsCatalog:', e); }
         }
         if (!userProfile.nickname) userProfile.nickname = name;
 
-        try { renderProfile(); } catch (e) { console.warn('renderProfile:', e); }
-        try { updatePracticeRankUI(); } catch (e) { console.warn('updatePracticeRankUI:', e); }
+        try { renderProfile(); } catch (e) { debugWarn('renderProfile:', e); }
+        try { updatePracticeRankUI(); } catch (e) { debugWarn('updatePracticeRankUI:', e); }
 
         document.getElementById('main-header').classList.remove('hidden');
 
@@ -1951,6 +2820,7 @@ async function showDashboard(name) {
             document.getElementById('auth-card').classList.add('hidden');
             profileView.classList.remove('hidden');
             profileView.classList.add('animate-fade-in');
+            updateHeaderBackButton();
             endGlobalLoading();
         }, 280);
     } catch (_) {
@@ -1970,6 +2840,7 @@ window.logout = async function () {
     isEvaluationSessionActive = false;
     if (supabase) supabase.auth.signOut();
     supabaseSession = null;
+    sessionRestoreHandled = false;
 
     // Clear sensitive session data from memory
     userName = "";
@@ -1984,6 +2855,7 @@ window.logout = async function () {
         nickname: '',
         seniority: '',
         especialidad: '',
+        formador: '',
         questPoints: 0,
         testsPoints: 0,
         pillsPoints: 0,
@@ -1992,6 +2864,7 @@ window.logout = async function () {
         seals: [],
         talents: []
     };
+    hideProfileTeamCard();
 
     const loginView = document.getElementById('login-view');
     const modeView = document.getElementById('mode-selection-view');
@@ -2009,6 +2882,7 @@ window.logout = async function () {
         
         profileView.classList.add('hidden');
         profileView.classList.remove('animate-fade-out');
+        document.getElementById('talents-view')?.classList.add('hidden');
 
         resetLoginEmailButtonState();
 
@@ -2086,6 +2960,7 @@ window.selectMode = async function (mode) {
                 dashboardView.classList.remove('hidden');
                 dashboardView.classList.add('animate-fade-in');
             }
+            updateHeaderBackButton();
         }, 280);
     }
 }
@@ -2129,6 +3004,7 @@ function switchSection(targetId, onShow) {
         });
 
         if (onShow) onShow();
+        updateHeaderBackButton();
     };
 
     if (visibleSectionId && visibleSectionId !== targetId) {
@@ -2363,7 +3239,7 @@ function filterEvaluationQuestionsByUserProfile(normalizedQuestions) {
         if (DEBUG) {
             const uniqueQSeniorities = [...new Set(normalizedQuestions.map(q => q.seniorityRaw).filter(Boolean))];
             const uniqueQCats = [...new Set(normalizedQuestions.map(q => q.category).filter(Boolean))];
-            console.warn(
+            debugWarn(
                 '[eval-filter] Sin preguntas para este usuario.\n',
                 `  Usuario seniority raw: "${userRaw}" → norm: "${userNorm}"\n`,
                 `  Usuario especialidad: "${esp}"\n`,
@@ -2516,7 +3392,7 @@ async function fetchPillQuestions(pillId) {
         .eq('pill_id', pillId)
         .eq('active', true);
     if (error) {
-        if (DEBUG) console.warn('fetchPillQuestions error:', error);
+        if (DEBUG) debugWarn('fetchPillQuestions error:', error);
         return [];
     }
 
@@ -2549,7 +3425,7 @@ async function fetchPillQuestionsBatch(pillIds) {
         .eq('active', true);
 
     if (error) {
-        if (DEBUG) console.warn('fetchPillQuestionsBatch error:', error);
+        if (DEBUG) debugWarn('fetchPillQuestionsBatch error:', error);
         return null;
     }
 
@@ -2589,7 +3465,7 @@ async function loadPillRatingsForList(pillIds) {
             }
         });
     } catch (e) {
-        console.warn('loadPillRatingsForList error:', e);
+        debugWarn('loadPillRatingsForList error:', e);
     }
 }
 
@@ -2649,7 +3525,7 @@ async function savePillRating(pillId, rating) {
         await renderPillsList();
         flashPillRatingSavedCheck(pid);
     } catch (e) {
-        console.warn('savePillRating error:', e);
+        debugWarn('savePillRating error:', e);
         showAppAlert({
             title: T.alerts.ratingSaveErrorTitle,
             message: T.alerts.ratingSaveErrorMessage,
@@ -2814,7 +3690,7 @@ async function renderPillsList() {
 
         const btnPreview = document.createElement('button');
         btnPreview.type = 'button';
-        btnPreview.className = 'btn-outline-blue pills-btn-preview pills-card-action-btn';
+        btnPreview.className = 'btn-secondary pills-btn-preview pills-card-action-btn';
         btnPreview.textContent = T.pills.viewPill;
         const link = getPillMediaLink(pill);
         if (link) {
@@ -2826,7 +3702,7 @@ async function renderPillsList() {
 
         const btnStart = document.createElement('button');
         btnStart.type = 'button';
-        btnStart.className = 'btn-cta pills-btn-start pills-card-action-btn';
+        btnStart.className = 'btn-primary pills-btn-start pills-card-action-btn';
         btnStart.textContent = T.pills.answerQuestions;
         btnStart.addEventListener('click', () => window.startPillsQuiz(pill.id));
 
@@ -2874,7 +3750,7 @@ window.openPillPreview = async function (pillId) {
             confirmText: T.common.close
         });
     } catch (e) {
-        console.error('openPillPreview', e);
+        debugError('openPillPreview', e);
         showAppAlert({
             title: T.alerts.pillLoadErrorTitle,
             message: e.message || T.alerts.pillLoadErrorMessage,
@@ -2923,12 +3799,10 @@ window.startPillsQuiz = async function (pillId) {
 
         switchSection('pills-quiz-interface', () => {
             document.getElementById('main-header').classList.remove('hidden');
-            const btnBack = document.getElementById('btn-back-header');
-            if (btnBack) btnBack.classList.remove('hidden');
             loadPillsQuestion();
         });
     } catch (e) {
-        console.error('startPillsQuiz', e);
+        debugError('startPillsQuiz', e);
         showAppAlert({
             title: T.common.error,
             message: e.message || T.alerts.pillQuizErrorMessage,
@@ -3310,8 +4184,6 @@ function startQuiz() {
 
     switchSection('quiz-interface', () => {
         document.getElementById('main-header').classList.remove('hidden');
-        const btnBackHeader = document.getElementById('btn-back-header');
-        if (btnBackHeader) btnBackHeader.classList.remove('hidden');
         loadQuestion();
     });
 }
@@ -3329,6 +4201,7 @@ function returnToDashboard() {
         document.getElementById('evaluation-brief-view')?.classList.add('hidden');
         document.getElementById('pills-construction-view')?.classList.add('hidden');
         document.getElementById('pills-quiz-interface')?.classList.add('hidden');
+        document.getElementById('talents-view')?.classList.add('hidden');
         
         document.getElementById('auth-card').classList.add('hidden'); // Changed to hide
         document.getElementById('login-view').classList.add('hidden');
@@ -3336,13 +4209,84 @@ function returnToDashboard() {
 
         // La Navbar (main-header) se mantiene visible en el dashboard
         document.getElementById('main-header').classList.remove('hidden');
-        const btnBackHeader = document.getElementById('btn-back-header');
-        if (btnBackHeader) btnBackHeader.classList.add('hidden');
 
         document.getElementById('feedback-panel').classList.add('hidden');
         document.getElementById('feedback-overlay').classList.add('hidden');
         updatePoolCount();
     });
+}
+
+function updateHeaderBackButton() {
+    const btn = document.getElementById('btn-back-header');
+    const header = document.getElementById('main-header');
+    if (!btn || !header) return;
+
+    if (header.classList.contains('hidden')) {
+        btn.classList.add('hidden');
+        btn.onclick = null;
+        return;
+    }
+
+    const isQuizActive =
+        !document.getElementById('quiz-interface')?.classList.contains('hidden') ||
+        !document.getElementById('pills-quiz-interface')?.classList.contains('hidden') ||
+        !document.getElementById('break-screen')?.classList.contains('hidden');
+
+    if (isQuizActive) {
+        btn.classList.remove('hidden');
+        btn.onclick = () => backToTopicSelection();
+        btn.title = 'Volver al tablero';
+        btn.setAttribute('aria-label', 'Volver al tablero');
+        return;
+    }
+
+    const isResultsActive = !document.getElementById('results-screen')?.classList.contains('hidden');
+    if (isResultsActive) {
+        btn.classList.remove('hidden');
+        btn.onclick = () => handleHeaderClick();
+        btn.title = 'Volver al inicio';
+        btn.setAttribute('aria-label', 'Volver al inicio');
+        return;
+    }
+
+    const landingVisible = !document.getElementById('landing-page')?.classList.contains('hidden');
+    if (!landingVisible) {
+        btn.classList.add('hidden');
+        btn.onclick = null;
+        return;
+    }
+
+    const profileVisible = !document.getElementById('profile-view')?.classList.contains('hidden');
+    if (profileVisible) {
+        btn.classList.add('hidden');
+        btn.onclick = null;
+        return;
+    }
+
+    const talentsVisible = !document.getElementById('talents-view')?.classList.contains('hidden');
+    if (talentsVisible) {
+        btn.classList.remove('hidden');
+        btn.onclick = () => backFromTalentsView();
+        btn.title = 'Volver al perfil';
+        btn.setAttribute('aria-label', 'Volver al perfil');
+        return;
+    }
+
+    const subViewVisible =
+        !document.getElementById('dashboard-view')?.classList.contains('hidden') ||
+        !document.getElementById('evaluation-brief-view')?.classList.contains('hidden') ||
+        !document.getElementById('pills-construction-view')?.classList.contains('hidden');
+
+    if (subViewVisible) {
+        btn.classList.remove('hidden');
+        btn.onclick = () => backToModes();
+        btn.title = 'Volver';
+        btn.setAttribute('aria-label', 'Volver');
+        return;
+    }
+
+    btn.classList.add('hidden');
+    btn.onclick = null;
 }
 
 window.backToTopicSelection = async function() {
@@ -3930,7 +4874,7 @@ async function handleEvaluationViolation(reason = 'focus_lost') {
 
     // Punto de integración para backend (Supabase): registrar reason, timestamp y count.
     if (DEBUG) {
-        console.warn('[anti-cheat] evaluation violation detected:', { reason, count: nextCount });
+        debugWarn('[anti-cheat] evaluation violation detected:', { reason, count: nextCount });
     }
 
     stopQuestionTimer();
@@ -4067,19 +5011,31 @@ async function fetchLatestPillRankingRows(limitN = 10) {
     if (!latest?.id) return [];
     const pillId = latest.id;
     try {
-        const { data, error } = await supabase
-            .from('ranking_user')
-            .select('email, nombre, pills_points, pills_rank_tiempo')
+        const { data: scoresData, error } = await supabase
+            .from('user_scores')
+            .select('user_id, pills_points, pills_rank_tiempo')
             .eq('pills_rank_pill_id', pillId)
             .limit(80);
         if (error) throw error;
-        const rows = (data || []).map(d => ({
-            id: d.email,
-            email: d.email,
-            nombre: d.nombre,
-            pillsPoints: d.pills_points,
-            pillsRankTiempo: d.pills_rank_tiempo
-        }));
+        const scoreUserIds = (scoresData || []).map(d => d.user_id).filter(Boolean);
+        let pillUserInfoMap = new Map();
+        if (scoreUserIds.length > 0) {
+            const { data: userInfoData } = await supabase
+                .from('ranking_user')
+                .select('user_id, email, nombre')
+                .in('user_id', scoreUserIds);
+            (userInfoData || []).forEach(u => pillUserInfoMap.set(String(u.user_id), u));
+        }
+        const rows = (scoresData || []).map(d => {
+            const info = pillUserInfoMap.get(String(d.user_id)) || {};
+            return {
+                id: info.email || d.user_id,
+                email: info.email || '',
+                nombre: info.nombre || '',
+                pillsPoints: d.pills_points,
+                pillsRankTiempo: d.pills_rank_tiempo
+            };
+        });
         rows.sort((a, b) => {
             const pd = Number(b.pillsPoints || 0) - Number(a.pillsPoints || 0);
             if (pd !== 0) return pd;
@@ -4087,7 +5043,7 @@ async function fetchLatestPillRankingRows(limitN = 10) {
         });
         return rows.slice(0, limitN);
     } catch (e) {
-        console.warn('fetchLatestPillRankingRows', e);
+        debugWarn('fetchLatestPillRankingRows', e);
         throw e;
     }
 }
@@ -4114,7 +5070,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         userId = authData?.user?.id || '';
     }
     if (!userId) {
-        if (DEBUG) console.warn('saveScoreToCloud: no auth user id available');
+        if (DEBUG) debugWarn('saveScoreToCloud: no auth user id available');
         return false;
     }
 
@@ -4151,7 +5107,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             if (firstAttemptErr) {
                 // No bloquear guardado en ranking_user por errores de tabla auxiliar.
                 pillAttemptQueryFailed = true;
-                if (DEBUG) console.warn('saveScoreToCloud: pill attempt lookup fallback failed', firstAttemptErr);
+                if (DEBUG) debugWarn('saveScoreToCloud: pill attempt lookup fallback failed', firstAttemptErr);
             }
             existingPillAttempt = firstAttemptRow || null;
             hasValidExistingPillAttempt = isValidPillFirstAttemptRow(existingPillAttempt);
@@ -4159,13 +5115,11 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         }
 
         // Leer ranking actual
-        const { data: rankingData } = await supabase
-            .from('ranking_user')
-            .select('*')
-            .eq('email', userEmail.toLowerCase())
-            .single();
-
-        const existing = rankingData || {};
+        const [{ data: rankingData }, { data: scoresData }] = await Promise.all([
+            supabase.from('ranking_user').select('user_id, nombre, email, seniority, especialidad, formador').eq('email', userEmail.toLowerCase()).single(),
+            supabase.from('user_scores').select('quest_points, tests_points, pills_points, pills_rank_pill_id, pills_rank_tiempo, puntos, tiempo, fecha').eq('user_id', userId).maybeSingle(),
+        ]);
+        const existing = { ...(rankingData || {}), ...(scoresData || {}) };
 
         const latestPill = getLatestPublishedPill();
         const isLatestPillSession =
@@ -4183,29 +5137,32 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             user_id: userId,
             nombre: userName,
             email: userEmail.toLowerCase(),
-            fecha: new Date().toISOString()
+        };
+        const scoresMerge = {
+            user_id: userId,
+            fecha: new Date().toISOString(),
         };
         let shouldUpdate = false;
 
         if (currentQuizMode === 'practice') {
             const cur = Number(existing.quest_points || 0);
             const next = Number(finalScore || 0);
-            rankingMerge.quest_points = Math.max(cur, next);
+            scoresMerge.quest_points = Math.max(cur, next);
             shouldUpdate = next > cur;
         } else if (currentQuizMode === 'evaluation') {
             const isFirstEvalAttempt = existing.tests_points == null;
             if (isFirstEvalAttempt) {
-                rankingMerge.tests_points = Number(finalScore || 0);
+                scoresMerge.tests_points = Number(finalScore || 0);
             }
         } else if (currentQuizMode === 'pills') {
             if (isLatestPillSession && !pillsRankingLockedByRanking && currentPillAttemptQualifies) {
-                rankingMerge.pills_points = currentPillScore;
-                rankingMerge.pills_rank_pill_id = selectedPillId;
-                rankingMerge.pills_rank_tiempo = Number(timeSeconds || 0);
+                scoresMerge.pills_points = currentPillScore;
+                scoresMerge.pills_rank_pill_id = selectedPillId;
+                scoresMerge.pills_rank_tiempo = Number(timeSeconds || 0);
             }
         } else {
             const cur = Number(existing[pointsField] || 0);
-            rankingMerge[pointsField] = Math.max(cur, Number(finalScore || 0));
+            scoresMerge[pointsField] = Math.max(cur, Number(finalScore || 0));
         }
 
         const { error: rankingUpsertError } = await supabase
@@ -4213,21 +5170,25 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             .upsert(rankingMerge, { onConflict: 'email' });
         if (rankingUpsertError) throw rankingUpsertError;
 
+        const { error: scoresUpsertError } = await supabase
+            .from('user_scores')
+            .upsert(scoresMerge, { onConflict: 'user_id' });
+        if (scoresUpsertError) throw scoresUpsertError;
+
         // Verificación defensiva para práctica: confirmar que quedó persistido el mejor récord.
         if (currentQuizMode === 'practice') {
-            const expectedBest = Number(rankingMerge.quest_points || 0);
+            const expectedBest = Number(scoresMerge.quest_points || 0);
             const { data: persistedRow, error: persistedReadError } = await supabase
-                .from('ranking_user')
+                .from('user_scores')
                 .select('quest_points')
-                .eq('email', userEmail.toLowerCase())
+                .eq('user_id', userId)
                 .single();
             if (persistedReadError) throw persistedReadError;
             const persistedBest = Number(persistedRow?.quest_points || 0);
             if (persistedBest < expectedBest) {
                 const { error: forceUpdateError } = await supabase
-                    .from('ranking_user')
+                    .from('user_scores')
                     .update({ quest_points: expectedBest, fecha: new Date().toISOString() })
-                    .eq('email', userEmail.toLowerCase())
                     .eq('user_id', userId);
                 if (forceUpdateError) throw forceUpdateError;
             }
@@ -4241,14 +5202,12 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             shouldUpdate = isFirstEvalAttempt;
 
             if (shouldUpdate) {
-                const { error: evalLegacyUpsertError } = await supabase.from('ranking_user').upsert({
+                const { error: evalLegacyUpsertError } = await supabase.from('user_scores').upsert({
                     user_id: userId,
-                    nombre: userName,
-                    email: userEmail.toLowerCase(),
                     puntos: newScore,
                     tiempo: newTime,
                     fecha: new Date().toISOString()
-                }, { onConflict: 'email' });
+                }, { onConflict: 'user_id' });
                 if (evalLegacyUpsertError) throw evalLegacyUpsertError;
 
                 // Guardar errores en localStorage para que el usuario pueda estudiarlos después
@@ -4257,7 +5216,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                     const errorsToSave = errors.map(e => ({ question: e.question, studyTag: e.studyTag }));
                     localStorage.setItem(evalErrorsKey, JSON.stringify(errorsToSave));
                 } catch (lsErr) {
-                    console.warn('saveScoreToCloud: no se pudieron guardar errores en localStorage', lsErr);
+                    debugWarn('saveScoreToCloud: no se pudieron guardar errores en localStorage', lsErr);
                 }
 
                 userProfile.evalCompleted = true;
@@ -4373,7 +5332,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
 
         return shouldUpdate;
     } catch (e) {
-        console.warn('saveScoreToCloud error:', e);
+        debugWarn('saveScoreToCloud error:', e);
     }
     return false;
 }
@@ -4433,23 +5392,36 @@ async function openLeaderboard(mode = 'practice') {
                 pills: 'pills_points'
             };
             const pointsField = modeFieldMap[mode] || 'tests_points';
-            const { data: rawUsers, error } = await supabase
-                .from('ranking_user')
-                .select('email, nombre, tiempo, quest_points, tests_points, pills_points')
+            const { data: rawScores, error } = await supabase
+                .from('user_scores')
+                .select('user_id, tiempo, quest_points, tests_points, pills_points')
                 .order(pointsField, { ascending: false })
                 .limit(50);
             if (error) throw error;
 
-            let users = (rawUsers || []).map(d => ({
-                id: d.email,
-                email: d.email,
-                nombre: d.nombre,
-                tiempo: d.tiempo,
-                questPoints: d.quest_points,
-                quest_points: d.quest_points,
-                tests_points: d.tests_points,
-                pills_points: d.pills_points
-            }));
+            const lbUids = (rawScores || []).map(d => d.user_id).filter(Boolean);
+            let lbUserInfoMap = new Map();
+            if (lbUids.length > 0) {
+                const { data: lbUserData } = await supabase
+                    .from('ranking_user')
+                    .select('user_id, email, nombre')
+                    .in('user_id', lbUids);
+                (lbUserData || []).forEach(u => lbUserInfoMap.set(String(u.user_id), u));
+            }
+
+            let users = (rawScores || []).map(d => {
+                const info = lbUserInfoMap.get(String(d.user_id)) || {};
+                return {
+                    id: info.email || d.user_id,
+                    email: info.email || '',
+                    nombre: info.nombre || '',
+                    tiempo: d.tiempo,
+                    questPoints: d.quest_points,
+                    quest_points: d.quest_points,
+                    tests_points: d.tests_points,
+                    pills_points: d.pills_points
+                };
+            });
 
             users.sort((a, b) => {
                 const pointsDiff = Number(b[pointsField] || 0) - Number(a[pointsField] || 0);
@@ -4553,8 +5525,6 @@ window.goToPillsHomeFromResults = async function goToPillsHomeFromResults() {
         document.getElementById('pills-construction-view')?.classList.add('animate-fade-in');
 
         document.getElementById('main-header')?.classList.remove('hidden');
-        const btnBack = document.getElementById('btn-back-header');
-        if (btnBack) btnBack.classList.add('hidden');
 
         document.getElementById('feedback-panel')?.classList.add('hidden');
         document.getElementById('feedback-overlay')?.classList.add('hidden');
@@ -4951,6 +5921,8 @@ exposeToWindow({
     restartDirectly,
     openLeaderboard,
     closeLeaderboard,
+    openTalentPeersModal,
+    closeTalentPeersModal,
 });
 
 // Inicialización

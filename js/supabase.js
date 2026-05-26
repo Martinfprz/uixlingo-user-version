@@ -7,7 +7,14 @@ export let supabase = null;
 export function initSupabaseClient() {
     if (supabase) return;
     try {
-        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true,
+                storage: window.localStorage,
+            },
+        });
     } catch (_) {
         /* Error silencioso en producción */
     }

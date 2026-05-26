@@ -1,0 +1,137 @@
+-- UiX-lingo: columnas de proyectos en ranking_user
+-- Fuente: Equipo completo con proyectos y líderes.csv
+-- Ejecutar en Supabase → SQL Editor (PASO 1 + PASO 2 juntos)
+
+-- ─── PASO 1: Agregar columnas ─────────────────────────────────────────────
+ALTER TABLE public.ranking_user
+  ADD COLUMN IF NOT EXISTS proyecto   text,
+  ADD COLUMN IF NOT EXISTS proyecto_2 text,
+  ADD COLUMN IF NOT EXISTS proyecto_3 text,
+  ADD COLUMN IF NOT EXISTS proyecto_4 text;
+
+-- ─── PASO 2: Poblar datos por emp_id ──────────────────────────────────────
+-- Coincide por emp_id casteado a text para soportar columna int o text.
+-- Solo sobreescribe las columnas proyecto_*; formador no se toca.
+
+UPDATE public.ranking_user AS r
+SET
+  proyecto   = v.p1,
+  proyecto_2 = v.p2,
+  proyecto_3 = v.p3,
+  proyecto_4 = v.p4
+FROM (VALUES
+  ('19058421', 'SWAT Préstamos',                       NULL,                  NULL,             NULL),
+  ('19058422', 'Presta Prenda Dinero Rápido',           NULL,                  NULL,             NULL),
+  ('19029852', 'SAC',                                   NULL,                  NULL,             NULL),
+  ('19072095', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19062798', 'PAX Investigación',                     NULL,                  NULL,             NULL),
+  ('19058531', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19067430', 'PAX Investigación',                     NULL,                  NULL,             NULL),
+  ('19052194', 'Presta Prenda APP',                     NULL,                  NULL,             NULL),
+  ('19056436', 'Presta Prenda Empeño de joyas',         NULL,                  NULL,             NULL),
+  ('19042997', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19060893', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('1043095',  'OPS',                                   NULL,                  NULL,             NULL),
+  ('19023301', 'Botón de Pago',                         'Pasarela de Pago',    NULL,             NULL),
+  ('19043281', 'Sidi',                                  NULL,                  NULL,             NULL),
+  ('19067250', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19042998', 'MKT',                                   NULL,                  NULL,             NULL),
+  ('19043289', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19032344', 'Ecosistema LDC',                        NULL,                  NULL,             NULL),
+  ('19045761', 'GS Motos Originación',                  NULL,                  NULL,             NULL),
+  ('19067252', 'SWAT Préstamos',                        NULL,                  NULL,             NULL),
+  ('19055195', 'Pasarela de Pago',                      NULL,                  NULL,             NULL),
+  ('19067426', 'TORRAX',                                NULL,                  NULL,             NULL),
+  ('19031983', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19045760', 'Zeus',                                  NULL,                  NULL,             NULL),
+  ('19010197', 'Ecosistema LDC',                        NULL,                  NULL,             NULL),
+  ('19047066', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('1091154',  'Ecosistema de préstamos',               'RPI',                 NULL,             NULL),
+  ('19054493', 'Zeus',                                  NULL,                  NULL,             NULL),
+  ('1055808',  'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19067253', 'STAFF',                                 NULL,                  NULL,             NULL),
+  ('19043282', 'RPI',                                   NULL,                  NULL,             NULL),
+  ('19029585', 'TORRAX',                                NULL,                  NULL,             NULL),
+  ('19056433', 'Reclutalia',                            NULL,                  NULL,             NULL),
+  ('19010187', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19055190', 'Presta Prenda APP',                     NULL,                  NULL,             NULL),
+  ('19072096', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19043286', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19045762', 'PAX Investigación',                     NULL,                  NULL,             NULL),
+  ('1074869',  'GS Motos',                              NULL,                  NULL,             NULL),
+  ('19054492', 'Botón de Pago',                         NULL,                  NULL,             NULL),
+  ('19047933', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19043288', 'Nuevos Negocios',                       NULL,                  NULL,             NULL),
+  ('19042999', 'GS Motos',                              NULL,                  NULL,             NULL),
+  ('19005270', 'TORRAX',                                NULL,                  NULL,             NULL),
+  ('19067425', 'Presta Prenda APP',                     NULL,                  NULL,             NULL),
+  ('19067438', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19068445', 'Botón de Pago',                         NULL,                  NULL,             NULL),
+  ('19067422', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19058536', 'Presta Prenda Bitcoin en garantía',     NULL,                  NULL,             NULL),
+  ('19029793', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19058539', 'SWAT Préstamos',                        NULL,                  NULL,             NULL),
+  ('19032347', 'RPI',                                   NULL,                  NULL,             NULL),
+  ('19054522', 'Edyen',                                 'Compensalia',         NULL,             NULL),
+  ('19032346', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19067249', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19060895', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19058533', 'Edyen',                                 NULL,                  NULL,             NULL),
+  ('978169',   'GS Motos',                              'Cobranza',            NULL,             NULL),
+  ('19043283', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19026522', 'GS Motos',                              NULL,                  NULL,             NULL),
+  ('19042996', 'Edyen',                                 NULL,                  NULL,             NULL),
+  ('19062810', 'Afiliación',                            NULL,                  NULL,             NULL),
+  ('19068443', 'Zeus',                                  'Reclutalia',          'Huella Azteca',  'Compensalia'),
+  ('19014417', 'RPI',                                   NULL,                  NULL,             NULL),
+  ('1125322',  'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19032348', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19067423', 'Presta Prenda Inmuebles',               NULL,                  NULL,             NULL),
+  ('19043280', 'SAC',                                   NULL,                  NULL,             NULL),
+  ('19014419', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19043293', 'OPS',                                   NULL,                  NULL,             NULL),
+  ('19065493', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19067248', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19058532', 'Botón de Pago',                         NULL,                  NULL,             NULL),
+  ('1060886',  'Presta Prenda',                         NULL,                  NULL,             NULL),
+  ('19065491', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19031000', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19062796', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19055196', 'GS Motos',                              NULL,                  NULL,             NULL),
+  ('19067435', 'RPI',                                   NULL,                  NULL,             NULL),
+  ('19047067', 'Originación Única',                     NULL,                  NULL,             NULL),
+  ('19067436', 'Ecosistema LDC',                        NULL,                  NULL,             NULL),
+  ('19052195', 'Presta Prenda APP',                     NULL,                  NULL,             NULL),
+  ('1151498',  'OPS',                                   NULL,                  NULL,             NULL),
+  ('19060090', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19023302', 'Cobranza',                              NULL,                  NULL,             NULL),
+  ('19067386', 'Presta Prenda Fideguardián',            NULL,                  NULL,             NULL),
+  ('19060731', 'Pasarela de Pago',                      NULL,                  NULL,             NULL),
+  ('1063558',  'Originación Única',                     'TORRAX',              'LAM',            'PAX Investigación'),
+  ('19010193', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19029796', 'GS Motos',                              NULL,                  NULL,             NULL),
+  ('19067432', 'RPI',                                   NULL,                  NULL,             NULL),
+  ('19072062', 'LAM',                                   NULL,                  NULL,             NULL),
+  ('19043001', 'Presta Prenda APP',                     NULL,                  NULL,             NULL),
+  ('19056435', 'Edyen',                                 NULL,                  NULL,             NULL),
+  ('19014415', 'Botón de Pago',                         NULL,                  NULL,             NULL),
+  ('19043290', 'Presta Prenda Empeño de joyas',         NULL,                  NULL,             NULL),
+  ('19068446', 'GS Motos',                              NULL,                  NULL,             NULL),
+  ('19058420', 'TORRAX',                                NULL,                  NULL,             NULL),
+  ('19067440', 'Presta Prenda Autos',                   NULL,                  NULL,             NULL),
+  ('1046202',  'Presta Prenda',                         NULL,                  NULL,             NULL),
+  ('19043000', 'Ecosistema LDC',                        NULL,                  NULL,             NULL)
+) AS v(emp_id, p1, p2, p3, p4)
+WHERE r.emp_id::text = v.emp_id;
+
+-- ─── PASO 3: Verificación ─────────────────────────────────────────────────
+SELECT
+  emp_id,
+  nombre,
+  proyecto,
+  proyecto_2,
+  proyecto_3,
+  proyecto_4
+FROM public.ranking_user
+WHERE proyecto IS NOT NULL
+ORDER BY nombre;

@@ -110,7 +110,7 @@
 }
 
 .animate-pop {
-    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: popIn var(--motion-normal) var(--motion-ease-emphasis);
 }
 
 @keyframes slideUp {
@@ -125,7 +125,7 @@
 }
 
 .animate-slide-up {
-    animation: slideUp 0.4s ease-out forwards;
+    animation: slideUp var(--motion-slow) var(--motion-ease-standard) forwards;
 }
 
 @keyframes fadeIn {
@@ -151,10 +151,10 @@
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+    animation: fadeIn var(--motion-slow) var(--motion-ease-standard) both;
 }
 
 .animate-fade-out {
-    animation: fadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation: fadeOut var(--motion-normal) var(--motion-ease-standard) forwards;
 }
 

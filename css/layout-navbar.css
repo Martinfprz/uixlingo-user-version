@@ -57,7 +57,44 @@
     display: flex;
     justify-content: flex-start;
     align-items: center;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar-brand .logo-wrapper {
     cursor: pointer;
+}
+
+/* Iconos del header — mismo tamaño táctil que #btn-theme-toggle (44×44px) */
+.logged-in-navbar .btn-theme-toggle,
+.logged-in-navbar .btn-text-back,
+.logged-in-navbar .btn-icon-logout {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: var(--btn-icon-size);
+    height: var(--btn-icon-size);
+    min-width: var(--btn-icon-size);
+    min-height: var(--btn-icon-size);
+    max-width: var(--btn-icon-size);
+    max-height: var(--btn-icon-size);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+}
+
+.logged-in-navbar .btn-text-back {
+    align-self: center;
+}
+
+/* Sin lift en header — mantiene alineación vertical con theme toggle */
+.logged-in-navbar .btn-text-back:hover {
+    transform: none;
 }
 
 .navbar-left .header-logo {
@@ -125,40 +162,12 @@
     color: var(--color-text);
 }
 
-.btn-icon-back {
-    background: transparent;
-    border: none;
-    color: rgba(239, 255, 253, 0.5);
-    font-size: 1.25rem;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.btn-icon-back:hover {
-    background: rgba(140, 89, 254, 0.12);
-    color: var(--color-accent);
-}
-
 .btn-icon-logout {
     background: transparent;
     border: none;
     color: rgba(239, 255, 253, 0.5);
-    font-size: 1.25rem;
+    font-size: 1rem;
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 

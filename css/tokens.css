@@ -40,6 +40,34 @@
     --text-2xl:  1.5rem;
     --text-3xl:  1.875rem;
     --text-4xl:  2.25rem;
+
+    /* Radius */
+    --radius-sm:   0.5rem;
+    --radius-md:   0.75rem;
+    --radius-lg:   1rem;
+    --radius-xl:   1.25rem;
+    --radius-2xl:  1.5rem;
+    --radius-full: 9999px;
+
+    /* Botones — una escala de acción + una de icono */
+    --btn-height:       3rem;
+    --btn-padding-x:    var(--space-4);
+    --btn-font-size:    var(--text-lg);
+    --btn-radius:       var(--radius-md);
+    --btn-icon-size:    2.75rem;
+    --btn-icon-size-sm: 2.25rem;
+
+    /* Shadows */
+    --shadow-btn: 0 4px 20px rgba(140, 89, 254, 0.35);
+    --shadow-btn-hover: 0 8px 32px rgba(140, 89, 254, 0.5);
+    --shadow-btn-active: 0 2px 10px rgba(140, 89, 254, 0.3);
+
+    /* Motion */
+    --motion-fast: 180ms;
+    --motion-normal: 280ms;
+    --motion-slow: 420ms;
+    --motion-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --motion-ease-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* ==========================================
@@ -65,4 +93,7 @@
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(74, 34, 192, 0.15);
     --color-success: #16a34a;
+    --shadow-btn: 0 4px 20px rgba(74, 34, 192, 0.3);
+    --shadow-btn-hover: 0 8px 32px rgba(74, 34, 192, 0.45);
+    --shadow-btn-active: 0 2px 10px rgba(74, 34, 192, 0.25);
 }

@@ -234,15 +234,15 @@
     min-width: 9.5rem;
 }
 
-/* Misma altura y tipografía en ambos CTAs de la card (touch-friendly en mobile) */
+/* Layout en card — apariencia desde .btn-primary / .btn-secondary (design system) */
 .pills-category-card__actions .pills-card-action-btn {
     width: 100%;
-    min-height: 3rem;
-    padding: 0.65rem 1rem;
-    font-size: 0.9rem;
+    min-height: var(--btn-height);
+    padding: 0 var(--btn-padding-x);
+    font-size: var(--btn-font-size);
     font-weight: 700;
     line-height: 1.25;
-    border-radius: 0.75rem;
+    border-radius: var(--btn-radius);
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
@@ -250,18 +250,8 @@
     text-align: center;
 }
 
-@media (min-width: 768px) {
-    .pills-category-card__actions .pills-card-action-btn {
-        min-height: 2.75rem;
-        font-size: 0.85rem;
-        padding: 0.55rem 0.85rem;
-    }
-}
-
 .pills-btn-preview:disabled {
-    opacity: 0.45;
     cursor: not-allowed;
-    filter: grayscale(25%);
 }
 
 @media (max-width: 767px) {

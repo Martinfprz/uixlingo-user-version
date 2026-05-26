@@ -1,0 +1,12 @@
+# Herramientas de administración — no deben ser accesibles en producción
+_admin-tools/
+
+# Scripts de migración y utilidades locales
+scripts/
+
+# Documentación interna
+spec.md
+35_talentos_mini_cards.md
+
+# Datos de Supabase (SQL seeds, no son parte del frontend)
+supabase/

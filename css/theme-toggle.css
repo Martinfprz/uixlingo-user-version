@@ -3,18 +3,22 @@
    ========================================== */
 
 .btn-theme-toggle {
+    box-sizing: border-box;
     background: transparent;
     border: none;
     color: rgba(239, 255, 253, 0.5);
     font-size: 1rem;
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    display: flex;
+    padding: 0;
+    border-radius: var(--radius-full);
+    width: var(--btn-icon-size);
+    height: var(--btn-icon-size);
+    min-width: var(--btn-icon-size);
+    min-height: var(--btn-icon-size);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
