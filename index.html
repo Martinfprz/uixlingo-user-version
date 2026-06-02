@@ -294,6 +294,22 @@
                         </div>
 
                         <!-- 5. Action Area -->
+                        <div class="bento-card bento-card-milo" onclick="openMilo()" role="button" tabindex="0">
+                            <span class="badge-new">
+                                <span class="badge-new__dot"></span>
+                                NUEVO
+                            </span>
+                            <div class="bento-milo-content">
+                                <div class="bento-milo-icon-wrap">
+                                    <i class="fas fa-brain bento-milo-icon"></i>
+                                </div>
+                                <div class="bento-milo-text">
+                                    <h3 class="bento-milo-title">Milo</h3>
+                                    <p class="bento-milo-desc">Analiza prototipos con IA. Usuarios sintéticos, heatmaps y más.</p>
+                                </div>
+                                <i class="fas fa-arrow-right bento-milo-arrow"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -339,6 +355,7 @@
                                 Micro-lecciones de las clases internas de la empresa.
                             </p>
                         </div>
+
                     </div>
                 </div>
 
@@ -666,9 +683,23 @@
             </section>
         </main>
 
+        <!-- MILO MODAL -->
+        <div id="milo-modal" class="milo-modal hidden" role="dialog" aria-modal="true" aria-label="Milo">
+            <div class="milo-modal__header">
+                <div class="milo-modal__brand">
+                    <i class="fas fa-brain"></i>
+                    <span>Milo</span>
+                </div>
+                <button class="milo-modal__close" onclick="closeMilo()" aria-label="Cerrar Milo">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <iframe id="milo-iframe" class="milo-modal__iframe" src="" title="Milo" allow="fullscreen"></iframe>
+        </div>
+
         <footer>
             <p class="footer-text">
-                <span class="footer-version">4.5.0</span>
+                <span class="footer-version">4.6.0</span>
                 <span class="footer-tagline">
                     Una iniciativa de <span class="footer-brand">UXquisitos | Hecho por Martín Fuentes</span>
                 </span>

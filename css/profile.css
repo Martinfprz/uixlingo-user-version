@@ -4,9 +4,10 @@
 
 #profile-view {
     background: transparent;
-    padding: 8px;
+    padding: 8px clamp(16px, 5vw, 64px);
     border-radius: 1rem;
     width: 100%;
+    margin-inline: 0;
 }
 
 /* ==================================
@@ -29,12 +30,11 @@
     .bento-grid {
         grid-template-columns: repeat(12, 1fr);
         grid-template-areas:
-            "identity identity identity identity identity identity identity identity identity identity identity identity"
+            "identity identity identity identity identity identity identity identity milo milo milo milo"
             "talents talents talents talents talents talents talents talents seniority seniority seniority seniority"
             "team team team team team team team team team team team team"
             "quest quest quest quest tests tests tests tests pills pills pills pills"
-            "seals seals seals seals seals seals seals seals seals seals seals seals"
-            "action action action action action action action action action action action action";
+            "seals seals seals seals seals seals seals seals seals seals seals seals";
         gap: 1.5rem;
     }
 }
@@ -1967,4 +1967,103 @@
 
 .bento-talents-icon--brain { color: #a855f7; }
 .bento-seals-icon--stamp   { color: #f97316; }
+
+/* ==========================================
+   MILO BENTO CARD
+   ========================================== */
+
+.bento-card-milo {
+    cursor: pointer;
+    grid-area: milo;
+    border-color: rgba(172, 231, 56, 0.25);
+    background: rgba(172, 231, 56, 0.04);
+    position: relative;
+    justify-content: center;
+    animation: milo-glow 3s ease-in-out infinite;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s;
+}
+
+.bento-card-milo:hover {
+    border-color: rgba(172, 231, 56, 0.55);
+    background: rgba(172, 231, 56, 0.09);
+    box-shadow: 0 12px 40px rgba(172, 231, 56, 0.2), 0 0 50px rgba(172, 231, 56, 0.1);
+    transform: translateY(-3px);
+}
+
+.bento-card-milo:hover .bento-milo-icon-wrap {
+    transform: scale(1.1);
+}
+
+.bento-card-milo:hover .bento-milo-arrow {
+    transform: translateX(4px);
+}
+
+.bento-milo-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+    text-align: center;
+}
+
+.bento-milo-icon-wrap {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    background: rgba(172, 231, 56, 0.12);
+    box-shadow: 0 0 0 1px rgba(172, 231, 56, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.bento-milo-icon {
+    font-size: 1.25rem;
+    color: #ace738;
+}
+
+.bento-milo-text {
+    flex: 0 1 auto;
+    min-width: 0;
+    text-align: center;
+}
+
+.bento-milo-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0 0 0.2rem 0;
+}
+
+.bento-milo-desc {
+    font-size: 0.8rem;
+    color: rgba(239, 255, 253, 0.6);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.bento-milo-arrow {
+    color: rgba(172, 231, 56, 0.6);
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+@keyframes milo-glow {
+    0%, 100% { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 18px rgba(172, 231, 56, 0.08); }
+    50%       { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 32px rgba(172, 231, 56, 0.2); }
+}
+
+@media (max-width: 767px) {
+    .bento-card-identity {
+        order: -2;
+    }
+
+    .bento-card-milo {
+        order: -1;
+    }
+}
 

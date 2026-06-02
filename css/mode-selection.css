@@ -165,3 +165,70 @@
     border-radius: 9999px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* ==========================================
+   MILO CARD
+   ========================================== */
+
+.mode-card--milo {
+    border-color: rgba(172, 231, 56, 0.25);
+    background: rgba(172, 231, 56, 0.04);
+    animation: milo-glow 3s ease-in-out infinite;
+}
+
+.mode-card--milo:hover {
+    border-color: rgba(172, 231, 56, 0.55);
+    background: rgba(172, 231, 56, 0.09);
+    box-shadow: 0 12px 40px rgba(172, 231, 56, 0.2), 0 0 50px rgba(172, 231, 56, 0.1);
+    transform: translateY(-4px);
+}
+
+.mode-card--milo:hover .mode-card__icon-wrap--milo {
+    transform: scale(1.1);
+}
+
+.mode-card__icon-wrap--milo {
+    background: rgba(172, 231, 56, 0.12);
+    box-shadow: 0 0 0 1px rgba(172, 231, 56, 0.25);
+    transition: transform 0.2s;
+}
+
+.mode-card__icon--milo {
+    color: #ace738;
+}
+
+.badge-new {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(172, 231, 56, 0.12);
+    color: #ace738;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem 0.25rem 0.4rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(172, 231, 56, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    letter-spacing: 0.06em;
+}
+
+.badge-new__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #ace738;
+    flex-shrink: 0;
+    animation: badge-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.65); }
+}
+
+@keyframes milo-glow {
+    0%, 100% { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 18px rgba(172, 231, 56, 0.08); }
+    50%       { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 32px rgba(172, 231, 56, 0.2); }
+}

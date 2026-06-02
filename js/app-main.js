@@ -2897,6 +2897,34 @@ window.logout = async function () {
     }, 280);
 }
 
+const MILO_URL = 'http://localhost:5173'; // producción: https://milo-two-nu.vercel.app
+
+window.openMilo = function () {
+    const modal = document.getElementById('milo-modal');
+    const iframe = document.getElementById('milo-iframe');
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    iframe.src = MILO_URL + '/';
+
+    iframe.addEventListener('load', function onLoad() {
+        iframe.removeEventListener('load', onLoad);
+        iframe.contentWindow.postMessage(
+            { type: 'UIXLINGO_AUTH', email: userEmail },
+            MILO_URL
+        );
+    });
+};
+
+window.closeMilo = function () {
+    const modal = document.getElementById('milo-modal');
+    const iframe = document.getElementById('milo-iframe');
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    iframe.src = '';
+};
+
 window.selectMode = async function (mode) {
     if (mode === 'practice' || mode === 'evaluation' || mode === 'pills') {
         currentQuizMode = mode;
