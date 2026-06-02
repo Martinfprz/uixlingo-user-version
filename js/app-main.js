@@ -2897,7 +2897,7 @@ window.logout = async function () {
     }, 280);
 }
 
-const MILO_URL = 'http://localhost:5173'; // producción: https://milo-two-nu.vercel.app
+const MILO_URL = 'https://milo-two-nu.vercel.app'; // local: http://localhost:5173
 
 window.openMilo = function () {
     const modal = document.getElementById('milo-modal');
