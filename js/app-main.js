@@ -2908,12 +2908,19 @@ window.openMilo = function () {
 
     iframe.src = MILO_URL + '/';
 
-    iframe.addEventListener('load', function onLoad() {
+    iframe.addEventListener('load', async function onLoad() {
         iframe.removeEventListener('load', onLoad);
-        iframe.contentWindow.postMessage(
-            { type: 'UIXLINGO_AUTH', email: userEmail },
-            MILO_URL
-        );
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            iframe.contentWindow.postMessage(
+                {
+                    type: 'SUPABASE_SESSION',
+                    access_token: session.access_token,
+                    refresh_token: session.refresh_token,
+                },
+                MILO_URL
+            );
+        }
     });
 };
 
