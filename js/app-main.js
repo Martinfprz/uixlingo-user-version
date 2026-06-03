@@ -527,6 +527,8 @@ let userProfile = {
     seniority: '',
     especialidad: '',
     formador: '',
+    empId: '',
+    proyectos: [],
     questPoints: 0,
     testsPoints: 0,
     pillsPoints: 0,
@@ -649,7 +651,7 @@ async function loadRankingUserStats() {
         const userId = supabaseSession?.user?.id;
         const { data, error } = await supabase
             .from('ranking_user')
-            .select('seniority, especialidad, formador')
+            .select('seniority, especialidad, formador, emp_id, proyecto, proyecto_2, proyecto_3, proyecto_4')
             .eq('email', userEmail.toLowerCase())
             .single();
         if (error) throw error;
@@ -664,6 +666,12 @@ async function loadRankingUserStats() {
             if (data.formador && String(data.formador).trim()) {
                 userProfile.formador = String(data.formador).trim();
             }
+            if (data.emp_id && String(data.emp_id).trim()) {
+                userProfile.empId = String(data.emp_id).trim();
+            }
+            userProfile.proyectos = [
+                data.proyecto, data.proyecto_2, data.proyecto_3, data.proyecto_4
+            ].filter(p => p && String(p).trim());
         }
         if (userId) {
             const { data: scores } = await supabase
@@ -2917,6 +2925,18 @@ window.openMilo = function () {
                     type: 'SUPABASE_SESSION',
                     access_token: session.access_token,
                     refresh_token: session.refresh_token,
+                },
+                MILO_URL
+            );
+            iframe.contentWindow.postMessage(
+                {
+                    type: 'MILO_USER',
+                    email: userEmail,
+                    nombre: userName,
+                    emp_id: userProfile.empId,
+                    proyectos: userProfile.proyectos,
+                    seniority: userProfile.seniority,
+                    especialidad: userProfile.especialidad,
                 },
                 MILO_URL
             );
