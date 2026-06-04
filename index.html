@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://esm.sh; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh https://cdn.jsdelivr.net https://*.vercel.app; img-src 'self' data: blob: https:; frame-src https://milo-two-nu.vercel.app; object-src 'none'; base-uri 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://www.gstatic.com https://esm.sh https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://esm.sh https://cdn.jsdelivr.net https://*.vercel.app https://cloud.umami.is; img-src 'self' data: blob: https:; frame-src https://milo-two-nu.vercel.app; object-src 'none'; base-uri 'self';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
@@ -16,6 +16,9 @@
         /* Excluir animaciones de duración corta para que no se cancelen */
         .animate-spin, .animate-bounce, .animate-pulse, .flame-sparking, .animate-pop, .animate-slide-up, .animate-fade-in, .animate-fade-out, .ice-shard, .snowflake-in { transition: none !important; }
     </style>
+    <!-- Umami Analytics -->
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="3ff90e68-92ae-405c-8932-f48fb9ed8426"></script>
+    <script defer src="js/analytics.js"></script>
     <!-- Inicialización de tema: se ejecuta antes del render para evitar flash -->
     <script src="theme-init.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"
@@ -167,7 +170,7 @@
                             <div id="profile-talents" class="bento-talents-grid">
                                 <!-- Populated by JS -->
                             </div>
-                            <button type="button" class="btn-secondary bento-stat-cta bento-talents-more-btn" onclick="openTalentsView()">
+                            <button type="button" class="btn-secondary bento-stat-cta bento-talents-more-btn" onclick="openTalentsView()" data-track-section="talentos" data-track-action="open-modal">
                                 <i class="fas fa-circle-info" aria-hidden="true"></i>
                                 Más información
                             </button>
@@ -208,12 +211,12 @@
                             <p class="bento-stat-mode-title">Práctica</p>
                             <div class="bento-stat-head">
                                 <p class="bento-stat-label">Puntuación más alta</p>
-                                <button onclick="openLeaderboard('quest')" class="bento-rank-btn" title="Ver ranking Quest">
+                                <button onclick="openLeaderboard('quest')" class="bento-rank-btn" title="Ver ranking Quest" data-track-section="pruebas" data-track-action="ver-ranking">
                                     <i class="fas fa-trophy"></i>
                                 </button>
                             </div>
                             <h4 id="profile-quest-pts" class="bento-stat-value">1,250</h4>
-                            <button onclick="openModeFromProfile('practice')" class="btn-primary bento-stat-cta">
+                            <button onclick="openModeFromProfile('practice')" class="btn-primary bento-stat-cta" data-track-section="pruebas" data-track-action="ir-desde-bento">
                                 Ir a práctica
                             </button>
                         </div>
@@ -227,7 +230,7 @@
                                 <p class="bento-stat-label">Puntuación obtenida</p>
                             </div>
                             <h4 id="profile-tests-pts" class="bento-stat-value">840</h4>
-                            <button onclick="openModeFromProfile('evaluation')" class="btn-primary bento-stat-cta">
+                            <button onclick="openModeFromProfile('evaluation')" class="btn-primary bento-stat-cta" data-track-section="evaluaciones" data-track-action="ir-desde-bento">
                                 Ir a evaluación
                             </button>
                         </div>
@@ -242,7 +245,7 @@
                             <p class="bento-stat-mode-title">Pills</p>
                             <div class="bento-stat-head">
                                 <p id="profile-pills-label" class="bento-stat-label">Pts. Pills</p>
-                                <button type="button" id="profile-pills-rank-btn" class="bento-rank-btn" title="Ver ranking Pills" onclick="openLeaderboard('pills')">
+                                <button type="button" id="profile-pills-rank-btn" class="bento-rank-btn" title="Ver ranking Pills" onclick="openLeaderboard('pills')" data-track-section="pills" data-track-action="ver-ranking">
                                     <i class="fas fa-trophy"></i>
                                 </button>
                             </div>
@@ -252,15 +255,15 @@
                             </div>
                             <h4 id="profile-pills-pts" class="bento-stat-value">320</h4>
                             <div id="profile-pills-actions-single" class="bento-pills-actions-single">
-                                <button type="button" id="profile-pills-btn-ir-single" class="btn-secondary bento-stat-cta">
+                                <button type="button" id="profile-pills-btn-ir-single" class="btn-secondary bento-stat-cta" data-track-section="pills" data-track-action="ir-desde-bento">
                                     Ir a pills
                                 </button>
                             </div>
                             <div id="profile-pills-actions-dual" class="bento-pills-actions-dual hidden">
-                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver">
+                                <button type="button" id="profile-pills-btn-ver" class="btn-primary bento-stat-cta bento-pills-btn-ver" data-track-section="pills" data-track-action="ver-pill-desde-bento">
                                     Ver pill
                                 </button>
-                                <button type="button" id="profile-pills-btn-ir-dual" class="btn-secondary bento-stat-cta bento-pills-btn-secondary">
+                                <button type="button" id="profile-pills-btn-ir-dual" class="btn-secondary bento-stat-cta bento-pills-btn-secondary" data-track-section="pills" data-track-action="ir-desde-bento">
                                     Ir a pills
                                 </button>
                             </div>
@@ -294,7 +297,7 @@
                         </div>
 
                         <!-- 5. Action Area -->
-                        <div class="bento-card bento-card-milo" onclick="openMilo()" role="button" tabindex="0">
+                        <div class="bento-card bento-card-milo" onclick="openMilo()" role="button" tabindex="0" data-track-section="milo" data-track-action="abrir-desde-card">
                             <span class="badge-new">
                                 <span class="badge-new__dot"></span>
                                 NUEVO
@@ -308,7 +311,7 @@
                                     <p class="bento-milo-desc">Analiza prototipos con IA, Usuarios sintéticos y más.</p>
                                 </div>
                             </div>
-                            <button type="button" class="btn-secondary bento-milo-btn" onclick="event.stopPropagation(); openMilo();">
+                            <button type="button" class="btn-secondary bento-milo-btn" onclick="event.stopPropagation(); openMilo();" data-track-section="milo" data-track-action="abrir-desde-boton">
                                 Ir a MILO
                             </button>
                         </div>
@@ -330,7 +333,7 @@
                     <p class="section-subtitle">¿Qué deseas hacer hoy?</p>
 
                     <div class="mode-grid">
-                        <div onclick="selectMode('practice')" class="mode-card" role="button" tabindex="0">
+                        <div onclick="selectMode('practice')" class="mode-card" role="button" tabindex="0" data-track-section="pruebas" data-track-action="select-mode">
                             <div class="mode-card__icon-wrap mode-card__icon-wrap--practice">
                                 <i class="fas fa-dumbbell mode-card__icon"></i>
                             </div>
@@ -339,7 +342,7 @@
                             </p>
                         </div>
 
-                        <div onclick="selectMode('evaluation')" class="mode-card" role="button" tabindex="0">
+                        <div onclick="selectMode('evaluation')" class="mode-card" role="button" tabindex="0" data-track-section="evaluaciones" data-track-action="select-mode">
                             <div class="mode-card__icon-wrap mode-card__icon-wrap--evaluation">
                                 <i class="fas fa-clipboard-check mode-card__icon"></i>
                             </div>
@@ -348,7 +351,7 @@
                                 tiempo límite.</p>
                         </div>
 
-                        <div onclick="selectMode('pills')" class="mode-card" role="button" tabindex="0">
+                        <div onclick="selectMode('pills')" class="mode-card" role="button" tabindex="0" data-track-section="pills" data-track-action="select-mode">
                             <div class="mode-card__icon-wrap mode-card__icon-wrap--pills">
                                 <i class="fas fa-capsules mode-card__icon"></i>
                             </div>
@@ -367,36 +370,36 @@
                     <p class="section-subtitle">Elige los temas de tu interés:</p>
 
                     <div class="category-grid">
-                        <div class="cat-card" data-cat="UX Writing" onclick="toggleCategory(this)" role="button" tabindex="0">
+                        <div class="cat-card" data-cat="UX Writing" onclick="toggleCategory(this)" role="button" tabindex="0" data-track-section="pruebas" data-track-action="select-category">
                             <i class="fas fa-pen-nib cat-icon cat-icon--writing"></i>
                             <span class="cat-label cat-label--writing">Writing</span>
                         </div>
-                        <div class="cat-card" data-cat="UX Research" onclick="toggleCategory(this)" role="button" tabindex="0">
+                        <div class="cat-card" data-cat="UX Research" onclick="toggleCategory(this)" role="button" tabindex="0" data-track-section="pruebas" data-track-action="select-category">
                             <i class="fas fa-search cat-icon cat-icon--research"></i>
                             <span class="cat-label cat-label--research">Research</span>
                         </div>
-                        <div class="cat-card" data-cat="UI Design" onclick="toggleCategory(this)" role="button" tabindex="0">
+                        <div class="cat-card" data-cat="UI Design" onclick="toggleCategory(this)" role="button" tabindex="0" data-track-section="pruebas" data-track-action="select-category">
                             <i class="fas fa-palette cat-icon cat-icon--ui"></i>
                             <span class="cat-label cat-label--ui">UI Design</span>
                         </div>
-                        <div class="cat-card" data-cat="Product Strategy" onclick="toggleCategory(this)" role="button" tabindex="0">
+                        <div class="cat-card" data-cat="Product Strategy" onclick="toggleCategory(this)" role="button" tabindex="0" data-track-section="pruebas" data-track-action="select-category">
                             <i class="fas fa-rocket cat-icon cat-icon--strategy"></i>
                             <span class="cat-label cat-label--strategy">Strategy</span>
                         </div>
-                        <div class="cat-card" data-cat="Casos Prácticos" onclick="toggleCategory(this)" role="button" tabindex="0">
+                        <div class="cat-card" data-cat="Casos Prácticos" onclick="toggleCategory(this)" role="button" tabindex="0" data-track-section="pruebas" data-track-action="select-category">
                             <i class="fas fa-briefcase cat-icon cat-icon--cases"></i>
                             <span class="cat-label cat-label--cases">Cases</span>
                         </div>
                     </div>
 
                     <div class="action-group">
-                        <button id="btn-start" onclick="startQuiz()" class="btn-cta">
+                        <button id="btn-start" onclick="startQuiz()" class="btn-cta" data-track-section="pruebas" data-track-action="start">
                             EMPEZAR PRUEBA
                         </button>
 
                         <div class="divider"></div>
 
-                        <button onclick="openLeaderboard()" class="btn-leaderboard">
+                        <button onclick="openLeaderboard()" class="btn-leaderboard" data-track-section="pruebas" data-track-action="ver-ranking">
                             <i class="fas fa-trophy"></i> Ver Ranking Global
                         </button>
                     </div>
@@ -438,7 +441,7 @@
                         </div>
 
                         <div class="action-group">
-                            <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled>
+                            <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start">
                                 INICIAR EVALUACIÓN
                             </button>
                         </div>
@@ -635,20 +638,20 @@
                                 </div>
                             </div>
 
-                            <button id="results-leaderboard-btn" onclick="openLeaderboard()" class="btn-leaderboard btn-leaderboard--wide">
+                            <button id="results-leaderboard-btn" onclick="openLeaderboard()" class="btn-leaderboard btn-leaderboard--wide" data-track-section="pruebas" data-track-action="results-leaderboard">
                                 <i class="fas fa-trophy"></i> Ver Ranking Global
                             </button>
 
                             <div id="results-divider" class="divider divider--wide"></div>
 
                             <div id="results-eval-errors-wrap" class="hidden">
-                                <button onclick="openReviewSheet()" class="btn-leaderboard btn-leaderboard--wide">
+                                <button onclick="openReviewSheet()" class="btn-leaderboard btn-leaderboard--wide" data-track-section="pruebas" data-track-action="results-review">
                                     <i class="fas fa-search"></i> Ver mis errores
                                 </button>
                             </div>
 
                             <div class="results-actions">
-                                <button id="results-restart-btn" onclick="restartDirectly()" class="btn-primary">
+                                <button id="results-restart-btn" onclick="restartDirectly()" class="btn-primary" data-track-section="pruebas" data-track-action="results-restart">
                                     Reiniciar prueba
                                 </button>
                             </div>
@@ -671,12 +674,12 @@
                             <p id="results-pills-sticker-text" class="results-pills-sticker__text"></p>
                         </div>
                         <div class="results-pills-ranking-block">
-                            <button type="button" onclick="openLeaderboard('pills')" class="btn-leaderboard btn-leaderboard--wide">
+                            <button type="button" onclick="openLeaderboard('pills')" class="btn-leaderboard btn-leaderboard--wide" data-track-section="pills" data-track-action="results-leaderboard">
                                 <i class="fas fa-trophy" aria-hidden="true"></i> Ver calificaciones (primer intento)
                             </button>
                         </div>
                         <div class="results-actions results-actions--pills">
-                            <button type="button" onclick="goToPillsHomeFromResults()" class="btn-primary">
+                            <button type="button" onclick="goToPillsHomeFromResults()" class="btn-primary" data-track-section="pills" data-track-action="results-back">
                                 Regresar a inicio de pills
                             </button>
                         </div>
@@ -724,13 +727,13 @@
                     Elige si quieres ver primero el video o el material, o ir directo al reto. Aquí no mostramos las preguntas para que sea justo.
                 </p>
                 <div class="pill-experience-actions">
-                    <button type="button" id="pill-experience-btn-video" class="btn-primary pill-experience-btn-full">
+                    <button type="button" id="pill-experience-btn-video" class="btn-primary pill-experience-btn-full" data-track-section="pills" data-track-action="open-video">
                         Ver video / recurso
                     </button>
-                    <button type="button" id="pill-experience-btn-quiz" class="btn-cta pill-experience-btn-full">
+                    <button type="button" id="pill-experience-btn-quiz" class="btn-cta pill-experience-btn-full" data-track-section="pills" data-track-action="open-quiz">
                         Contestar preguntas
                     </button>
-                    <button type="button" id="pill-experience-btn-dismiss" class="btn-outline-blue pill-experience-btn-full">
+                    <button type="button" id="pill-experience-btn-dismiss" class="btn-outline-blue pill-experience-btn-full" data-track-section="pills" data-track-action="dismiss">
                         Cerrar
                     </button>
                 </div>

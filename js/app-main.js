@@ -3014,6 +3014,7 @@ window.selectMode = async function (mode) {
             } else {
                 dashboardView.classList.remove('hidden');
                 dashboardView.classList.add('animate-fade-in');
+                window.trackScreen('screen-category-selection');
             }
             updateHeaderBackButton();
         }, 280);
@@ -5590,6 +5591,7 @@ window.goToPillsHomeFromResults = async function goToPillsHomeFromResults() {
 };
 
 async function showPillsResultsInScreen() {
+    window.trackScreen('screen-results-pills');
     const resultsTitle = document.getElementById('results-title');
     const careerPath = document.querySelector('.career-path');
     const content = document.getElementById('results-content');
@@ -5700,6 +5702,7 @@ async function showResults() {
         if (blockDefault) blockDefault.classList.remove('hidden');
 
         const isEvaluationResult = currentQuizMode === 'evaluation';
+        window.trackScreen(isEvaluationResult ? 'screen-results-evaluacion' : 'screen-results-pruebas');
         const resultsTitle = document.getElementById('results-title');
         const careerPath = document.querySelector('.career-path');
         const content = document.getElementById('results-content');
