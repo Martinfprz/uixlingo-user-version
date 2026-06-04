@@ -17,4 +17,27 @@
     window.trackScreen = function (name) {
         safeTrack('screen', { name: name });
     };
+
+    // Route management — updates URL without page reload
+    history.replaceState({ path: '/' }, '', '/');
+
+    window.setRoute = function (path) {
+        if (window.location.pathname !== path) {
+            history.pushState({ path }, '', path);
+        }
+    };
+
+    // Browser back/forward button support
+    window.addEventListener('popstate', function () {
+        const path = window.location.pathname;
+        const handlers = {
+            '/':             () => window.returnToDashboard?.(),
+            '/pruebas':      () => window.selectMode?.('practice'),
+            '/evaluaciones': () => window.selectMode?.('evaluation'),
+            '/pills':        () => window.selectMode?.('pills'),
+            '/talentos':     () => window.openTalentsView?.(),
+            '/resultados':   () => window.returnToDashboard?.(),
+        };
+        (handlers[path] || handlers['/'])();
+    });
 })();

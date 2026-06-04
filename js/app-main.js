@@ -1984,6 +1984,7 @@ window.openTalentsView = function () {
         profileView.classList.remove('animate-fade-out');
         talentsView.classList.remove('hidden');
         talentsView.classList.add('animate-fade-in');
+        window.setRoute('/talentos');
         updateHeaderBackButton();
     }, 280);
 };
@@ -2001,6 +2002,7 @@ window.backFromTalentsView = function () {
         talentsView.classList.remove('animate-fade-out');
         profileView.classList.remove('hidden');
         profileView.classList.add('animate-fade-in');
+        window.setRoute('/');
         updateHeaderBackButton();
     }, 280);
 };
@@ -3007,14 +3009,17 @@ window.selectMode = async function (mode) {
                 evalBriefView?.classList.add('animate-fade-in');
                 updateEvaluationBriefAutoUI();
                 renderEvaluationCompletedState();
+                window.setRoute('/evaluaciones');
             } else if (mode === 'pills') {
                 pillsConstructionView?.classList.remove('hidden');
                 pillsConstructionView?.classList.add('animate-fade-in');
                 renderPillsList();
+                window.setRoute('/pills');
             } else {
                 dashboardView.classList.remove('hidden');
                 dashboardView.classList.add('animate-fade-in');
                 window.trackScreen('screen-category-selection');
+                window.setRoute('/pruebas');
             }
             updateHeaderBackButton();
         }, 280);
@@ -4262,6 +4267,7 @@ function returnToDashboard() {
         document.getElementById('auth-card').classList.add('hidden'); // Changed to hide
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('profile-view').classList.remove('hidden');
+        window.setRoute('/');
 
         // La Navbar (main-header) se mantiene visible en el dashboard
         document.getElementById('main-header').classList.remove('hidden');
@@ -5592,6 +5598,7 @@ window.goToPillsHomeFromResults = async function goToPillsHomeFromResults() {
 
 async function showPillsResultsInScreen() {
     window.trackScreen('screen-results-pills');
+    window.setRoute('/resultados');
     const resultsTitle = document.getElementById('results-title');
     const careerPath = document.querySelector('.career-path');
     const content = document.getElementById('results-content');
@@ -5703,6 +5710,7 @@ async function showResults() {
 
         const isEvaluationResult = currentQuizMode === 'evaluation';
         window.trackScreen(isEvaluationResult ? 'screen-results-evaluacion' : 'screen-results-pruebas');
+        window.setRoute('/resultados');
         const resultsTitle = document.getElementById('results-title');
         const careerPath = document.querySelector('.career-path');
         const content = document.getElementById('results-content');
