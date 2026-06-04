@@ -359,21 +359,31 @@
     box-shadow: 0 14px 34px rgba(13, 11, 30, 0.12), 0 0 30px rgba(61, 89, 0, 0.15);
 }
 
-[data-theme="light"] .bento-milo-icon-wrap {
-    background: rgba(61, 89, 0, 0.12);
-    box-shadow: 0 0 0 1px rgba(61, 89, 0, 0.26);
-}
-
-[data-theme="light"] .bento-milo-icon {
-    color: var(--color-cta-dark);
+[data-theme="light"] .bento-milo-image {
+    filter: drop-shadow(0 8px 14px rgba(13, 11, 30, 0.16));
 }
 
 [data-theme="light"] .bento-milo-desc {
     color: rgba(13, 11, 30, 0.68);
 }
 
-[data-theme="light"] .bento-milo-arrow {
-    color: rgba(61, 89, 0, 0.78);
+[data-theme="light"] .bento-milo-btn {
+    box-shadow: 0 6px 16px rgba(13, 11, 30, 0.14);
+}
+
+[data-theme="light"] .bento-milo-btn:hover:not(:disabled) {
+    box-shadow: 0 9px 22px rgba(13, 11, 30, 0.2);
+}
+
+[data-theme="light"] .bento-card-milo .badge-new {
+    background: rgba(61, 89, 0, 0.12);
+    color: #3d5900;
+    border-color: rgba(61, 89, 0, 0.34);
+    box-shadow: 0 4px 10px rgba(13, 11, 30, 0.08);
+}
+
+[data-theme="light"] .bento-card-milo .badge-new__dot {
+    background: #3d5900;
 }
 
 [data-theme="light"] .talent-item {

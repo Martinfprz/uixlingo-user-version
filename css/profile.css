@@ -17,6 +17,9 @@
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    /* La grilla se adapta a SU propio ancho (container query), no al viewport.
+       Esto evita que un contenedor angosto muestre el layout de escritorio. */
+    container: bento / inline-size;
 }
 
 .bento-grid {
@@ -26,9 +29,23 @@
     width: 100%;
 }
 
-@media (min-width: 768px) {
+/* Tablet (≥768px de contenedor): identity full-width, milo + seniority comparten fila */
+@container bento (min-width: 768px) {
     .bento-grid {
         grid-template-columns: repeat(12, 1fr);
+        grid-template-areas:
+            "identity identity identity identity identity identity identity identity milo milo milo milo"
+            "talents talents talents talents talents talents talents talents seniority seniority seniority seniority"
+            "team team team team team team team team team team team team"
+            "quest quest quest quest tests tests tests tests pills pills pills pills"
+            "seals seals seals seals seals seals seals seals seals seals seals seals";
+        gap: 1.25rem;
+    }
+}
+
+/* Desktop (≥1024px de contenedor): layout compacto con milo + seniority en columnas angostas */
+@container bento (min-width: 1024px) {
+    .bento-grid {
         grid-template-areas:
             "identity identity identity identity identity identity identity identity milo milo milo milo"
             "talents talents talents talents talents talents talents talents seniority seniority seniority seniority"
@@ -38,6 +55,7 @@
         gap: 1.5rem;
     }
 }
+
 
 /* Base Card Style (dark: un solo borde + sombra exterior — evita franja/doble borde por inset + border) */
 .bento-card {
@@ -130,9 +148,9 @@
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-card-seals {
-        grid-column: span 12;
+        grid-area: seals;
     }
 }
 
@@ -299,7 +317,7 @@
     max-width: 7.5rem;
 }
 
-@media (max-width: 767px) {
+@container bento (max-width: 767px) {
     #profile-seals-recent.bento-seals-grid {
         justify-content: center;
         align-content: flex-start;
@@ -422,9 +440,8 @@
     gap: 1.5rem;
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-card-identity {
-        grid-column: span 12;
         grid-area: identity;
         flex-direction: row;
         align-items: flex-start;
@@ -460,7 +477,7 @@
     display: none !important;
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-card-team {
         grid-area: team;
     }
@@ -637,7 +654,7 @@
     padding-right: 0.2rem;
 }
 
-@media (min-width: 980px) {
+@container bento (min-width: 980px) {
     .bento-team-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -933,9 +950,8 @@
     min-height: 17rem;
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-card-seniority {
-        grid-column: span 4;
         grid-area: seniority;
     }
 }
@@ -1044,10 +1060,7 @@
     border-color: rgba(234, 179, 8, 0.35);
 }
 
-@media (min-width: 768px) {
-    .bento-card-stat {
-        grid-column: span 4;
-    }
+@container bento (min-width: 768px) {
     .bento-stat-quest { grid-area: quest; }
     .bento-stat-pruebas { grid-area: tests; }
     .bento-stat-pills { grid-area: pills; }
@@ -1732,15 +1745,13 @@
     color: var(--color-text);
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-card-talents {
-        grid-column: span 8;
         grid-area: talents;
     }
 }
 
-@media (min-width: 768px) {
-    .bento-card-seals { grid-area: seals; }
+@container bento (min-width: 768px) {
     .bento-action-area { grid-area: action; }
 }
 
@@ -1838,7 +1849,7 @@
     border-radius: 0.5rem;
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-talents-grid {
         grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
     }
@@ -1880,7 +1891,7 @@
     flex-direction: column;
 }
 
-@media (min-width: 768px) {
+@container bento (min-width: 768px) {
     .bento-action-area {
         grid-column: span 4;
     }
@@ -1978,7 +1989,8 @@
     border-color: rgba(172, 231, 56, 0.25);
     background: rgba(172, 231, 56, 0.04);
     position: relative;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-bottom: calc(var(--btn-height) + 2rem);
     animation: milo-glow 3s ease-in-out infinite;
     transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s;
 }
@@ -1990,45 +2002,53 @@
     transform: translateY(-3px);
 }
 
-.bento-card-milo:hover .bento-milo-icon-wrap {
+.bento-card-milo:hover .bento-milo-media {
     transform: scale(1.1);
 }
 
-.bento-card-milo:hover .bento-milo-arrow {
-    transform: translateX(4px);
+.bento-card-milo:hover .bento-milo-btn {
+    transform: translateY(-1px);
 }
 
 .bento-milo-content {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 1rem;
+    justify-content: flex-start;
+    gap: 0.8rem;
     width: 100%;
-    text-align: center;
+    min-width: 0;
+    text-align: left;
 }
 
-.bento-milo-icon-wrap {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 9999px;
-    background: rgba(172, 231, 56, 0.12);
-    box-shadow: 0 0 0 1px rgba(172, 231, 56, 0.25);
+.bento-milo-media {
+    flex: 0 0 38%;
+    max-width: 38%;
+    min-width: 0;
+    align-self: stretch;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    flex-shrink: 0;
+    overflow: visible;
     transition: transform 0.2s;
 }
 
-.bento-milo-icon {
-    font-size: 1.25rem;
-    color: #ace738;
+/* La imagen se escala con transform (no con width%) para crecer sin
+   provocar overflow horizontal; la card recorta el excedente. */
+.bento-milo-image {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    margin-bottom: -1.1rem;
+    display: block;
+    transform: scale(1.22);
+    transform-origin: center bottom;
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.25));
 }
 
 .bento-milo-text {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
-    text-align: center;
+    text-align: left;
 }
 
 .bento-milo-title {
@@ -2042,14 +2062,65 @@
     font-size: 0.8rem;
     color: rgba(239, 255, 253, 0.6);
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.35;
+    max-width: 22ch;
 }
 
-.bento-milo-arrow {
-    color: rgba(172, 231, 56, 0.6);
-    font-size: 0.875rem;
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
+.bento-card-milo .bento-milo-btn {
+    position: absolute;
+    left: 1.5rem;
+    right: 1.5rem;
+    bottom: 1rem;
+    width: auto;
+    box-sizing: border-box;
+    min-height: var(--btn-height);
+    padding: 0 var(--btn-padding-x);
+    font-size: var(--btn-font-size);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    margin: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@container bento (max-width: 1200px) {
+    .bento-card-milo .bento-milo-btn {
+        font-size: 0.95rem;
+    }
+}
+
+@container bento (max-width: 767px) {
+    .bento-card-milo {
+        padding-bottom: calc(var(--btn-height) + 1.75rem);
+    }
+
+    .bento-milo-media {
+        flex-basis: 40%;
+        max-width: 40%;
+    }
+
+    .bento-milo-image {
+        margin-bottom: -0.85rem;
+        transform: scale(1.18);
+    }
+
+    .bento-milo-title {
+        font-size: 1rem;
+    }
+
+    .bento-milo-desc {
+        font-size: 0.78rem;
+        max-width: none;
+    }
+
+    .bento-card-milo .bento-milo-btn {
+        left: 1rem;
+        right: 1rem;
+        bottom: 0.9rem;
+        width: auto;
+        min-height: 2.75rem;
+        font-size: 0.92rem;
+    }
 }
 
 @keyframes milo-glow {
@@ -2057,13 +2128,17 @@
     50%       { box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 32px rgba(172, 231, 56, 0.2); }
 }
 
-@media (max-width: 767px) {
+@container bento (max-width: 767px) {
     .bento-card-identity {
         order: -2;
     }
 
+    /* En móvil no hay grid-template-areas: anulamos el grid-area: milo
+       que la sacaba a una columna implícita y la apilamos bajo identity. */
     .bento-card-milo {
         order: -1;
+        grid-area: auto;
+        grid-column: 1 / -1;
     }
 }
 

@@ -9,7 +9,7 @@
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
     <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
-    <link rel="stylesheet" href="css/main.css?v=13">
+    <link rel="stylesheet" href="css/main.css?v=14">
     <style>
         /* Transición suave al cambiar de tema */
         *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
@@ -300,15 +300,17 @@
                                 NUEVO
                             </span>
                             <div class="bento-milo-content">
-                                <div class="bento-milo-icon-wrap">
-                                    <i class="fas fa-brain bento-milo-icon"></i>
+                                <div class="bento-milo-media">
+                                    <img class="bento-milo-image" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/milo%201.png" alt="Milo" width="512" height="512" loading="lazy" decoding="async">
                                 </div>
                                 <div class="bento-milo-text">
                                     <h3 class="bento-milo-title">Milo</h3>
-                                    <p class="bento-milo-desc">Analiza prototipos con IA. Usuarios sintéticos, heatmaps y más.</p>
+                                    <p class="bento-milo-desc">Analiza prototipos con IA, Usuarios sintéticos y más.</p>
                                 </div>
-                                <i class="fas fa-arrow-right bento-milo-arrow"></i>
                             </div>
+                            <button type="button" class="btn-secondary bento-milo-btn" onclick="event.stopPropagation(); openMilo();">
+                                Ir a MILO
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -699,7 +701,7 @@
 
         <footer>
             <p class="footer-text">
-                <span class="footer-version">5.0.0</span>
+                <span class="footer-version">5.1.0</span>
                 <span class="footer-tagline">
                     Una iniciativa de <span class="footer-brand">UXquisitos | Hecho por Martín Fuentes</span>
                 </span>
