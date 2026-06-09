@@ -1,4 +1,3 @@
-import { supabase } from './supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './constants.js';
 
 const SESSION_ID = sessionStorage.getItem('uix_sid') || (() => {
@@ -18,18 +17,10 @@ const SCREEN_NAMES = {
     '/resultados':   'results',
 };
 
-function send(eventType, screen, extra = {}) {
-    if (!supabase) return;
-    supabase.from('events').insert({
-        session_id: SESSION_ID,
-        event_type: eventType,
-        screen,
-        created_at: new Date().toISOString(),
-        ...extra,
-    });
-}
-
-function sendOnExit(screen, timeOnScreen) {
+// Inserta SIEMPRE con la anon key directa → rol `anon`.
+// No usa el cliente de Supabase a propósito: ese adjunta el JWT del usuario
+// logueado (rol `authenticated`) y el INSERT policy solo cubre `anon`.
+function insert(payload, keepalive = false) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
     fetch(`${SUPABASE_URL}/rest/v1/events`, {
         method: 'POST',
@@ -39,15 +30,31 @@ function sendOnExit(screen, timeOnScreen) {
             'Content-Type': 'application/json',
             'Prefer': 'return=minimal',
         },
-        body: JSON.stringify([{
-            session_id: SESSION_ID,
-            event_type: 'page_exit',
-            screen,
-            time_on_screen: timeOnScreen,
-            created_at: new Date().toISOString(),
-        }]),
-        keepalive: true,
+        body: JSON.stringify([payload]),
+        keepalive,
+    }).then(res => {
+        if (!res.ok) console.warn('[tracking] insert falló', res.status, payload.event_type, payload.screen);
     }).catch(() => {});
+}
+
+function send(eventType, screen, extra = {}) {
+    insert({
+        session_id: SESSION_ID,
+        event_type: eventType,
+        screen,
+        created_at: new Date().toISOString(),
+        ...extra,
+    });
+}
+
+function sendOnExit(screen, timeOnScreen) {
+    insert({
+        session_id: SESSION_ID,
+        event_type: 'page_exit',
+        screen,
+        time_on_screen: timeOnScreen,
+        created_at: new Date().toISOString(),
+    }, true);
 }
 
 function enterScreen(name) {
