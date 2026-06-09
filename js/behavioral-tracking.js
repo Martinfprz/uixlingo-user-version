@@ -81,6 +81,20 @@ document.addEventListener('click', function (e) {
     }
 }, true);
 
+// Milo: abre modal sin cambiar ruta, necesita hook propio
+const _origOpenMilo = window.openMilo;
+window.openMilo = function () {
+    _origOpenMilo?.();
+    enterScreen('milo');
+};
+
+const _origCloseMilo = window.closeMilo;
+window.closeMilo = function () {
+    _origCloseMilo?.();
+    const name = SCREEN_NAMES[window.location.pathname] || 'home';
+    enterScreen(name);
+};
+
 // Exit page: visibilitychange es el evento más confiable en móvil y desktop
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'hidden') return;

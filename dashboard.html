@@ -219,9 +219,67 @@
             padding: 2rem 0;
         }
 
+        /* ── Flow section ── */
+        .flow-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: .75rem;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .flow-card h3 {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin-bottom: 1.25rem;
+        }
+
+        .flow-list { display: flex; flex-direction: column; gap: .6rem; }
+
+        .flow-row {
+            display: grid;
+            grid-template-columns: 200px 1fr 48px;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .flow-label {
+            font-size: .8rem;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .flow-label .arrow { color: var(--text-dim); margin: 0 .3rem; }
+
+        .flow-bar-wrap {
+            background: var(--surface-2);
+            border-radius: 4px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .flow-bar {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--primary), #a78bfa);
+            transition: width .6s ease;
+        }
+
+        .flow-count {
+            font-size: .75rem;
+            color: var(--text-dim);
+            text-align: right;
+        }
+
         @media (max-width: 900px) {
             .kpi-grid { grid-template-columns: repeat(2, 1fr); }
             .charts-grid { grid-template-columns: 1fr; }
+            .flow-row { grid-template-columns: 160px 1fr 40px; }
         }
 
         @media (max-width: 480px) {
@@ -300,6 +358,11 @@
             <canvas id="chart-clicks"></canvas>
         </div>
     </div>
+
+    <div class="flow-card">
+        <h3>Flujos más comunes — de dónde vienen y a dónde van</h3>
+        <div class="flow-list" id="flow-list"></div>
+    </div>
 </div>
 
 <script type="module">
@@ -343,7 +406,8 @@ function sortedTop(obj, n = 10) {
 async function fetchEvents() {
     const { data, error } = await client
         .from('events')
-        .select('session_id,event_type,screen,element,time_on_screen')
+        .select('session_id,event_type,screen,element,time_on_screen,created_at')
+        .order('created_at', { ascending: true })
         .limit(20000);
     if (error) throw error;
     return data;
@@ -379,6 +443,53 @@ function aggregate(rows) {
     }
 
     return { sessions, visitsByScreen, avgTime, exitsByScreen, clicksByEl, total: rows.length };
+}
+
+function computeFlows(rows) {
+    const bySession = {};
+    for (const r of rows) {
+        if (r.event_type !== 'screen_enter' || !r.screen) continue;
+        (bySession[r.session_id] = bySession[r.session_id] || []).push(r);
+    }
+
+    const flows = {};
+    for (const events of Object.values(bySession)) {
+        for (let i = 0; i < events.length - 1; i++) {
+            const from = events[i].screen;
+            const to   = events[i + 1].screen;
+            if (from !== to) {
+                const key = `${from}||${to}`;
+                flows[key] = (flows[key] || 0) + 1;
+            }
+        }
+    }
+    return flows;
+}
+
+function renderFlows(flows) {
+    const list = document.getElementById('flow-list');
+    const entries = sortedTop(flows, 12);
+
+    if (!entries.length) {
+        list.innerHTML = '<p class="empty">Sin datos de flujo todavía</p>';
+        return;
+    }
+
+    const max = entries[0][1];
+    list.innerHTML = entries.map(([key, count]) => {
+        const [from, to] = key.split('||');
+        const pct = Math.round((count / max) * 100);
+        return `
+        <div class="flow-row">
+            <div class="flow-label">
+                ${label(from)}<span class="arrow">→</span>${label(to)}
+            </div>
+            <div class="flow-bar-wrap">
+                <div class="flow-bar" style="width:${pct}%"></div>
+            </div>
+            <div class="flow-count">${count}x</div>
+        </div>`;
+    }).join('');
 }
 
 function renderKPIs({ sessions, visitsByScreen, exitsByScreen, total }) {
@@ -528,6 +639,7 @@ async function load() {
         renderTime(agg.avgTime);
         renderExits(agg.exitsByScreen);
         renderClicks(agg.clicksByEl);
+        renderFlows(computeFlows(rows));
 
         document.getElementById('last-updated').textContent =
             `Actualizado ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
