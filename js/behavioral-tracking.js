@@ -1,10 +1,25 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './constants.js';
 
-const SESSION_ID = sessionStorage.getItem('uix_sid') || (() => {
-    const id = crypto.randomUUID();
-    sessionStorage.setItem('uix_sid', id);
+// Sesión con ventana de inactividad de 30 min (convención tipo Google Analytics).
+// Usa localStorage (persiste entre recargas y el round-trip del login) en vez de
+// sessionStorage, que generaba un ID nuevo en cada recarga e inflaba el conteo.
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+function currentSessionId() {
+    const now = Date.now();
+    let id;
+    try {
+        const raw = localStorage.getItem('uix_session');
+        if (raw) {
+            const s = JSON.parse(raw);
+            if (s.id && (now - s.last) < SESSION_TIMEOUT_MS) id = s.id;
+        }
+    } catch (_) {}
+    if (!id) id = crypto.randomUUID();
+    try { localStorage.setItem('uix_session', JSON.stringify({ id, last: now })); } catch (_) {}
     return id;
-})();
+}
+
 let currentScreen = 'home';
 let screenEnteredAt = Date.now();
 
@@ -39,7 +54,7 @@ function insert(payload, keepalive = false) {
 
 function send(eventType, screen, extra = {}) {
     insert({
-        session_id: SESSION_ID,
+        session_id: currentSessionId(),
         event_type: eventType,
         screen,
         created_at: new Date().toISOString(),
@@ -49,7 +64,7 @@ function send(eventType, screen, extra = {}) {
 
 function sendOnExit(screen, timeOnScreen) {
     insert({
-        session_id: SESSION_ID,
+        session_id: currentSessionId(),
         event_type: 'page_exit',
         screen,
         time_on_screen: timeOnScreen,
