@@ -1,7 +1,11 @@
 import { supabase } from './supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './constants.js';
 
-const SESSION_ID = crypto.randomUUID();
+const SESSION_ID = sessionStorage.getItem('uix_sid') || (() => {
+    const id = crypto.randomUUID();
+    sessionStorage.setItem('uix_sid', id);
+    return id;
+})();
 let currentScreen = 'home';
 let screenEnteredAt = Date.now();
 
