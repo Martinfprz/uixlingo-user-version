@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UiX-Lingo · Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg:          #0a0a10;
+            --surface:     #111118;
+            --surface-2:   #18181f;
+            --border:      #23232f;
+            --primary:     #7c6fff;
+            --primary-dim: rgba(124,111,255,.12);
+            --text:        #f1f5f9;
+            --text-dim:    #64748b;
+            --green:       #22c55e;
+            --yellow:      #f59e0b;
+            --red:         #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin-bottom: 2rem;
+        }
+
+        .header-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: .5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: .9rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .header h1 span { color: var(--primary); }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #last-updated {
+            font-size: .75rem;
+            color: var(--text-dim);
+        }
+
+        .btn-refresh {
+            background: var(--primary-dim);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: .4rem .9rem;
+            border-radius: .5rem;
+            cursor: pointer;
+            font-size: .8rem;
+            font-weight: 600;
+            transition: all .2s;
+        }
+
+        .btn-refresh:hover { background: var(--primary); color: white; }
+        .btn-refresh:disabled { opacity: .5; cursor: default; }
+
+        /* ── KPI Grid ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .kpi-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: 2px solid transparent;
+            border-radius: .75rem;
+            padding: 1.25rem 1.5rem;
+            transition: border-top-color .4s;
+        }
+
+        .kpi-card.c-purple { border-top-color: #7c6fff; }
+        .kpi-card.c-violet { border-top-color: #a78bfa; }
+        .kpi-card.c-teal   { border-top-color: #14b8a6; }
+        .kpi-card.c-amber  { border-top-color: #f59e0b; }
+
+        .kpi-label {
+            font-size: .7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: .5rem;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            color: var(--text);
+        }
+
+        .kpi-value.sm { font-size: 1.3rem; }
+
+        .kpi-sub {
+            font-size: .72rem;
+            color: var(--text-dim);
+            margin-top: .4rem;
+        }
+
+        /* ── Charts Grid ── */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: .75rem;
+            padding: 1.5rem;
+        }
+
+        .chart-card h3 {
+            font-size: .8rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            margin-bottom: 1.25rem;
+        }
+
+        .chart-card canvas { max-height: 240px; }
+
+        /* ── States ── */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            z-index: 50;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .overlay p { font-size: .875rem; color: var(--text-dim); }
+
+        .error-box {
+            background: rgba(239,68,68,.08);
+            border: 1px solid var(--red);
+            border-radius: .75rem;
+            padding: 1.75rem 2rem;
+            max-width: 520px;
+            text-align: center;
+        }
+
+        .error-box h3 { color: var(--red); margin-bottom: .5rem; font-size: 1rem; }
+
+        .error-box p {
+            color: var(--text-dim);
+            font-size: .85rem;
+            line-height: 1.6;
+        }
+
+        .error-box pre {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: .5rem;
+            padding: .85rem 1rem;
+            margin-top: 1rem;
+            font-size: .75rem;
+            text-align: left;
+            color: #a78bfa;
+            white-space: pre-wrap;
+        }
+
+        /* ── Empty state ── */
+        .empty {
+            color: var(--text-dim);
+            font-size: .8rem;
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        @media (max-width: 900px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 1rem; }
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading" class="overlay">
+    <div class="spinner"></div>
+    <p>Cargando datos…</p>
+</div>
+
+<div id="error" class="overlay" style="display:none">
+    <div class="error-box">
+        <h3>Sin permisos de lectura</h3>
+        <p>La tabla <strong>events</strong> no tiene política SELECT para el rol <code>anon</code>.<br>
+           Ejecuta esto en el <strong>SQL Editor de Supabase</strong>:</p>
+        <pre>CREATE POLICY "anon_select_dashboard"
+  ON public.events
+  FOR SELECT TO anon
+  USING (true);</pre>
+    </div>
+</div>
+
+<div id="app" style="display:none">
+    <header class="header">
+        <div class="header-logo">U</div>
+        <h1>UiX-Lingo <span>Analytics</span></h1>
+        <div class="header-right">
+            <span id="last-updated"></span>
+            <button class="btn-refresh" id="btn-refresh">↻ Actualizar</button>
+        </div>
+    </header>
+
+    <div class="kpi-grid">
+        <div class="kpi-card c-purple">
+            <div class="kpi-label">Sesiones únicas</div>
+            <div class="kpi-value" id="kpi-sessions">—</div>
+            <div class="kpi-sub">visitas registradas</div>
+        </div>
+        <div class="kpi-card c-violet">
+            <div class="kpi-label">Total eventos</div>
+            <div class="kpi-value" id="kpi-events">—</div>
+            <div class="kpi-sub">clicks + pantallas + salidas</div>
+        </div>
+        <div class="kpi-card c-teal">
+            <div class="kpi-label">Pantalla más visitada</div>
+            <div class="kpi-value sm" id="kpi-top-screen">—</div>
+            <div class="kpi-sub" id="kpi-top-screen-sub"></div>
+        </div>
+        <div class="kpi-card c-amber">
+            <div class="kpi-label">Principal exit page</div>
+            <div class="kpi-value sm" id="kpi-exit">—</div>
+            <div class="kpi-sub" id="kpi-exit-sub"></div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Visitas por pantalla</h3>
+            <canvas id="chart-visits"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Tiempo promedio por pantalla (seg)</h3>
+            <canvas id="chart-time"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Distribución de exit pages</h3>
+            <canvas id="chart-exits"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Clicks más frecuentes</h3>
+            <canvas id="chart-clicks"></canvas>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const URL  = 'https://pmezmoobuwwbirwzensj.supabase.co';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtZXptb29idXd3Ymlyd3plbnNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwOTE0NjgsImV4cCI6MjA5MDY2NzQ2OH0.CCl6PJ-bJQATkUgeajz-M1foB_p8l6iS8tX5C079SE8';
+
+const LABELS = {
+    home: 'Home', practice: 'Práctica', evaluation: 'Evaluación',
+    pills: 'Pills', talents: 'Talentos', results: 'Resultados',
+};
+
+const SCREEN_COLOR = {
+    home: '#6366f1', practice: '#8b5cf6', evaluation: '#a78bfa',
+    pills: '#ec4899', talents: '#14b8a6', results: '#f59e0b',
+};
+
+const CLICK_COLORS = ['#7c6fff','#a78bfa','#ec4899','#14b8a6','#f59e0b','#22c55e','#60a5fa','#fb923c','#f472b6','#34d399'];
+
+const CHART_DEFAULTS = {
+    tooltip: {
+        backgroundColor: '#18181f',
+        titleColor: '#f1f5f9',
+        bodyColor: '#94a3b8',
+        borderColor: '#23232f',
+        borderWidth: 1,
+        padding: 10,
+    },
+};
+
+const client = createClient(URL, KEY);
+const activeCharts = {};
+
+function label(s) { return LABELS[s] || s; }
+function color(s) { return SCREEN_COLOR[s] || '#64748b'; }
+function sortedTop(obj, n = 10) {
+    return Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
+}
+
+async function fetchEvents() {
+    const { data, error } = await client
+        .from('events')
+        .select('session_id,event_type,screen,element,time_on_screen')
+        .limit(20000);
+    if (error) throw error;
+    return data;
+}
+
+function aggregate(rows) {
+    const sessions       = new Set();
+    const visitsByScreen = {};
+    const timeSamples    = {};
+    const exitsByScreen  = {};
+    const clicksByEl     = {};
+
+    for (const r of rows) {
+        sessions.add(r.session_id);
+
+        if (r.event_type === 'screen_enter' && r.screen) {
+            visitsByScreen[r.screen] = (visitsByScreen[r.screen] || 0) + 1;
+
+        } else if (r.event_type === 'screen_exit' && r.screen && r.time_on_screen != null) {
+            (timeSamples[r.screen] = timeSamples[r.screen] || []).push(r.time_on_screen);
+
+        } else if (r.event_type === 'page_exit' && r.screen) {
+            exitsByScreen[r.screen] = (exitsByScreen[r.screen] || 0) + 1;
+
+        } else if (r.event_type === 'click' && r.element) {
+            clicksByEl[r.element] = (clicksByEl[r.element] || 0) + 1;
+        }
+    }
+
+    const avgTime = {};
+    for (const [s, arr] of Object.entries(timeSamples)) {
+        avgTime[s] = Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+    }
+
+    return { sessions, visitsByScreen, avgTime, exitsByScreen, clicksByEl, total: rows.length };
+}
+
+function renderKPIs({ sessions, visitsByScreen, exitsByScreen, total }) {
+    document.getElementById('kpi-sessions').textContent = sessions.size.toLocaleString('es-MX');
+    document.getElementById('kpi-events').textContent   = total.toLocaleString('es-MX');
+
+    const topScreen = sortedTop(visitsByScreen)[0];
+    document.getElementById('kpi-top-screen').textContent     = topScreen ? label(topScreen[0]) : '—';
+    document.getElementById('kpi-top-screen-sub').textContent = topScreen ? `${topScreen[1]} visitas` : '';
+
+    const topExit = sortedTop(exitsByScreen)[0];
+    document.getElementById('kpi-exit').textContent     = topExit ? label(topExit[0]) : '—';
+    document.getElementById('kpi-exit-sub').textContent = topExit ? `${topExit[1]} salidas` : '';
+}
+
+function destroyAndCreate(id, config) {
+    activeCharts[id]?.destroy();
+    activeCharts[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+}
+
+function renderVisits(visitsByScreen) {
+    const entries = sortedTop(visitsByScreen, 8);
+    destroyAndCreate('chart-visits', {
+        type: 'bar',
+        data: {
+            labels: entries.map(([s]) => label(s)),
+            datasets: [{
+                data: entries.map(([, v]) => v),
+                backgroundColor: entries.map(([s]) => color(s)),
+                borderRadius: 6,
+                borderSkipped: false,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...CHART_DEFAULTS.tooltip, callbacks: { label: c => ` ${c.parsed.y} visitas` } },
+            },
+            scales: {
+                x: { grid: { color: '#23232f' }, ticks: { color: '#64748b', font: { size: 11 } } },
+                y: { grid: { color: '#23232f' }, ticks: { color: '#64748b', font: { size: 11 } }, beginAtZero: true },
+            },
+        },
+    });
+}
+
+function renderTime(avgTime) {
+    const entries = sortedTop(avgTime, 8);
+    destroyAndCreate('chart-time', {
+        type: 'bar',
+        data: {
+            labels: entries.map(([s]) => label(s)),
+            datasets: [{
+                data: entries.map(([, v]) => v),
+                backgroundColor: entries.map(([s]) => color(s)),
+                borderRadius: 6,
+                borderSkipped: false,
+            }],
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...CHART_DEFAULTS.tooltip, callbacks: { label: c => ` ${c.parsed.x}s promedio` } },
+            },
+            scales: {
+                x: { grid: { color: '#23232f' }, ticks: { color: '#64748b', font: { size: 11 } }, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+            },
+        },
+    });
+}
+
+function renderExits(exitsByScreen) {
+    const entries = sortedTop(exitsByScreen, 6);
+    destroyAndCreate('chart-exits', {
+        type: 'doughnut',
+        data: {
+            labels: entries.map(([s]) => label(s)),
+            datasets: [{
+                data: entries.map(([, v]) => v),
+                backgroundColor: entries.map(([s]) => color(s)),
+                borderColor: '#0a0a10',
+                borderWidth: 3,
+                hoverOffset: 6,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '62%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 }, padding: 12 },
+                },
+                tooltip: { ...CHART_DEFAULTS.tooltip, callbacks: { label: c => ` ${c.parsed} salidas` } },
+            },
+        },
+    });
+}
+
+function renderClicks(clicksByEl) {
+    const entries = sortedTop(clicksByEl, 10);
+    destroyAndCreate('chart-clicks', {
+        type: 'bar',
+        data: {
+            labels: entries.map(([k]) => k),
+            datasets: [{
+                data: entries.map(([, v]) => v),
+                backgroundColor: CLICK_COLORS.slice(0, entries.length),
+                borderRadius: 6,
+                borderSkipped: false,
+            }],
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...CHART_DEFAULTS.tooltip, callbacks: { label: c => ` ${c.parsed.x} clicks` } },
+            },
+            scales: {
+                x: { grid: { color: '#23232f' }, ticks: { color: '#64748b', font: { size: 11 } }, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+            },
+        },
+    });
+}
+
+async function load() {
+    const btn = document.getElementById('btn-refresh');
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    try {
+        const rows = await fetchEvents();
+        const agg  = aggregate(rows);
+
+        renderKPIs(agg);
+        renderVisits(agg.visitsByScreen);
+        renderTime(agg.avgTime);
+        renderExits(agg.exitsByScreen);
+        renderClicks(agg.clicksByEl);
+
+        document.getElementById('last-updated').textContent =
+            `Actualizado ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('app').style.display     = 'block';
+    } catch (err) {
+        console.error(err);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display   = 'flex';
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '↻ Actualizar';
+    }
+}
+
+document.getElementById('btn-refresh').addEventListener('click', load);
+
+load();
+</script>
+</body>
+</html>
