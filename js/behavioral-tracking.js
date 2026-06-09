@@ -29,7 +29,6 @@ function send(eventType, screen, extra = {}) {
     });
 }
 
-// keepalive: garantiza que el evento se envía aunque el navegador esté cerrando la página
 function sendOnExit(screen, timeOnScreen) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
     fetch(`${SUPABASE_URL}/rest/v1/events`, {
@@ -62,24 +61,22 @@ function enterScreen(name) {
 // Pantalla inicial
 send('screen_enter', 'home');
 
-// Hookea setRoute para capturar toda la navegación
-const _origSetRoute = window.setRoute;
-window.setRoute = function (path) {
-    _origSetRoute?.(path);
+// Hookea history.pushState directamente — más bajo nivel que setRoute,
+// captura toda navegación SPA sin importar qué función la dispare
+const _origPushState = history.pushState.bind(history);
+history.pushState = function (state, title, url) {
+    _origPushState(state, title, url);
+    if (!url) return;
+    const path = typeof url === 'string' ? url : (url.pathname || '');
     const name = SCREEN_NAMES[path] || path;
     if (name !== currentScreen) enterScreen(name);
 };
 
-// Clicks: lee los mismos atributos que Umami usa en analytics.js
-document.addEventListener('click', function (e) {
-    const el = e.target.closest('[data-track-section]');
-    if (!el) return;
-    const section = el.dataset.trackSection;
-    const action = el.dataset.trackAction;
-    if (section && action) {
-        send('click', currentScreen, { element: action, properties: { section } });
-    }
-}, true);
+// Botón atrás / adelante del browser
+window.addEventListener('popstate', function () {
+    const name = SCREEN_NAMES[window.location.pathname] || 'home';
+    if (name !== currentScreen) enterScreen(name);
+});
 
 // Milo: abre modal sin cambiar ruta, necesita hook propio
 const _origOpenMilo = window.openMilo;
@@ -95,7 +92,18 @@ window.closeMilo = function () {
     enterScreen(name);
 };
 
-// Exit page: visibilitychange es el evento más confiable en móvil y desktop
+// Clicks
+document.addEventListener('click', function (e) {
+    const el = e.target.closest('[data-track-section]');
+    if (!el) return;
+    const section = el.dataset.trackSection;
+    const action = el.dataset.trackAction;
+    if (section && action) {
+        send('click', currentScreen, { element: action, properties: { section } });
+    }
+}, true);
+
+// Exit page
 document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'hidden') return;
     sendOnExit(currentScreen, Math.round((Date.now() - screenEnteredAt) / 1000));
