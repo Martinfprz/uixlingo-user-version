@@ -384,6 +384,7 @@ async function initAppAuth() {
     const ssoParams = new URLSearchParams(window.location.search);
     const ssoAt = ssoParams.get('sso_at');
     const ssoRt = ssoParams.get('sso_rt');
+    console.log('[SSO] initAppAuth corriendo — ssoAt:', ssoAt ? 'presente' : 'null', '| ssoRt:', ssoRt ? 'presente' : 'null');
     if (supabase && ssoAt && ssoRt) {
         console.log('[SSO] params encontrados, llamando setSession...');
         history.replaceState({}, document.title, window.location.pathname);
