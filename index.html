@@ -16,6 +16,8 @@
         /* Excluir animaciones de duración corta para que no se cancelen */
         .animate-spin, .animate-bounce, .animate-pulse, .flame-sparking, .animate-pop, .animate-slide-up, .animate-fade-in, .animate-fade-out, .ice-shard, .snowflake-in { transition: none !important; }
     </style>
+    <!-- SSO: capturar params antes de que cualquier script los limpie -->
+    <script>(function(){var p=new URLSearchParams(location.search);var at=p.get('sso_at');var rt=p.get('sso_rt');if(at&&rt){sessionStorage.setItem('_sso_at',at);sessionStorage.setItem('_sso_rt',rt);history.replaceState(null,'',location.pathname);}})();</script>
     <!-- Umami Analytics -->
     <script defer src="https://cloud.umami.is/script.js" data-website-id="3ff90e68-92ae-405c-8932-f48fb9ed8426"></script>
     <script defer src="js/analytics.js"></script>

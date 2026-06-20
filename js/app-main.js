@@ -381,13 +381,13 @@ function _showRecoveryError() {
  * Recovery de contraseña + fallback si INITIAL_SESSION ya se emitió antes del listener.
  */
 async function initAppAuth() {
-    const ssoParams = new URLSearchParams(window.location.search);
-    const ssoAt = ssoParams.get('sso_at');
-    const ssoRt = ssoParams.get('sso_rt');
-    console.log('[SSO] initAppAuth corriendo — ssoAt:', ssoAt ? 'presente' : 'null', '| ssoRt:', ssoRt ? 'presente' : 'null');
+    const ssoAt = sessionStorage.getItem('_sso_at');
+    const ssoRt = sessionStorage.getItem('_sso_rt');
+    if (ssoAt) sessionStorage.removeItem('_sso_at');
+    if (ssoRt) sessionStorage.removeItem('_sso_rt');
+    console.log('[SSO] initAppAuth — ssoAt:', ssoAt ? 'presente' : 'null', '| ssoRt:', ssoRt ? 'presente' : 'null');
     if (supabase && ssoAt && ssoRt) {
-        console.log('[SSO] params encontrados, llamando setSession...');
-        history.replaceState({}, document.title, window.location.pathname);
+        console.log('[SSO] llamando setSession...');
         const { data, error } = await supabase.auth.setSession({ access_token: ssoAt, refresh_token: ssoRt });
         console.log('[SSO] setSession resultado:', { session: !!data?.session, user: !!data?.session?.user, error: error?.message ?? null });
         if (!error && data.session?.user) {
@@ -397,7 +397,7 @@ async function initAppAuth() {
             await restoreAuthenticatedSession(data.session.user);
             return;
         }
-        console.log('[SSO] falló, cayendo al flujo normal de login');
+        console.log('[SSO] setSession falló, cayendo al login normal');
     }
 
     await initPasswordRecoveryFlow();
