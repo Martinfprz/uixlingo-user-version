@@ -385,14 +385,18 @@ async function initAppAuth() {
     const ssoAt = ssoParams.get('sso_at');
     const ssoRt = ssoParams.get('sso_rt');
     if (supabase && ssoAt && ssoRt) {
+        console.log('[SSO] params encontrados, llamando setSession...');
         history.replaceState({}, document.title, window.location.pathname);
         const { data, error } = await supabase.auth.setSession({ access_token: ssoAt, refresh_token: ssoRt });
+        console.log('[SSO] setSession resultado:', { session: !!data?.session, user: !!data?.session?.user, error: error?.message ?? null });
         if (!error && data.session?.user) {
+            console.log('[SSO] sesión OK, entrando al dashboard...');
             sessionRestoreHandled = false;
             supabaseSession = data.session;
             await restoreAuthenticatedSession(data.session.user);
             return;
         }
+        console.log('[SSO] falló, cayendo al flujo normal de login');
     }
 
     await initPasswordRecoveryFlow();
