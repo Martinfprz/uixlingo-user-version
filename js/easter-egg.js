@@ -47,59 +47,57 @@
         }
     }
 
-    function advanceCombo(key) {
-        clearTimeout(resetTimer);
-        if (key === COMBO[progress]) {
-            progress++;
-            if (progress === COMBO.length) {
-                progress = 0;
-                triggerEasterEgg();
-            }
-        } else {
-            progress = key === COMBO[0] ? 1 : 0;
-        }
-        resetTimer = setTimeout(() => { progress = 0; }, 2000);
-    }
-
-    // — Teclado —
+    // — Teclado (desktop) —
     document.addEventListener('keydown', function (e) {
         if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             progress = 0;
             return;
         }
         if (!isOnHome()) { progress = 0; return; }
-        advanceCombo(e.key);
-    });
 
-    // — Swipes en mobile —
-    let touchStartX = 0;
-    let touchStartY = 0;
-    const MIN_SWIPE = 35;
+        clearTimeout(resetTimer);
 
-    document.addEventListener('touchstart', function (e) {
-        touchStartX = e.changedTouches[0].clientX;
-        touchStartY = e.changedTouches[0].clientY;
-    }, { passive: true });
-
-    document.addEventListener('touchend', function (e) {
-        if (!isOnHome()) { progress = 0; return; }
-
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        const dy = e.changedTouches[0].clientY - touchStartY;
-        const absDx = Math.abs(dx);
-        const absDy = Math.abs(dy);
-
-        if (Math.max(absDx, absDy) < MIN_SWIPE) return;
-
-        let direction;
-        if (absDx > absDy) {
-            direction = dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+        if (e.key === COMBO[progress]) {
+            progress++;
+            if (progress === COMBO.length) {
+                progress = 0;
+                triggerEasterEgg();
+            }
         } else {
-            direction = dy > 0 ? 'ArrowDown' : 'ArrowUp';
+            progress = e.key === COMBO[0] ? 1 : 0;
         }
 
-        advanceCombo(direction);
-    }, { passive: true });
+        resetTimer = setTimeout(() => { progress = 0; }, 2000);
+    });
+
+    // — 7 taps al logo (mobile) —
+    const TAP_GOAL = 7;
+    const TAP_WINDOW = 3000;
+    let tapCount = 0;
+    let tapTimer = null;
+
+    function onLogoTap() {
+        if (!isOnHome()) return;
+
+        clearTimeout(tapTimer);
+        tapCount++;
+
+        if (tapCount >= TAP_GOAL) {
+            tapCount = 0;
+            triggerEasterEgg();
+            return;
+        }
+
+        tapTimer = setTimeout(() => { tapCount = 0; }, TAP_WINDOW);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const logoWrapper = document.querySelector('.logo-wrapper');
+        const homeLogo = document.getElementById('home-logo');
+
+        if (logoWrapper) logoWrapper.addEventListener('click', onLogoTap);
+        if (homeLogo) homeLogo.addEventListener('click', onLogoTap);
+    });
 
     // — Cerrar modal —
     document.addEventListener('click', function (e) {
