@@ -15,7 +15,6 @@
     background: rgba(255, 255, 255, 0.04);
     margin-bottom: 0.85rem;
     width: 100%;
-    max-width: 38rem;
 }
 
 /* Cuadro de resumen dinámico: oculto en UI; updateEvaluationBriefAutoUI sigue actualizando #evaluation-auto-summary. */
@@ -109,7 +108,6 @@
 /* Botón de errores en resultados */
 #results-eval-errors-wrap {
     width: 100%;
-    max-width: 38rem;
     margin-bottom: 0.5rem;
 }
 

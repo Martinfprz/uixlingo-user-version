@@ -5,7 +5,6 @@
 
 #mode-selection-view {
     width: 100%;
-    max-width: 40rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -17,7 +16,7 @@
     background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    padding: 2.5rem 1.5rem;
+    padding: 2.5rem 0;
     border-radius: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -67,9 +66,9 @@
 }
 
 .mode-card:hover:not(.mode-card--disabled) {
-    border-color: rgba(140, 89, 254, 0.4);
-    background: rgba(140, 89, 254, 0.07);
-    box-shadow: 0 12px 32px rgba(140, 89, 254, 0.2);
+    border-color: rgba(124, 58, 237, 0.4);
+    background: rgba(124, 58, 237, 0.07);
+    box-shadow: 0 12px 32px rgba(124, 58, 237, 0.2);
     transform: translateY(-4px);
 }
 
@@ -93,8 +92,8 @@
 }
 
 .mode-card__icon-wrap--practice {
-    background: rgba(140, 89, 254, 0.15);
-    box-shadow: 0 0 0 1px rgba(140, 89, 254, 0.2);
+    background: rgba(124, 58, 237, 0.15);
+    box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.2);
 }
 
 .mode-card__icon-wrap--disabled {

@@ -8,9 +8,9 @@
     min-height: calc(100vh - 70px);
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     justify-content: flex-start;
-    padding: 0.5rem;
+    padding: 0;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -40,7 +40,7 @@
     transition: opacity 0.5s;
     display: block;
     align-self: center;
-    filter: drop-shadow(0 0 24px rgba(140, 89, 254, 0.3));
+    filter: drop-shadow(0 0 24px rgba(124, 58, 237, 0.3));
 }
 
 #login-view {
@@ -83,12 +83,12 @@
 .btn-auth-tertiary:hover {
     color: var(--color-text);
     background: rgba(255, 255, 255, 0.11);
-    border-color: rgba(140, 89, 254, 0.35);
-    box-shadow: 0 0 0 1px rgba(140, 89, 254, 0.12);
+    border-color: rgba(124, 58, 237, 0.35);
+    box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.12);
 }
 
 .btn-auth-tertiary:focus-visible {
-    box-shadow: 0 0 0 3px rgba(140, 89, 254, 0.28);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.28);
 }
 
 .view-title {
@@ -125,7 +125,7 @@ margin: 8px 0;
 }
 
 .text-input:focus {
-    box-shadow: 0 0 0 3px rgba(140, 89, 254, 0.25);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
     border-color: var(--color-accent);
     background: rgba(255, 255, 255, 0.09);
 }

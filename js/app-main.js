@@ -665,11 +665,17 @@ async function loadRankingUserStats() {
         const userId = supabaseSession?.user?.id;
         const { data, error } = await supabase
             .from('ranking_user')
-            .select('seniority, especialidad, formador, emp_id, proyecto, proyecto_2, proyecto_3, proyecto_4')
+            .select('nickname, foto_url, seniority, especialidad, formador, emp_id, proyecto, proyecto_2, proyecto_3, proyecto_4')
             .eq('email', userEmail.toLowerCase())
             .single();
         if (error) throw error;
         if (data) {
+            if (data.nickname && String(data.nickname).trim()) {
+                userProfile.nickname = String(data.nickname).trim();
+            }
+            if (data.foto_url && String(data.foto_url).trim()) {
+                userProfile.avatarUrl = String(data.foto_url).trim();
+            }
             const rawSeniority = data.seniority;
             if (rawSeniority && String(rawSeniority).trim()) {
                 userProfile.seniority = String(rawSeniority).trim();
@@ -919,17 +925,6 @@ async function loadAllUserData(uid) {
 }
 
 // --- PROFILE LOGIC ---
-function renderProfileSeniorityEspecialidadCard() {
-    const sEl = document.getElementById('profile-seniority');
-    const eEl = document.getElementById('profile-especialidad');
-    if (sEl) {
-        sEl.textContent = userProfile.seniority || T.profile.explorador;
-    }
-    if (eEl) {
-        const esp = String(userProfile.especialidad || '').trim();
-        eEl.textContent = esp || T.profile.sinRegistrar;
-    }
-}
 
 /** Especialidades que pueden ver el bloque «Mi equipo» (formador por nombre completo en `formador`). */
 const TEAM_MANAGER_ESPECIALIDAD_KEYS = new Set([
@@ -1482,14 +1477,17 @@ function renderProfile() {
     // Basic Info
     document.getElementById('profile-avatar-img').src = userProfile.avatarUrl;
     document.getElementById('profile-nickname').innerText = userProfile.nickname || userName;
-    const formadorEl = document.getElementById('profile-formador');
-    if (formadorEl) {
-        const formador = toTitleWordsCase(userProfile.formador);
-        formadorEl.textContent = formador ? `Líder: ${formador}` : 'Líder: Sin registrar';
+    const navImg = document.getElementById('nav-avatar-img');
+    if (navImg && userProfile.avatarUrl) {
+        navImg.src = userProfile.avatarUrl;
+        navImg.onload = () => navImg.classList.add('is-loaded');
+        navImg.onerror = () => navImg.classList.remove('is-loaded');
     }
-
+    const seniorityBadge = document.getElementById('profile-seniority-badge');
+    if (seniorityBadge) seniorityBadge.textContent = userProfile.seniority || '';
+    const especialidadBadge = document.getElementById('profile-especialidad-badge');
+    if (especialidadBadge) especialidadBadge.textContent = userProfile.especialidad || '';
     // Stats
-    renderProfileSeniorityEspecialidadCard();
     document.getElementById('profile-quest-pts').innerText = userProfile.questPoints;
     document.getElementById('profile-tests-pts').innerText = userProfile.testsPoints;
     renderProfilePillsCard();
@@ -1693,7 +1691,7 @@ async function loadTalentPeers(habilidadId) {
                 .in('id', peerIds),
             supabase
                 .from('ranking_user')
-                .select('user_id, nombre')
+                .select('user_id, nombre, nickname, foto_url')
                 .in('user_id', peerIds),
         ]);
 
@@ -1712,20 +1710,21 @@ async function loadTalentPeers(habilidadId) {
         (rankingRows || []).forEach((r) => {
             const uid = String(r.user_id || '');
             if (!uid) return;
-            const nombre = String(r.nombre || '').trim();
-            if (nombre) rankingMap.set(uid, nombre);
+            rankingMap.set(uid, {
+                nombre: String(r.nombre || '').trim(),
+                nickname: String(r.nickname || '').trim(),
+                fotoUrl: String(r.foto_url || '').trim(),
+            });
         });
 
         return peerIds.map((uid) => {
             const profile = profileMap.get(uid) || {};
-            const name =
-                rankingMap.get(uid) ||
-                profile.nickname ||
-                T.common.anonymous;
+            const ranking = rankingMap.get(uid) || {};
+            const name = ranking.nickname || profile.nickname || ranking.nombre || T.common.anonymous;
             return {
                 uid,
                 name,
-                avatarUrl: profile.avatarUrl || '',
+                avatarUrl: profile.avatarUrl || ranking.fotoUrl || '',
             };
         });
     } catch (e) {
@@ -2813,13 +2812,11 @@ async function showDashboard(name) {
     const firstName = (name || 'Usuario').split(' ')[0];
     document.getElementById('nav-greeting').innerText = T.fmt.navGreeting(firstName);
 
-    const avatarPlaceholder = document.querySelector('.user-avatar-placeholder');
-    if (avatarPlaceholder) {
-        avatarPlaceholder.innerText = firstName.charAt(0).toUpperCase();
-    }
+    const avatarInitial = document.querySelector('.nav-avatar-initial');
+    if (avatarInitial) avatarInitial.textContent = firstName.charAt(0).toUpperCase();
 
     const userId = supabaseSession?.user?.id;
-    userProfile.nickname = name;
+    userProfile.nickname = firstName;
 
     beginGlobalLoading(T.common.loadingProfile);
     try {
@@ -2830,7 +2827,11 @@ async function showDashboard(name) {
         if (pillsCatalog.length === 0) {
             try { await loadPillsCatalog(); } catch (e) { debugWarn('loadPillsCatalog:', e); }
         }
-        if (!userProfile.nickname) userProfile.nickname = name;
+        if (!userProfile.nickname) userProfile.nickname = firstName;
+
+        // Actualizar greeting y avatar con el display name final (nickname o primer nombre)
+        document.getElementById('nav-greeting').innerText = T.fmt.navGreeting(userProfile.nickname);
+        if (avatarInitial) avatarInitial.textContent = userProfile.nickname.charAt(0).toUpperCase();
 
         try { renderProfile(); } catch (e) { debugWarn('renderProfile:', e); }
         try { updatePracticeRankUI(); } catch (e) { debugWarn('updatePracticeRankUI:', e); }
@@ -5043,7 +5044,7 @@ function resetQuestionTimer() {
 }
 
 function getBreakMessages() {
-    const name = userName || "campeón";
+    const name = userProfile.nickname || (userName || '').split(' ')[0] || "campeón";
     return [
         { title: `¡Bien hecho ${name}!`, msg: "Ya has completado el primer bloque. Respira y seguimos." },
         { title: `¡Vas increíble ${name}!`, msg: "Has llegado al 50% de la prueba. Mantén el enfoque." },
@@ -5054,9 +5055,10 @@ function getBreakMessages() {
 function showBreakScreen() {
     window.scrollTo(0, 0);
 
+    const fallbackName = userProfile.nickname || (userName || '').split(' ')[0] || "campeón";
     const messages = getBreakMessages();
     const breakIndex = (currentIndex / 5) - 1;
-    const content = messages[breakIndex] || { title: `¡Sigue así ${userName || "campeón"}!`, msg: "Tómate un momento para recargar energía." };
+    const content = messages[breakIndex] || { title: `¡Sigue así ${fallbackName}!`, msg: "Tómate un momento para recargar energía." };
 
     document.getElementById('break-title').innerText = content.title;
     document.getElementById('break-message').innerText = content.msg;

@@ -109,7 +109,7 @@
     height: 1.75rem;
     width: auto;
     transition: opacity 0.2s;
-    filter: drop-shadow(0 0 8px rgba(140, 89, 254, 0.25));
+    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.25));
 }
 
 .navbar-left .header-logo:hover {
@@ -161,7 +161,23 @@
     color: white;
     font-size: 0.875rem;
     font-weight: 600;
-    box-shadow: 0 0 12px rgba(140, 89, 254, 0.4);
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-avatar-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: none;
+}
+
+.nav-avatar-img.is-loaded {
+    display: block;
 }
 
 .nav-greeting-text {

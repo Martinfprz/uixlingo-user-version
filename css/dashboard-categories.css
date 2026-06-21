@@ -4,8 +4,6 @@
     gap: 0.85rem;
     margin-bottom: 2rem;
     width: 100%;
-    max-width: 36rem;
-    padding: 0 0.5rem;
 }
 
 .evaluation-category-grid {
@@ -33,14 +31,14 @@
 }
 
 .eval-seniority-btn:hover {
-    border-color: rgba(140, 89, 254, 0.45);
-    background: rgba(140, 89, 254, 0.12);
+    border-color: rgba(124, 58, 237, 0.45);
+    background: rgba(124, 58, 237, 0.12);
 }
 
 .eval-seniority-btn.active {
-    border-color: rgba(140, 89, 254, 0.55);
-    background: linear-gradient(135deg, rgba(140, 89, 254, 0.26), rgba(89, 122, 255, 0.2));
-    box-shadow: 0 6px 16px rgba(140, 89, 254, 0.25);
+    border-color: rgba(124, 58, 237, 0.55);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.26), rgba(89, 122, 255, 0.2));
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.25);
 }
 
 .cat-card {
@@ -87,7 +85,7 @@
     height: 52%;
     border-radius: 9999px;
     z-index: -1;
-    background: radial-gradient(circle, rgba(140, 89, 254, 0.34), transparent 72%);
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.34), transparent 72%);
     opacity: 0.35;
     filter: blur(14px);
     transition: opacity 0.25s ease;
@@ -98,7 +96,7 @@
         opacity: 1;
         filter: grayscale(0%);
         transform: translateY(-2px);
-        border-color: rgba(140, 89, 254, 0.34);
+        border-color: rgba(124, 58, 237, 0.34);
         box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 

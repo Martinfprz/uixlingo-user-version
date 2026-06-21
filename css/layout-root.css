@@ -4,12 +4,12 @@
 
 .main-wrapper {
     width: 100%;
-    max-width: 1200px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     position: relative;
     margin: 1rem 0;
+    padding: 0 32px;
     z-index: 1;
     /* Evita scroll/blowout horizontal de la página sin crear scroll vertical */
     overflow-x: clip;

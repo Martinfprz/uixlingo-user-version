@@ -5,9 +5,8 @@
 #quiz-interface {
     display: flex;
     flex-direction: column;
-    padding: 0.5rem;
-    max-width: 48rem;
-    margin: 0 auto;
+    padding: 0.5rem 0;
+    width: 100%;
 }
 
 #sticky-question-header {
@@ -101,10 +100,10 @@
 
 @media (hover: hover) {
     .btn-option:hover:not(:disabled) {
-        border-color: rgba(140, 89, 254, 0.5);
-        background: rgba(140, 89, 254, 0.08);
+        border-color: rgba(124, 58, 237, 0.5);
+        background: rgba(124, 58, 237, 0.08);
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(140, 89, 254, 0.15);
+        box-shadow: 0 8px 20px rgba(124, 58, 237, 0.15);
     }
 }
 
@@ -178,7 +177,7 @@
     height: 100%;
     object-fit: contain;
     max-height: 50vh;
-    filter: drop-shadow(0 20px 40px rgba(140, 89, 254, 0.2));
+    filter: drop-shadow(0 20px 40px rgba(124, 58, 237, 0.2));
 }
 
 .break-content {

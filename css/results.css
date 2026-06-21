@@ -4,7 +4,7 @@
 
 #results-screen {
     height: 100%;
-    padding: 0.5rem;
+    padding: 0.5rem 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -42,10 +42,10 @@
     left: 1rem;
     bottom: 0.5rem;
     width: 6px;
-    background: linear-gradient(to top, #ace738, #8c59fe);
+    background: linear-gradient(to top, #ace738, #7C3AED);
     border-radius: 9999px;
     transition: height 2000ms ease-out;
-    box-shadow: 0 0 16px rgba(140, 89, 254, 0.6);
+    box-shadow: 0 0 16px rgba(124, 58, 237, 0.6);
 }
 
 .career-nodes {
@@ -82,7 +82,7 @@
     background: var(--color-accent);
     border-color: rgba(8, 6, 18, 0.5);
     transform: scale(1.15);
-    box-shadow: 0 0 20px rgba(140, 89, 254, 0.55);
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.55);
 }
 
 .node-icon {
@@ -398,7 +398,7 @@
     }
     50% {
         transform: translateY(-2px) scale(1.012);
-        box-shadow: 0 14px 32px rgba(140, 89, 254, 0.22);
+        box-shadow: 0 14px 32px rgba(124, 58, 237, 0.22);
     }
 }
 

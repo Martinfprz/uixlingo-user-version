@@ -27,9 +27,7 @@
     grid-template-columns: 1fr;
     gap: 1rem;
     width: 100%;
-    max-width: 52rem;
     margin-bottom: 1.5rem;
-    padding: 0 0.5rem;
 }
 
 .pills-category-card {
@@ -269,9 +267,7 @@
 /* Pills quiz: V/F drag */
 #pills-quiz-interface {
     width: 100%;
-    max-width: 52rem;
-    margin: 0 auto;
-    padding: 0.5rem 1rem 2rem;
+    padding: 0.5rem 0 2rem;
 }
 
 @media (max-width: 767px) {
@@ -439,8 +435,8 @@
 
 .pills-drop-zone:hover,
 .pills-drop-zone--hover {
-    background: rgba(140, 89, 254, 0.1);
-    border-color: rgba(140, 89, 254, 0.55);
+    background: rgba(124, 58, 237, 0.1);
+    border-color: rgba(124, 58, 237, 0.55);
     transform: translateY(-2px);
 }
 
