@@ -1,0 +1,121 @@
+(function () {
+    const COMBO = [
+        'ArrowUp', 'ArrowUp',
+        'ArrowDown', 'ArrowDown',
+        'ArrowLeft', 'ArrowRight',
+        'ArrowLeft', 'ArrowRight'
+    ];
+    let progress = 0;
+    let resetTimer = null;
+
+    function isOnHome() {
+        const profileView = document.getElementById('profile-view');
+        const landingPage = document.getElementById('landing-page');
+        const quizInterface = document.getElementById('quiz-interface');
+        const pillsQuiz = document.getElementById('pills-quiz-interface');
+        const breakScreen = document.getElementById('break-screen');
+        const resultsScreen = document.getElementById('results-screen');
+
+        const quizActive =
+            (quizInterface && !quizInterface.classList.contains('hidden')) ||
+            (pillsQuiz && !pillsQuiz.classList.contains('hidden')) ||
+            (breakScreen && !breakScreen.classList.contains('hidden')) ||
+            (resultsScreen && !resultsScreen.classList.contains('hidden'));
+
+        if (quizActive) return false;
+
+        const profileVisible = profileView && !profileView.classList.contains('hidden');
+        const landingVisible = landingPage && !landingPage.classList.contains('hidden');
+        return profileVisible || landingVisible;
+    }
+
+    function triggerEasterEgg() {
+        const modal = document.getElementById('easter-egg-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('easter-egg--entering');
+        setTimeout(() => modal.classList.remove('easter-egg--entering'), 400);
+
+        if (typeof confetti === 'function') {
+            confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.5 },
+                colors: ['#8c59fe', '#ace738', '#ffffff', '#c084fc'],
+                zIndex: 9999,
+            });
+        }
+    }
+
+    function advanceCombo(key) {
+        clearTimeout(resetTimer);
+        if (key === COMBO[progress]) {
+            progress++;
+            if (progress === COMBO.length) {
+                progress = 0;
+                triggerEasterEgg();
+            }
+        } else {
+            progress = key === COMBO[0] ? 1 : 0;
+        }
+        resetTimer = setTimeout(() => { progress = 0; }, 2000);
+    }
+
+    // — Teclado —
+    document.addEventListener('keydown', function (e) {
+        if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            progress = 0;
+            return;
+        }
+        if (!isOnHome()) { progress = 0; return; }
+        advanceCombo(e.key);
+    });
+
+    // — Swipes en mobile —
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const MIN_SWIPE = 35;
+
+    document.addEventListener('touchstart', function (e) {
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (e) {
+        if (!isOnHome()) { progress = 0; return; }
+
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+
+        if (Math.max(absDx, absDy) < MIN_SWIPE) return;
+
+        let direction;
+        if (absDx > absDy) {
+            direction = dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+        } else {
+            direction = dy > 0 ? 'ArrowDown' : 'ArrowUp';
+        }
+
+        advanceCombo(direction);
+    }, { passive: true });
+
+    // — Cerrar modal —
+    document.addEventListener('click', function (e) {
+        const modal = document.getElementById('easter-egg-modal');
+        if (!modal || modal.classList.contains('hidden')) return;
+        if (e.target === modal || e.target.id === 'easter-egg-close') {
+            modal.classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('easter-egg-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+            }
+        }
+    });
+})();

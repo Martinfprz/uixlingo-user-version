@@ -69,7 +69,7 @@
                         <img id="nav-avatar-img" class="nav-avatar-img" alt="" aria-hidden="true">
                         <span class="nav-avatar-initial"></span>
                     </div>
-                    <span id="nav-greeting" class="nav-greeting-text">Hola, Usuario</span>
+                    <span id="nav-greeting" class="nav-greeting-text">Usuario</span>
                 </div>
             </div>
 
@@ -128,20 +128,27 @@
                 <!-- PROFILE VIEW -->
                 <div id="profile-view" class="hidden w-full bento-wrapper">
                     <div class="bento-grid">
-                        <!-- 1. Header/Identity Card -->
+                        <!-- 1. Hero Banner -->
                         <div class="bento-card bento-card-identity">
-                            <div class="bento-avatar-wrapper">
-                                <img id="profile-avatar-img" loading="lazy" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp" alt="Avatar" class="bento-avatar" width="80" height="80">
-                            </div>
-                            <div class="bento-identity-info">
-                                <div class="identity-badges">
-                                    <span id="profile-seniority-badge" class="identity-badge identity-badge--seniority"></span>
-                                    <span id="profile-especialidad-badge" class="identity-badge identity-badge--especialidad"></span>
+                            <canvas id="banner-canvas" class="banner-canvas" aria-hidden="true"></canvas>
+                            <div class="banner-content">
+                                <div class="banner-left">
+                                    <div class="bento-avatar-wrapper">
+                                        <img id="profile-avatar-img" loading="lazy" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp" alt="Avatar" class="bento-avatar" width="80" height="80">
+                                    </div>
+                                    <div class="banner-greeting">
+                                        <span class="banner-greeting-sub">¡Hola de nuevo,</span>
+                                        <h1 id="profile-nickname" class="banner-greeting-name">Usuario</h1>
+                                    </div>
                                 </div>
-                                <div class="bento-nickname-row">
-                                    <h1 id="profile-nickname" class="bento-nickname m-0">Usuario</h1>
-                                </div>
-                                <p id="profile-practice-rank" class="bento-role">Calculando ranking...</p>
+                                <button class="banner-milo-widget" onclick="openMilo()" type="button" data-track-section="milo" data-track-action="abrir-desde-banner">
+                                    <img class="banner-milo-widget__img" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/milo%201.png" alt="Milo" loading="lazy" decoding="async">
+                                    <div class="banner-milo-widget__body">
+                                        <p class="banner-milo-widget__label">Milo dice:</p>
+                                        <p class="banner-milo-widget__msg">¿Listo para el desafío?<br>¡Examinador te espera!</p>
+                                        <span class="banner-milo-widget__cta">¡VAMOS!</span>
+                                    </div>
+                                </button>
                             </div>
                         </div>
                         <!-- 4. Talents Card -->
@@ -150,14 +157,13 @@
                                 <h3 class="bento-talents-title">
                                     <i class="fas fa-brain bento-talents-icon--brain" aria-hidden="true"></i> Mis Talentos Destacados
                                 </h3>
+                                <button type="button" class="btn-secondary bento-talents-more-btn" onclick="openTalentsView()" data-track-section="talentos" data-track-action="open-modal">
+                                    Saber más de mis talentos <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                                </button>
                             </div>
                             <div id="profile-talents" class="bento-talents-grid">
                                 <!-- Populated by JS -->
                             </div>
-                            <button type="button" class="btn-secondary bento-stat-cta bento-talents-more-btn" onclick="openTalentsView()" data-track-section="talentos" data-track-action="open-modal">
-                                <i class="fas fa-circle-info" aria-hidden="true"></i>
-                                Más información
-                            </button>
                         </div>
 
                         <!-- Mi equipo (formadores: Product Designers, Customer Success, Administrativo) -->
@@ -187,39 +193,47 @@
                                 </div>
                             </details>
                         </div>
-                        <!-- 3. Stats Cards -->
-                        <div class="bento-card bento-card-stat bento-stat-quest">
-                            <div class="bento-stat-icon-wrapper text-purple-600 bg-purple-100">
-                                <i class="fas fa-star"></i>
-                            </div>
-                            <p class="bento-stat-mode-title">Práctica</p>
-                            <div class="bento-stat-head">
-                                <p class="bento-stat-label">Puntuación más alta</p>
-                                <button onclick="openLeaderboard('quest')" class="bento-rank-btn" title="Ver ranking Quest" data-track-section="pruebas" data-track-action="ver-ranking">
-                                    <i class="fas fa-trophy"></i>
+                        <!-- 3. Practice + Evaluation — combined vertical card -->
+                        <div class="bento-card bento-card-modes">
+
+                            <div class="bento-modes__section">
+                                <div class="bento-stat-icon-wrapper text-purple-600 bg-purple-100">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <p class="bento-stat-mode-title">Práctica</p>
+                                <div class="bento-stat-head">
+                                    <p class="bento-stat-label">Puntuación más alta</p>
+                                    <button onclick="openLeaderboard('quest')" class="bento-rank-btn bento-modes__rank-btn" title="Ver ranking Quest" data-track-section="pruebas" data-track-action="ver-ranking">
+                                        <i class="fas fa-trophy"></i>
+                                    </button>
+                                </div>
+                                <h4 id="profile-quest-pts" class="bento-stat-value">1,250</h4>
+                                <button onclick="openModeFromProfile('practice')" class="btn-primary bento-stat-cta" data-track-section="pruebas" data-track-action="ir-desde-bento">
+                                    Ir a práctica
                                 </button>
                             </div>
-                            <h4 id="profile-quest-pts" class="bento-stat-value">1,250</h4>
-                            <button onclick="openModeFromProfile('practice')" class="btn-primary bento-stat-cta" data-track-section="pruebas" data-track-action="ir-desde-bento">
-                                Ir a práctica
-                            </button>
+
+                            <div class="bento-modes__divider"></div>
+
+                            <div class="bento-modes__section">
+                                <div class="bento-stat-icon-wrapper text-teal-600 bg-teal-50">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </div>
+                                <p class="bento-stat-mode-title">Evaluación</p>
+                                <div class="bento-stat-head">
+                                    <p class="bento-stat-label">Puntuación obtenida</p>
+                                </div>
+                                <h4 id="profile-tests-pts" class="bento-stat-value">840</h4>
+                                <button onclick="openModeFromProfile('evaluation')" class="btn-primary bento-stat-cta" data-track-section="evaluaciones" data-track-action="ir-desde-bento">
+                                    Ir a evaluación
+                                </button>
+                            </div>
                         </div>
 
-                        <div class="bento-card bento-card-stat bento-stat-pruebas">
-                            <div class="bento-stat-icon-wrapper text-teal-600 bg-teal-50">
-                                <i class="fas fa-clipboard-check"></i>
-                            </div>
-                            <p class="bento-stat-mode-title">Evaluación</p>
-                            <div class="bento-stat-head">
-                                <p class="bento-stat-label">Puntuación obtenida</p>
-                            </div>
-                            <h4 id="profile-tests-pts" class="bento-stat-value">840</h4>
-                            <button onclick="openModeFromProfile('evaluation')" class="btn-primary bento-stat-cta" data-track-section="evaluaciones" data-track-action="ir-desde-bento">
-                                Ir a evaluación
-                            </button>
-                        </div>
+                        <!-- 4+5. Pills + Seals — combined card -->
+                        <div class="bento-card bento-card-seals">
 
-                        <div class="bento-card bento-card-stat bento-stat-pills">
+                            <!-- Pills section -->
                             <div class="bento-stat-pills__icon-row">
                                 <div class="bento-stat-icon-wrapper text-blue-600 bg-blue-50">
                                     <i class="fas fa-capsules"></i>
@@ -251,22 +265,24 @@
                                     Ir a pills
                                 </button>
                             </div>
-                        </div>
 
-                        <!-- 4. Seals Gallery & History -->
-                        <div class="bento-card bento-card-seals">
+                            <!-- Divider -->
+                            <div class="bento-pills-seals-divider"></div>
+
+                            <!-- Seals section -->
                             <div class="bento-seals-header">
                                 <h3 class="bento-seals-title">
                                     <i class="fas fa-stamp bento-seals-icon--stamp" aria-hidden="true"></i> Tus Sellos
                                 </h3>
-                                <div id="seals-year-selector" class="seals-year-selector"></div>
-                            </div>
-
-                            <div id="seals-q-switcher" class="seals-q-switcher" role="tablist" aria-label="Trimestre">
-                                <button class="seals-q-btn" data-q="Q1" role="tab" type="button">Q1</button>
-                                <button class="seals-q-btn" data-q="Q2" role="tab" type="button">Q2</button>
-                                <button class="seals-q-btn" data-q="Q3" role="tab" type="button">Q3</button>
-                                <button class="seals-q-btn" data-q="Q4" role="tab" type="button">Q4</button>
+                                <div class="bento-seals-header__right">
+                                    <div id="seals-year-selector" class="seals-year-selector"></div>
+                                    <div id="seals-q-switcher" class="seals-q-switcher" role="tablist" aria-label="Trimestre">
+                                        <button class="seals-q-btn" data-q="Q1" role="tab" type="button">Q1</button>
+                                        <button class="seals-q-btn" data-q="Q2" role="tab" type="button">Q2</button>
+                                        <button class="seals-q-btn" data-q="Q3" role="tab" type="button">Q3</button>
+                                        <button class="seals-q-btn" data-q="Q4" role="tab" type="button">Q4</button>
+                                    </div>
+                                </div>
                             </div>
 
                             <div id="profile-seals-recent" class="bento-seals-grid">
@@ -278,27 +294,37 @@
                                 <span>Ver más sellos</span>
                                 <i id="seals-accordion-icon" class="fas fa-chevron-down"></i>
                             </button>
-                        </div>
 
-                        <!-- 5. Action Area -->
-                        <div class="bento-card bento-card-milo" onclick="openMilo()" role="button" tabindex="0" data-track-section="milo" data-track-action="abrir-desde-card">
-                            <span class="badge-new">
-                                <span class="badge-new__dot"></span>
-                                NUEVO
-                            </span>
-                            <div class="bento-milo-content">
-                                <div class="bento-milo-media">
-                                    <img class="bento-milo-image" src="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/milo%201.png" alt="Milo" width="512" height="512" loading="lazy" decoding="async">
+                            <!-- Prize stepper -->
+                            <div id="seals-prize-stepper" class="seals-prize-stepper">
+                                <div class="seals-prize-stepper__header">
+                                    <span class="seals-prize-stepper__title">
+                                        <i class="fas fa-gift" aria-hidden="true"></i> Premio
+                                    </span>
+                                    <span id="seals-prize-count-label" class="seals-prize-stepper__count">0 / 5</span>
                                 </div>
-                                <div class="bento-milo-text">
-                                    <h3 class="bento-milo-title">Milo</h3>
-                                    <p class="bento-milo-desc">Analiza prototipos con IA, Usuarios sintéticos y más.</p>
+                                <div class="seals-prize-stepper__track" aria-hidden="true">
+                                    <div class="seals-prize-step" data-step="1"><i class="fas fa-stamp"></i></div>
+                                    <div class="seals-prize-connector"></div>
+                                    <div class="seals-prize-step" data-step="2"><i class="fas fa-stamp"></i></div>
+                                    <div class="seals-prize-connector"></div>
+                                    <div class="seals-prize-step" data-step="3"><i class="fas fa-stamp"></i></div>
+                                    <div class="seals-prize-connector"></div>
+                                    <div class="seals-prize-step" data-step="4"><i class="fas fa-stamp"></i></div>
+                                    <div class="seals-prize-connector"></div>
+                                    <div class="seals-prize-step" data-step="5"><i class="fas fa-stamp"></i></div>
+                                </div>
+                                <p id="seals-prize-hint" class="seals-prize-stepper__hint"></p>
+                                <div id="seals-prize-ready" class="seals-prize-ready hidden" aria-live="polite">
+                                    <i class="fas fa-gift seals-prize-ready__icon" aria-hidden="true"></i>
+                                    <div class="seals-prize-ready__text">
+                                        <p class="seals-prize-ready__title">¡Ya puedes canjear tu premio!</p>
+                                        <p class="seals-prize-ready__sub">Tienes <strong id="seals-prize-ready-count">5</strong> sellos acumulados</p>
+                                    </div>
                                 </div>
                             </div>
-                            <button type="button" class="btn-secondary bento-milo-btn" onclick="event.stopPropagation(); openMilo();" data-track-section="milo" data-track-action="abrir-desde-boton">
-                                Ir a MILO
-                            </button>
                         </div>
+
                     </div>
                 </div>
 
@@ -863,7 +889,26 @@
 
         <script type="module" src="app.js?v=2"></script>
         <script src="js/keyboard-nav.js" defer></script>
+        <script src="js/easter-egg.js" defer></script>
     </div>
+
+    <!-- Easter Egg Modal -->
+    <div id="easter-egg-modal" class="easter-egg-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="easter-egg-title">
+        <div class="easter-egg-box">
+            <div class="easter-egg-glow" aria-hidden="true"></div>
+            <div class="easter-egg-badge" aria-hidden="true">SECRETO</div>
+            <div class="easter-egg-icon" aria-hidden="true">🎮</div>
+            <h2 id="easter-egg-title" class="easter-egg-title">¡Código activado!</h2>
+            <p class="easter-egg-body">
+                UiX-lingo es creación e invención de <strong>Martín Fuentes</strong>.
+            </p>
+            <a href="https://www.linkedin.com/in/martinfprz/" target="_blank" rel="noopener noreferrer" class="easter-egg-linkedin">
+                <i class="fab fa-linkedin" aria-hidden="true"></i> linkedin.com/in/martinfprz
+            </a>
+            <button id="easter-egg-close" class="easter-egg-close-btn" aria-label="Cerrar">Entendido</button>
+        </div>
+    </div>
+
 </body>
 
 </html>

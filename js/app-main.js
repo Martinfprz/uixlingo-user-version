@@ -1496,6 +1496,7 @@ function renderProfile() {
     renderSeals();
     renderProfileTalentsPreview();
     renderProfileTeam().catch((e) => debugWarn('renderProfileTeam:', e));
+    setTimeout(initBannerCanvas, 0);
 }
 
 function getTalentDescription(talent) {
@@ -2054,6 +2055,46 @@ async function updatePracticeRankUI() {
 }
 
 
+function renderSealsStepper(count) {
+    const stepper = document.getElementById('seals-prize-stepper');
+    if (!stepper) return;
+
+    const GOAL   = 5;
+    const total  = count ?? 0;
+    const filled = Math.min(total, GOAL);
+
+    stepper.querySelectorAll('.seals-prize-step').forEach((step, i) => {
+        step.classList.toggle('filled', i < filled);
+    });
+    stepper.querySelectorAll('.seals-prize-connector').forEach((conn, i) => {
+        conn.classList.toggle('filled', i + 1 < filled);
+    });
+
+    const countLabel = document.getElementById('seals-prize-count-label');
+    if (countLabel) countLabel.textContent = `${total} / ${GOAL}`;
+
+    const hint  = document.getElementById('seals-prize-hint');
+    const ready = document.getElementById('seals-prize-ready');
+
+    if (total >= GOAL) {
+        if (hint)  hint.classList.add('hidden');
+        if (ready) {
+            ready.classList.remove('hidden');
+            const readyCount = document.getElementById('seals-prize-ready-count');
+            if (readyCount) readyCount.textContent = total;
+        }
+    } else {
+        const missing = GOAL - total;
+        if (hint) {
+            hint.classList.remove('hidden');
+            hint.textContent = missing === 1
+                ? 'Te falta 1 sello para canjear tu premio'
+                : `Te faltan ${missing} sellos para canjear tu premio`;
+        }
+        if (ready) ready.classList.add('hidden');
+    }
+}
+
 function renderSeals() {
     const recentContainer = document.getElementById('profile-seals-recent');
     const yearSelector    = document.getElementById('seals-year-selector');
@@ -2067,6 +2108,7 @@ function renderSeals() {
         if (yearSelector) yearSelector.innerHTML = '';
         if (qSwitcher) qSwitcher.querySelectorAll('.seals-q-btn').forEach(b => b.classList.remove('active'));
         recentContainer.innerHTML = `<p class="bento-seals-empty-q">${T.profile.sealsEmpty}</p>`;
+        renderSealsStepper(0);
         return;
     }
 
@@ -2082,8 +2124,13 @@ function renderSeals() {
     // Solo fijar trimestre por defecto si el usuario no eligió uno (p. ej. 1.ª carga o al cambiar de año).
     // No forzar de vuelta a un Q "con sellos" al pulsar Q2–Q4 vacíos: si no, nunca se ve el vacío.
     if (sealsFilter.q === null) {
-        const quartersInYear = [...new Set(sealsInYear.map((s) => effectiveSealQuarter(s)))].sort();
-        sealsFilter.q = quartersInYear[0] || 'Q1';
+        if (sealsFilter.year === todayYear) {
+            // Año actual → mostrar el Q del calendario vigente (Q1=ene-mar, Q2=abr-jun, etc.)
+            sealsFilter.q = `Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
+        } else {
+            const quartersInYear = [...new Set(sealsInYear.map((s) => effectiveSealQuarter(s)))].sort();
+            sealsFilter.q = quartersInYear[0] || 'Q1';
+        }
     }
 
     // --- year selector (solo si hay más de un año) ---
@@ -2116,6 +2163,8 @@ function renderSeals() {
         if (getSealYear(s.date) !== sealsFilter.year) return false;
         return effectiveSealQuarter(s) === sealsFilter.q;
     });
+
+    renderSealsStepper(filtered.length);
 
     if (filtered.length === 0) {
         const safeQ = esc(String(sealsFilter.q || ''));
@@ -2157,6 +2206,54 @@ function renderSeals() {
         div.appendChild(nameSpan);
         recentContainer.appendChild(div);
     });
+}
+
+// ── Banner canvas: dot grid ───────────────────────────────────────────────
+let _bannerCanvasStarted = false;
+function initBannerCanvas() {
+    if (_bannerCanvasStarted) return;
+    const canvas = document.getElementById('banner-canvas');
+    if (!canvas) return;
+    _bannerCanvasStarted = true;
+
+    const ctx = canvas.getContext('2d');
+    let W, H, t = 0;
+
+    function resize() {
+        W = canvas.width  = canvas.offsetWidth  || 800;
+        H = canvas.height = canvas.offsetHeight || 200;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+        const gap = 28;
+        const cols = Math.ceil(W / gap) + 1;
+        const rows = Math.ceil(H / gap) + 1;
+        for (let col = 0; col < cols; col++) {
+            for (let row = 0; row < rows; row++) {
+                const x = col * gap;
+                const y = row * gap;
+                const dist = Math.sqrt((x - W / 2) ** 2 + (y - H / 2) ** 2);
+                const wave  = Math.sin(dist * 0.04 - t * 0.04);
+                const alpha = 0.08 + wave * 0.25;
+                const r     = 1 + wave * 1.2;
+                if (alpha > 0 && r > 0) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, Math.max(0.5, r), 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(180,140,255,${Math.max(0, alpha)})`;
+                    ctx.fill();
+                }
+            }
+        }
+        t++;
+        requestAnimationFrame(draw);
+    }
+
+    resize();
+    draw();
+
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(canvas.parentElement || canvas);
 }
 
 window.toggleSealsAccordion = function() {

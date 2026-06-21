@@ -332,7 +332,7 @@ export const UI_TEXT = {
     },
 
     fmt: {
-        navGreeting: (firstName) => `Hola, ${firstName}`,
+        navGreeting: (firstName) => `${firstName}`,
         loginWelcome: (firstName) => (firstName ? `Hola, ${firstName}` : 'Ingresa tu contraseña'),
         pillPreviewInactive: (desc) =>
             `${desc}\n\nAún no hay preguntas activas (true/false) en la subcolección questions.`,
