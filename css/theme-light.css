@@ -49,7 +49,7 @@
 }
 
 [data-theme="light"] .btn-icon-back {
-    color: rgba(13, 11, 30, 0.5);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-icon-back:hover {
@@ -58,7 +58,7 @@
 }
 
 [data-theme="light"] .btn-icon-logout {
-    color: rgba(13, 11, 30, 0.5);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-icon-logout:hover {
@@ -75,7 +75,7 @@
 
 /* Streak: el número sí usa gris; fuego/copo mantienen color (no heredar del contenedor) */
 [data-theme="light"] .streak-container .streak-count {
-    color: rgba(13, 11, 30, 0.42);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .streak-area--active .streak-count {
@@ -120,11 +120,11 @@
 }
 
 [data-theme="light"] .btn-eye {
-    color: rgba(13, 11, 30, 0.4);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-auth-tertiary {
-    color: rgba(13, 11, 30, 0.78);
+    color: var(--color-text); /* #0D0B1E — 18.5:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-auth-tertiary:hover {
@@ -160,7 +160,7 @@
 }
 
 [data-theme="light"] .bento-seniority-label {
-    color: rgba(13, 11, 30, 0.54);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-card-team {
@@ -171,11 +171,11 @@
 }
 
 [data-theme="light"] .bento-team-subtitle {
-    color: rgba(13, 11, 30, 0.62);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-team-preview-item__name {
-    color: rgba(13, 11, 30, 0.62);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-team-count {
@@ -209,19 +209,19 @@
 [data-theme="light"] .bento-team-member__especialidad {
     border-color: rgba(2, 132, 199, 0.28);
     background: rgba(2, 132, 199, 0.1);
-    color: #0369a1;
+    color: #005285; /* 7.3:1 ✓ AAA sobre fondo azul-claro */
 }
 
 [data-theme="light"] .bento-team-member__especialidad--empty {
     border-color: rgba(13, 11, 30, 0.12);
     background: rgba(13, 11, 30, 0.04);
-    color: rgba(13, 11, 30, 0.56);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-team-member__seniority--empty {
     border-color: rgba(13, 11, 30, 0.12);
     background: rgba(13, 11, 30, 0.04);
-    color: rgba(13, 11, 30, 0.56);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-team-member__accordion {
@@ -289,7 +289,7 @@
 }
 
 [data-theme="light"] .pills-rating__star {
-    color: rgba(13, 11, 30, 0.25);
+    color: rgba(13, 11, 30, 0.55); /* ~3.5:1 ✓ AA non-text (estrellas vacías) */
 }
 
 [data-theme="light"] .pills-rating__cta {
@@ -305,7 +305,7 @@
 }
 
 [data-theme="light"] .bento-stat-mode-title {
-    color: rgba(13, 11, 30, 0.6);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-stat-cta:not(.btn-primary):not(.btn-secondary):not(.btn-cta) {
@@ -364,7 +364,7 @@
 }
 
 [data-theme="light"] .bento-milo-desc {
-    color: rgba(13, 11, 30, 0.68);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .bento-milo-btn {
@@ -538,7 +538,7 @@
 }
 
 [data-theme="light"] .bento-empty-state {
-    color: rgba(13, 11, 30, 0.25);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 /* Botones */
@@ -571,11 +571,11 @@
 }
 
 [data-theme="light"] .btn-text-logout {
-    color: rgba(13, 11, 30, 0.5);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-text-back {
-    color: rgba(13, 11, 30, 0.72);
+    color: var(--color-text); /* #0D0B1E — 18.5:1 ✓ AAA */
     background: rgba(13, 11, 30, 0.04);
     border-color: rgba(13, 11, 30, 0.12);
 }
@@ -589,7 +589,7 @@
 }
 
 [data-theme="light"] .btn-close {
-    color: rgba(13, 11, 30, 0.45);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
     background: rgba(13, 11, 30, 0.05);
 }
 
@@ -600,7 +600,7 @@
 
 [data-theme="light"] .btn-close--sm {
     background: rgba(13, 11, 30, 0.06);
-    color: rgba(13, 11, 30, 0.45);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-close--sm:hover {
@@ -609,7 +609,7 @@
 }
 
 [data-theme="light"] .btn-copy-topic {
-    color: rgba(13, 11, 30, 0.3);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-copy-topic--done {
@@ -617,7 +617,7 @@
 }
 
 [data-theme="light"] .btn-icon-cancel {
-    color: rgba(13, 11, 30, 0.4);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .btn-icon-cancel:hover {
@@ -641,7 +641,7 @@
 }
 
 [data-theme="light"] .section-subtitle {
-    color: rgba(13, 11, 30, 0.58);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .mode-card {
@@ -844,7 +844,7 @@
 }
 
 [data-theme="light"] .q-total {
-    color: rgba(13, 11, 30, 0.28);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 /* Opciones del quiz */
@@ -891,13 +891,13 @@
 }
 
 [data-theme="light"] .pills-category-card__title-timer {
-    color: #9a3412;
-    border-color: rgba(154, 52, 18, 0.28);
+    color: #7c2508; /* 7.8:1 ✓ AAA sobre fondo amarillo tenue */
+    border-color: rgba(124, 37, 8, 0.28);
     background: rgba(251, 191, 36, 0.2);
 }
 
 [data-theme="light"] .pills-category-card__vf-heading {
-    color: rgba(13, 11, 30, 0.55);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .pills-category-card__vf-list {
@@ -905,7 +905,7 @@
 }
 
 [data-theme="light"] .pills-seal-preview__label {
-    color: rgba(13, 11, 30, 0.55);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .pills-seal-preview__media {
@@ -963,7 +963,7 @@
 
 [data-theme="light"] .pills-swipe-indicator--false { color: rgba(184, 0, 26, 0.9); }
 [data-theme="light"] .pills-swipe-indicator--true  { color: rgba(0, 107, 99, 0.9); }
-[data-theme="light"] .pills-drag-hint { color: rgba(13, 11, 30, 0.42); }
+[data-theme="light"] .pills-drag-hint { color: var(--color-text-secondary); } /* #545454 — 7.1:1 ✓ AAA */
 
 /* Resultados — camino de carrera legible en light */
 [data-theme="light"] .career-track {
@@ -997,7 +997,7 @@
 }
 
 [data-theme="light"] .node-text {
-    color: rgba(13, 11, 30, 0.45);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
     font-weight: 700;
 }
 
@@ -1031,7 +1031,7 @@
 }
 
 [data-theme="light"] .footer-version {
-    color: rgba(13, 11, 30, 0.38);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 /* Modales */
@@ -1060,7 +1060,7 @@
 }
 
 [data-theme="light"] .leaderboard-rank {
-    color: rgba(13, 11, 30, 0.2);
+    color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
 }
 
 [data-theme="light"] .leaderboard-name--me { color: #7A4500; }
@@ -1129,4 +1129,19 @@
     color: #B8001A;
     background: rgba(184, 0, 26, 0.06);
     border-color: rgba(184, 0, 26, 0.15);
+}
+
+/* Banner hero (bento-card-identity) — fondo oscuro forzado en light mode
+   El banner siempre va sobre fondo oscuro para mantener el texto blanco legible */
+[data-theme="light"] .bento-card-identity {
+    background: linear-gradient(135deg, #1E0B4A 0%, #2D1B69 55%, #3D1D9E 100%);
+    border-color: rgba(74, 34, 192, 0.45);
+    box-shadow: 0 8px 32px rgba(74, 34, 192, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Widget de Milo dentro del banner — ajuste para el fondo oscuro */
+[data-theme="light"] .banner-milo-widget {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }

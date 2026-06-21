@@ -292,22 +292,22 @@
 
 /* Light theme adjustments */
 [data-theme="light"] .seals-prize-step {
-    border-color: rgba(0, 0, 0, 0.12);
-    background: rgba(0, 0, 0, 0.04);
-    color: rgba(0, 0, 0, 0.2);
+    border-color: rgba(13, 11, 30, 0.5);  /* 3.6:1 ✓ AA non-text */
+    background: rgba(13, 11, 30, 0.04);
+    color: var(--color-text-light);        /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .seals-prize-connector {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(13, 11, 30, 0.25);
 }
 
 [data-theme="light"] .seals-prize-stepper__hint {
-    color: rgba(0, 0, 0, 0.45);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 [data-theme="light"] .seals-prize-stepper__title,
 [data-theme="light"] .seals-prize-stepper__count {
-    color: rgba(0, 0, 0, 0.45);
+    color: var(--color-text-light); /* #4A4268 — 8.7:1 ✓ AAA */
 }
 
 .bento-seals-title {

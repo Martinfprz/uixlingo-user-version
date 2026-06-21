@@ -92,6 +92,7 @@
     --color-cta-dark: #3D5900;
     --color-border: rgba(13, 11, 30, 0.12);
     --color-primary: #4A22C0;
+    --color-text-secondary: #545454;   /* Gris neutro — 7.1:1 ✓ AAA */
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: rgba(74, 34, 192, 0.15);
     --color-success: #16a34a;

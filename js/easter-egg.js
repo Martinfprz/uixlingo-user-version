@@ -70,33 +70,61 @@
         resetTimer = setTimeout(() => { progress = 0; }, 2000);
     });
 
-    // — 7 taps al logo (mobile) —
+    // — Logo: 7 taps en home (mobile) / navegación normal fuera del home —
     const TAP_GOAL = 7;
     const TAP_WINDOW = 3000;
     let tapCount = 0;
     let tapTimer = null;
 
-    function onLogoTap() {
-        if (!isOnHome()) return;
-
-        clearTimeout(tapTimer);
-        tapCount++;
-
-        if (tapCount >= TAP_GOAL) {
-            tapCount = 0;
-            triggerEasterEgg();
-            return;
-        }
-
-        tapTimer = setTimeout(() => { tapCount = 0; }, TAP_WINDOW);
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
         const logoWrapper = document.querySelector('.logo-wrapper');
         const homeLogo = document.getElementById('home-logo');
 
-        if (logoWrapper) logoWrapper.addEventListener('click', onLogoTap);
-        if (homeLogo) homeLogo.addEventListener('click', onLogoTap);
+        if (logoWrapper) {
+            logoWrapper.addEventListener('click', function () {
+                if (!isOnHome()) {
+                    // Fuera del home: comportamiento normal de navegación
+                    tapCount = 0;
+                    clearTimeout(tapTimer);
+                    if (typeof handleHeaderClick === 'function') handleHeaderClick();
+                    return;
+                }
+
+                // En home: contar taps para el easter egg
+                clearTimeout(tapTimer);
+                tapCount++;
+
+                if (tapCount >= TAP_GOAL) {
+                    tapCount = 0;
+                    triggerEasterEgg();
+                    return;
+                }
+
+                tapTimer = setTimeout(() => { tapCount = 0; }, TAP_WINDOW);
+            });
+
+            logoWrapper.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    logoWrapper.click();
+                }
+            });
+        }
+
+        if (homeLogo) {
+            homeLogo.addEventListener('click', function () {
+                clearTimeout(tapTimer);
+                tapCount++;
+
+                if (tapCount >= TAP_GOAL) {
+                    tapCount = 0;
+                    triggerEasterEgg();
+                    return;
+                }
+
+                tapTimer = setTimeout(() => { tapCount = 0; }, TAP_WINDOW);
+            });
+        }
     });
 
     // — Cerrar modal —
