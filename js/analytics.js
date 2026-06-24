@@ -18,8 +18,17 @@
         safeTrack('screen', { name: name });
     };
 
-    // Route management — updates URL without page reload
-    history.replaceState({ path: '/' }, '', '/');
+    // Route management — updates URL without page reload.
+    // NO tocar la URL durante el flujo de recuperación de contraseña: el token de
+    // Supabase viaja en la query/hash y este script corre ANTES que app-main.js.
+    // Si reseteamos a '/' aquí, borramos el token_hash y la recuperación nunca arranca.
+    const _recoveryInUrl =
+        /token_hash=|[?&#]code=|type=recovery|access_token=/.test(location.search + location.hash) ||
+        location.pathname === '/reset-password' ||
+        location.pathname === '/reset-password/';
+    if (!_recoveryInUrl) {
+        history.replaceState({ path: '/' }, '', '/');
+    }
 
     window.setRoute = function (path) {
         if (window.location.pathname !== path) {
