@@ -13,6 +13,7 @@ export function initSupabaseClient() {
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
                 storage: window.localStorage,
+                flowType: 'implicit',
             },
         });
     } catch (_) {
