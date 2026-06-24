@@ -343,13 +343,31 @@ async function initPasswordRecoveryFlow() {
     }
 
     // --- Formato 3: Implicit (#access_token=...&type=recovery) ---
-    // El SDK procesa este hash automáticamente y dispara PASSWORD_RECOVERY o INITIAL_SESSION.
-    // Limpiamos el hash de la URL y esperamos con reintentos progresivos.
+    // El SDK procesa el hash de forma asíncrona, DESPUÉS de que este código ya corrió.
+    // Si esperamos a que el SDK lo procese, el history.replaceState ya lo borró del URL
+    // y el SDK no encuentra nada. Solución: parsear los tokens manualmente y llamar setSession.
     if (hasRecoveryHash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const access_token = hashParams.get('access_token');
+        const refresh_token = hashParams.get('refresh_token');
+
         history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+
+        if (access_token) {
+            const { error } = await supabase.auth.setSession({
+                access_token,
+                refresh_token: refresh_token ?? '',
+            });
+            if (!error) {
+                if (!isPasswordRecoveryFlow) openRecoveryModal();
+                return;
+            }
+        }
+
+        // Fallback: el SDK pudo haber procesado el hash antes que nosotros.
         for (const ms of [50, 150, 300, 600, 1000]) {
             await new Promise(r => setTimeout(r, ms));
-            if (isPasswordRecoveryFlow) return; // ya abierto por onAuthStateChange
+            if (isPasswordRecoveryFlow) return;
             const opened = await _openRecoveryModalIfSessionAvailable();
             if (opened) return;
         }
