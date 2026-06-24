@@ -213,7 +213,8 @@
    MODAL CAMBIO DE CONTRASEÑA
    ========================================== */
 
-#change-password-modal {
+#change-password-modal,
+#recovery-confirm-modal {
     position: fixed;
     inset: 0;
     z-index: 70;
@@ -226,7 +227,8 @@
     padding: 1rem;
 }
 
-#change-password-modal .modal-box {
+#change-password-modal .modal-box,
+#recovery-confirm-modal .modal-box {
     padding: 2rem;
 }
 
