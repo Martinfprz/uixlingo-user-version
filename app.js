@@ -1,4 +1,4 @@
-import './js/theme.js';
-import './js/supabase.js';
-import './js/app-main.js';
-import './js/behavioral-tracking.js';
+import './js/theme.js?v=3';
+import './js/supabase.js?v=3';
+import './js/app-main.js?v=3';
+import './js/behavioral-tracking.js?v=3';
