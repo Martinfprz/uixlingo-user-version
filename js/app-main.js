@@ -33,6 +33,8 @@ let supabaseSession = null;
 let isPasswordRecoveryFlow = false;
 /** Flag síncrono para capturar el evento SIGNED_IN en caso de que Supabase no emita PASSWORD_RECOVERY. */
 let _recoveryFlowPending = false;
+/** Verificación de token pendiente: se ejecuta solo con el clic del usuario (anti-escáner). */
+let _pendingRecoveryVerify = null;
 
 // --- SPLASH SCREEN LOGIC ---
 window.addEventListener('load', () => {
@@ -292,113 +294,111 @@ if (supabase) {
 }
 
 /**
- * Detecta los tres formatos de callback que Supabase puede emitir en el link de recuperación:
- *   1. PKCE flow  → ?code=...  (más común en v2, default)
- *   2. token_hash → ?token_hash=...&type=recovery
- *   3. Implicit   → #access_token=...&type=recovery  (procesado automáticamente por el SDK)
- * Se llama al inicio del módulo para que el intercambio ocurra antes de cualquier render.
+ * Detecta los formatos de callback que Supabase puede emitir en el link de recuperación:
+ *   1. token_hash → ?token_hash=...&type=recovery  (recomendado, resistente a escáneres de correo)
+ *   2. PKCE flow  → ?code=...
+ *   3. Implicit   → #access_token=...&type=recovery
+ *
+ * CLAVE: NO verificamos el token al cargar. Mostramos un botón de confirmación y el
+ * verifyOtp/setSession solo se dispara con un clic humano (ver confirmRecovery). Así,
+ * cuando un escáner de correo (Proofpoint URL Defense, Microsoft Safe Links, etc.)
+ * pre-visita el link, solo descarga el HTML estático y NO consume el token de un solo uso.
  */
 async function initPasswordRecoveryFlow() {
     if (!supabase) return;
 
-    const isResetPasswordRoute = window.location.pathname === RESET_PASSWORD_PATH || window.location.pathname === `${RESET_PASSWORD_PATH}/`;
+    const onResetRoute = isResetPasswordRoute();
     const params = new URLSearchParams(window.location.search);
     const hash = window.location.hash;
     const code = params.get('code');
     const tokenHash = params.get('token_hash');
     const type = params.get('type');
     const hasRecoveryHash = hash.includes('type=recovery');
+    const hasErrorParam = params.has('error') || hash.includes('error=');
 
-    console.log('[Recovery] initPasswordRecoveryFlow', {
-        pathname: window.location.pathname,
-        search: window.location.search,
-        hash: hash.substring(0, 60) || '(empty)',
-        code: code ? code.substring(0, 20) + '...' : null,
-        tokenHash: tokenHash ? tokenHash.substring(0, 20) + '...' : null,
-        type,
-        hasRecoveryHash,
-        isResetPasswordRoute,
-    });
-
-    // --- Formato 1: PKCE (?code=...) ---
-    if (code) {
-        _recoveryFlowPending = true; // activar ANTES del await para que onAuthStateChange lo vea
-        history.replaceState({}, document.title, window.location.pathname);
-        console.log('[Recovery] Formato PKCE: exchangeCodeForSession...');
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        _recoveryFlowPending = false;
-        console.log('[Recovery] exchangeCodeForSession result:', error ? 'ERROR: ' + error.message : 'OK');
-        if (error) {
-            // El SDK pudo haber intercambiado el código primero (detectSessionInUrl): verificar sesión.
-            if (!isPasswordRecoveryFlow) {
-                const opened = await _openRecoveryModalIfSessionAvailable();
-                if (!opened) _showRecoveryError();
-            }
-            return;
-        }
-        // Fallback final: si ni PASSWORD_RECOVERY ni SIGNED_IN abrieron el modal
-        if (!isPasswordRecoveryFlow) await _openRecoveryModalIfSessionAvailable();
-        return;
-    }
-
-    // --- Formato 2: token_hash (?token_hash=...&type=recovery) ---
-    if (tokenHash && type === 'recovery') {
-        _recoveryFlowPending = true;
-        history.replaceState({}, document.title, window.location.pathname);
-        console.log('[Recovery] Formato token_hash: verifyOtp...');
-        const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
-        _recoveryFlowPending = false;
-        console.log('[Recovery] verifyOtp result:', error ? 'ERROR: ' + error.message : 'OK');
-        if (error) {
-            _showRecoveryError();
-            return;
-        }
-        if (!isPasswordRecoveryFlow) await _openRecoveryModalIfSessionAvailable();
-        return;
-    }
-
-    // --- Formato 3: Implicit (#access_token=...&type=recovery) ---
-    // El SDK procesa el hash de forma asíncrona, DESPUÉS de que este código ya corrió.
-    // Si esperamos a que el SDK lo procese, el history.replaceState ya lo borró del URL
-    // y el SDK no encuentra nada. Solución: parsear los tokens manualmente y llamar setSession.
-    if (hasRecoveryHash) {
-        const hashParams = new URLSearchParams(hash.substring(1));
-        const access_token = hashParams.get('access_token');
-        const refresh_token = hashParams.get('refresh_token');
-
-        history.replaceState({}, document.title, RESET_PASSWORD_PATH);
-        console.log('[Recovery] Formato implicit hash: access_token presente =', !!access_token);
-
-        if (access_token) {
-            const { error } = await supabase.auth.setSession({
-                access_token,
-                refresh_token: refresh_token ?? '',
-            });
-            console.log('[Recovery] setSession result:', error ? 'ERROR: ' + error.message : 'OK');
-            if (!error) {
-                if (!isPasswordRecoveryFlow) openRecoveryModal();
-                return;
-            }
-        }
-
-        // Fallback: el SDK pudo haber procesado el hash antes que nosotros.
-        for (const ms of [50, 150, 300, 600, 1000]) {
-            await new Promise(r => setTimeout(r, ms));
-            if (isPasswordRecoveryFlow) return;
-            const opened = await _openRecoveryModalIfSessionAvailable();
-            if (opened) return;
-        }
-        console.log('[Recovery] Todos los intentos fallaron → _showRecoveryError');
+    // El link ya viene con error (token expirado/consumido): avisar de una vez.
+    if (onResetRoute && hasErrorParam && !code && !tokenHash && !hasRecoveryHash) {
         _showRecoveryError();
         return;
     }
 
-    // Fallback: ya en /reset-password, verificar si hay sesión activa (ej. recarga de página).
-    if (isResetPasswordRoute) {
+    // --- Formato 1: token_hash (?token_hash=...&type=recovery) ---
+    if (tokenHash && type === 'recovery') {
+        history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+        _showRecoveryConfirm(() => supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash }));
+        return;
+    }
+
+    // --- Formato 2: PKCE (?code=...) ---
+    if (code) {
+        history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+        _showRecoveryConfirm(() => supabase.auth.exchangeCodeForSession(code));
+        return;
+    }
+
+    // --- Formato 3: Implicit (#access_token=...&type=recovery) ---
+    if (hasRecoveryHash) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const access_token = hashParams.get('access_token');
+        const refresh_token = hashParams.get('refresh_token');
+        history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+        if (access_token) {
+            _showRecoveryConfirm(() => supabase.auth.setSession({ access_token, refresh_token: refresh_token ?? '' }));
+            return;
+        }
+        _showRecoveryError();
+        return;
+    }
+
+    // Fallback: ya en /reset-password sin parámetros (ej. recarga de página con sesión activa).
+    if (onResetRoute) {
         const opened = await _openRecoveryModalIfSessionAvailable();
         if (!opened) _showRecoveryError();
     }
 }
+
+/**
+ * Muestra el modal con el botón de confirmación. Guarda la verificación pendiente
+ * (verifyFn) para ejecutarla solo cuando el usuario haga clic en confirmRecovery.
+ */
+function _showRecoveryConfirm(verifyFn) {
+    _pendingRecoveryVerify = verifyFn;
+    isPasswordRecoveryFlow = false;
+    document.getElementById('auth-card')?.classList.add('hidden');
+
+    const errEl = document.getElementById('recovery-confirm-error');
+    if (errEl) { errEl.innerText = ''; errEl.classList.add('hidden'); }
+    const btn = document.getElementById('btn-recovery-confirm');
+    if (btn) { btn.disabled = false; btn.innerHTML = T.auth.recoveryConfirmBtn; }
+    const titleEl = document.getElementById('recovery-confirm-title');
+    const descEl = document.getElementById('recovery-confirm-desc');
+    if (titleEl) titleEl.textContent = T.auth.recoveryConfirmTitle;
+    if (descEl) descEl.textContent = T.auth.recoveryConfirmDesc;
+
+    document.getElementById('recovery-confirm-modal')?.classList.remove('hidden');
+}
+
+/** Dispara la verificación del token SOLO con el clic del usuario. */
+window.confirmRecovery = async function () {
+    if (!_pendingRecoveryVerify || !supabase) return;
+
+    const btn = document.getElementById('btn-recovery-confirm');
+    const errEl = document.getElementById('recovery-confirm-error');
+    if (btn) { btn.disabled = true; btn.innerHTML = T.auth.recoveryConfirmLoading; }
+    if (errEl) { errEl.innerText = ''; errEl.classList.add('hidden'); }
+
+    const verifyFn = _pendingRecoveryVerify;
+    _pendingRecoveryVerify = null;
+    const { error } = await verifyFn();
+
+    // En éxito, el listener de onAuthStateChange ya pudo abrir el modal de nueva contraseña.
+    const opened = isPasswordRecoveryFlow || await _openRecoveryModalIfSessionAvailable();
+    document.getElementById('recovery-confirm-modal')?.classList.add('hidden');
+
+    if (opened) return;
+    if (error) { _showRecoveryError(); return; }
+    openRecoveryModal();
+};
 
 async function _openRecoveryModalIfSessionAvailable() {
     const { data } = await supabase.auth.getSession();
@@ -2825,6 +2825,7 @@ function openRecoveryModal() {
     if (p2) p2.value = '';
     if (err) { err.innerText = ''; err.classList.add('hidden'); }
     document.getElementById('auth-card')?.classList.add('hidden');
+    document.getElementById('recovery-confirm-modal')?.classList.add('hidden');
     document.getElementById('change-password-modal')?.classList.remove('hidden');
 }
 

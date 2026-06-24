@@ -812,6 +812,25 @@
         </div>
 
         <!-- Modal Cambio de Contraseña (First Login) -->
+        <!-- Confirmación de recuperación: el verifyOtp solo se dispara con clic humano,
+             para que ningún escáner de correo (Proofpoint, Safe Links) consuma el token. -->
+        <div id="recovery-confirm-modal" class="hidden">
+            <div class="modal-box animate-pop">
+                <div class="modal-icon-wrap">
+                    <i class="fas fa-shield-halved modal-icon"></i>
+                </div>
+                <h3 id="recovery-confirm-title" class="modal-title modal-title--center">Recuperación de contraseña</h3>
+                <p id="recovery-confirm-desc" class="modal-desc">Por seguridad, confirma que fuiste tú quien solicitó el cambio. Pulsa el botón para continuar.</p>
+
+                <div class="form-fields">
+                    <p id="recovery-confirm-error" class="error-msg hidden"></p>
+                    <button onclick="confirmRecovery()" id="btn-recovery-confirm" class="btn-primary">
+                        Continuar con el cambio
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="change-password-modal" class="hidden">
             <div class="modal-box animate-pop">
                 <div class="modal-icon-wrap">
