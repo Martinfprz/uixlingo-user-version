@@ -309,12 +309,25 @@ async function initPasswordRecoveryFlow() {
     const type = params.get('type');
     const hasRecoveryHash = hash.includes('type=recovery');
 
+    console.log('[Recovery] initPasswordRecoveryFlow', {
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: hash.substring(0, 60) || '(empty)',
+        code: code ? code.substring(0, 20) + '...' : null,
+        tokenHash: tokenHash ? tokenHash.substring(0, 20) + '...' : null,
+        type,
+        hasRecoveryHash,
+        isResetPasswordRoute,
+    });
+
     // --- Formato 1: PKCE (?code=...) ---
     if (code) {
         _recoveryFlowPending = true; // activar ANTES del await para que onAuthStateChange lo vea
         history.replaceState({}, document.title, window.location.pathname);
+        console.log('[Recovery] Formato PKCE: exchangeCodeForSession...');
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         _recoveryFlowPending = false;
+        console.log('[Recovery] exchangeCodeForSession result:', error ? 'ERROR: ' + error.message : 'OK');
         if (error) {
             // El SDK pudo haber intercambiado el código primero (detectSessionInUrl): verificar sesión.
             if (!isPasswordRecoveryFlow) {
@@ -332,8 +345,10 @@ async function initPasswordRecoveryFlow() {
     if (tokenHash && type === 'recovery') {
         _recoveryFlowPending = true;
         history.replaceState({}, document.title, window.location.pathname);
+        console.log('[Recovery] Formato token_hash: verifyOtp...');
         const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
         _recoveryFlowPending = false;
+        console.log('[Recovery] verifyOtp result:', error ? 'ERROR: ' + error.message : 'OK');
         if (error) {
             _showRecoveryError();
             return;
@@ -352,12 +367,14 @@ async function initPasswordRecoveryFlow() {
         const refresh_token = hashParams.get('refresh_token');
 
         history.replaceState({}, document.title, RESET_PASSWORD_PATH);
+        console.log('[Recovery] Formato implicit hash: access_token presente =', !!access_token);
 
         if (access_token) {
             const { error } = await supabase.auth.setSession({
                 access_token,
                 refresh_token: refresh_token ?? '',
             });
+            console.log('[Recovery] setSession result:', error ? 'ERROR: ' + error.message : 'OK');
             if (!error) {
                 if (!isPasswordRecoveryFlow) openRecoveryModal();
                 return;
@@ -371,6 +388,7 @@ async function initPasswordRecoveryFlow() {
             const opened = await _openRecoveryModalIfSessionAvailable();
             if (opened) return;
         }
+        console.log('[Recovery] Todos los intentos fallaron → _showRecoveryError');
         _showRecoveryError();
         return;
     }
