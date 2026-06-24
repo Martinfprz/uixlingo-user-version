@@ -267,9 +267,11 @@ if (supabase) {
         }
 
         // Supabase a veces emite SIGNED_IN en lugar de PASSWORD_RECOVERY.
-        if (event === 'SIGNED_IN' && _recoveryFlowPending) {
+        // También cubre el caso donde el SDK intercambia el código antes de que
+        // _recoveryFlowPending se active (race condition con detectSessionInUrl).
+        if (event === 'SIGNED_IN' && (_recoveryFlowPending || isResetPasswordRoute())) {
             _recoveryFlowPending = false;
-            openRecoveryModal();
+            if (!isPasswordRecoveryFlow) openRecoveryModal();
             return;
         }
 
@@ -314,7 +316,11 @@ async function initPasswordRecoveryFlow() {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         _recoveryFlowPending = false;
         if (error) {
-            _showRecoveryError();
+            // El SDK pudo haber intercambiado el código primero (detectSessionInUrl): verificar sesión.
+            if (!isPasswordRecoveryFlow) {
+                const opened = await _openRecoveryModalIfSessionAvailable();
+                if (!opened) _showRecoveryError();
+            }
             return;
         }
         // Fallback final: si ni PASSWORD_RECOVERY ni SIGNED_IN abrieron el modal
