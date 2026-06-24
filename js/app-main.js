@@ -305,13 +305,7 @@ if (supabase) {
  * pre-visita el link, solo descarga el HTML estático y NO consume el token de un solo uso.
  */
 async function initPasswordRecoveryFlow() {
-    console.log('🔑 RECOVERY-FLOW START', {
-        supabaseReady: !!supabase,
-        path: window.location.pathname,
-        search: window.location.search,
-        hash: window.location.hash,
-    });
-    if (!supabase) { console.log('🔑 RECOVERY-FLOW ABORT: supabase no inicializado'); return; }
+    if (!supabase) return;
 
     const onResetRoute = isResetPasswordRoute();
     const params = new URLSearchParams(window.location.search);
@@ -321,10 +315,6 @@ async function initPasswordRecoveryFlow() {
     const type = params.get('type');
     const hasRecoveryHash = hash.includes('type=recovery');
     const hasErrorParam = params.has('error') || hash.includes('error=');
-
-    console.log('🔑 RECOVERY-FLOW params', {
-        onResetRoute, tokenHash: !!tokenHash, type, code: !!code, hasRecoveryHash, hasErrorParam,
-    });
 
     // El link ya viene con error (token expirado/consumido): avisar de una vez.
     if (onResetRoute && hasErrorParam && !code && !tokenHash && !hasRecoveryHash) {
@@ -372,9 +362,6 @@ async function initPasswordRecoveryFlow() {
  * (verifyFn) para ejecutarla solo cuando el usuario haga clic en confirmRecovery.
  */
 function _showRecoveryConfirm(verifyFn) {
-    console.log('🔑 RECOVERY-FLOW: mostrando modal de confirmación', {
-        modalEncontrado: !!document.getElementById('recovery-confirm-modal'),
-    });
     _pendingRecoveryVerify = verifyFn;
     isPasswordRecoveryFlow = false;
     document.getElementById('auth-card')?.classList.add('hidden');
