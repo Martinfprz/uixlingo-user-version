@@ -19,7 +19,7 @@
     <!-- SSO: capturar tokens del fragment (#) antes de que cualquier script los limpie.
          Se prioriza location.hash (no se envía al servidor ni va en logs/Referer);
          fallback a location.search por compatibilidad durante la transición. -->
-    <script>(function(){var h=new URLSearchParams(location.hash.slice(1));var q=new URLSearchParams(location.search);var at=h.get('sso_at')||q.get('sso_at');var rt=h.get('sso_rt')||q.get('sso_rt');if(at&&rt){sessionStorage.setItem('_sso_at',at);sessionStorage.setItem('_sso_rt',rt);history.replaceState(null,'',location.pathname);}})();</script>
+    <script>(function(){var h=new URLSearchParams(location.hash.slice(1));var q=new URLSearchParams(location.search);var at=h.get('sso_at')||q.get('sso_at');var rt=h.get('sso_rt')||q.get('sso_rt');var nx=h.get('next')||q.get('next');if(at&&rt){sessionStorage.setItem('_sso_at',at);sessionStorage.setItem('_sso_rt',rt);if(nx)sessionStorage.setItem('_sso_next',nx);history.replaceState(null,'',location.pathname);}})();</script>
     <!-- Umami Analytics -->
     <script defer src="https://cloud.umami.is/script.js" data-website-id="3ff90e68-92ae-405c-8932-f48fb9ed8426"></script>
     <script defer src="js/analytics.js?v=2"></script>

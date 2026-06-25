@@ -433,6 +433,14 @@ async function initAppAuth() {
             sessionRestoreHandled = false;
             supabaseSession = data.session;
             await restoreAuthenticatedSession(data.session.user);
+            const ssoNext = sessionStorage.getItem('_sso_next');
+            if (ssoNext) {
+                sessionStorage.removeItem('_sso_next');
+                const modeMap = { pruebas: 'practice', evaluaciones: 'evaluation', pills: 'pills' };
+                const mode = modeMap[ssoNext];
+                // openModeFromProfile maneja la transición desde profile-view → selectMode
+                if (mode) setTimeout(() => window.openModeFromProfile?.(mode), 400);
+            }
             return;
         }
     }
