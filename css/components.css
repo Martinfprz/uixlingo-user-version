@@ -229,6 +229,63 @@
     outline-offset: 2px;
 }
 
+.btn-back-to-space {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: var(--btn-icon-size);
+    padding: 0 0.9rem;
+    border-radius: var(--radius-full);
+    color: rgba(239, 255, 253, 0.7);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+        color var(--motion-fast) var(--motion-ease-standard),
+        transform var(--motion-fast) var(--motion-ease-emphasis),
+        box-shadow var(--motion-fast) var(--motion-ease-standard),
+        background var(--motion-fast) var(--motion-ease-standard),
+        border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.btn-back-to-space i {
+    font-size: 0.85rem;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.btn-back-to-space:hover {
+    color: var(--color-accent);
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(89, 122, 255, 0.35);
+    box-shadow: 0 4px 14px rgba(89, 122, 255, 0.24);
+}
+
+.btn-back-to-space:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+    .btn-back-to-space span {
+        display: none;
+    }
+
+    .btn-back-to-space {
+        width: var(--btn-icon-size);
+        padding: 0;
+        justify-content: center;
+    }
+}
+
 /* Botones icónicos — cuadrado táctil único */
 .btn-close,
 .btn-copy-topic {

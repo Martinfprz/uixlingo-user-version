@@ -588,6 +588,20 @@
     box-shadow: 0 4px 14px rgba(74, 34, 192, 0.22);
 }
 
+[data-theme="light"] .btn-back-to-space {
+    color: var(--color-text);
+    background: rgba(13, 11, 30, 0.04);
+    border-color: rgba(13, 11, 30, 0.12);
+}
+
+[data-theme="light"] .btn-back-to-space:hover {
+    color: var(--color-accent);
+    transform: translateY(-1px);
+    background: rgba(74, 34, 192, 0.1);
+    border-color: rgba(74, 34, 192, 0.28);
+    box-shadow: 0 4px 14px rgba(74, 34, 192, 0.22);
+}
+
 [data-theme="light"] .btn-close {
     color: var(--color-text-secondary); /* #545454 — 7.1:1 ✓ AAA */
     background: rgba(13, 11, 30, 0.05);
