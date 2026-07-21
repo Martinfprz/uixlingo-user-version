@@ -415,7 +415,7 @@
 
                     <!-- Estado normal: antes de completar la evaluación -->
                     <div id="evaluation-brief-content">
-                        <h2 class="view-title">Tu evaluación de enero a marzo 2026</h2>
+                        <h2 class="view-title">Tu evaluación de mayo a julio 2026</h2>
                         <p class="section-subtitle">Antes de comenzar, te contamos cómo funcionará esta sección:</p>
 
                         <div class="evaluation-brief-card evaluation-brief-card--summary">
@@ -454,7 +454,7 @@
 
                     <!-- Estado completado: ya hiciste la evaluación -->
                     <div id="evaluation-completed-view" class="hidden">
-                        <h2 class="view-title">Tu evaluación de enero a marzo 2026</h2>
+                        <h2 class="view-title">Tu evaluación de mayo a julio 2026</h2>
                         <p class="section-subtitle">Ya completaste tu evaluación. Aquí están tus resultados:</p>
 
                         <div class="evaluation-brief-card evaluation-brief-card--summary">
@@ -472,6 +472,19 @@
                             </div>
                         </div>
 
+                    </div>
+
+                    <!-- Evaluación 360 al formador / equipo (siempre visible, independiente del MCQ) -->
+                    <div id="formador-brief-block" class="evaluation-brief-card evaluation-brief-card--summary hidden" style="margin-top:1rem;">
+                        <h3 class="evaluation-brief-title">Evalúa a tu formador y a tu equipo</h3>
+                        <p id="formador-brief-summary" class="evaluation-auto-summary">
+                            Responde con honestidad; tus respuestas se guardan de forma confidencial y no se te asigna calificación.
+                        </p>
+                        <div class="action-group">
+                            <button id="btn-start-formador" onclick="startFormadorSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start-formador">
+                                EVALUAR A MI FORMADOR / EQUIPO
+                            </button>
+                        </div>
                     </div>
 
                 </div>
@@ -551,6 +564,38 @@
                     <button id="btn-dont-know" onclick="handleDontKnow()">
                         No sé la respuesta
                     </button>
+                </div>
+            </section>
+
+            <!-- Evaluación 360 al formador / equipo (rúbrica, sin timer ni puntaje) -->
+            <section id="formador-interface" class="hidden">
+                <div id="formador-quiz">
+                    <div class="quiz-meta-inline">
+                        <div id="formador-block-label" class="topic-badge">Evaluación al formador</div>
+                        <div class="q-number-display">
+                            <span id="formador-q-num">1</span><span class="q-total">/<span id="formador-q-total">0</span></span>
+                        </div>
+                    </div>
+                    <div class="question-title-container">
+                        <h3 id="formador-question-text"></h3>
+                    </div>
+                    <div class="formador-content">
+                        <div id="formador-options-container"></div>
+                    </div>
+                </div>
+
+                <!-- Aviso al cambiar de bloque (formador → equipo) -->
+                <div id="formador-notice" class="hidden break-content" style="text-align:center;">
+                    <h2 id="formador-notice-title"></h2>
+                    <p id="formador-notice-text"></p>
+                    <button id="btn-formador-continue" class="btn-primary">CONTINUAR</button>
+                </div>
+
+                <!-- Fin: sin resultado, solo confirmación -->
+                <div id="formador-done" class="hidden break-content" style="text-align:center;">
+                    <h2>¡Gracias! 🙌</h2>
+                    <p>Tus respuestas se guardaron correctamente. No se te asigna calificación.</p>
+                    <button id="btn-formador-back" class="btn-primary" onclick="formadorBackToEval()">VOLVER</button>
                 </div>
             </section>
 

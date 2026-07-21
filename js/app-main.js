@@ -746,15 +746,15 @@ async function loadRankingUserStats() {
         if (userId) {
             const { data: scores } = await supabase
                 .from('user_scores')
-                .select('quest_points, tests_points, pills_points, pills_rank_pill_id')
+                .select('quest_points, tests_points_q2, pills_points, pills_rank_pill_id')
                 .eq('user_id', userId)
                 .maybeSingle();
             if (scores) {
                 userProfile.questPoints = Number(scores.quest_points || 0);
-                userProfile.testsPoints = Number(scores.tests_points || 0);
+                userProfile.testsPoints = Number(scores.tests_points_q2 || 0);
                 userProfile.pillsPoints = Number(scores.pills_points || 0);
                 userProfile.latestPillRankId = String(scores.pills_rank_pill_id || '').trim();
-                userProfile.evalCompleted = scores.tests_points != null;
+                userProfile.evalCompleted = scores.tests_points_q2 != null;
             }
         }
     } catch (e) {
@@ -1050,7 +1050,7 @@ async function loadTeamReports() {
 
             const { data: peerScores } = await supabase
                 .from('user_scores')
-                .select('user_id, tests_points')
+                .select('user_id, tests_points_q2')
                 .in('user_id', peerIds);
             (peerScores || []).forEach(s => scoresMap.set(String(s.user_id), s));
         }
@@ -1065,7 +1065,7 @@ async function loadTeamReports() {
                     name: nombre || profile.nickname || T.common.anonymous,
                     especialidad: String(row.especialidad || '').trim(),
                     seniority: String(row.seniority || '').trim(),
-                    testsPoints: scoresMap.get(uid)?.tests_points,
+                    testsPoints: scoresMap.get(uid)?.tests_points_q2,
                     avatarUrl: profile.avatarUrl || '',
                 };
             })
@@ -3172,6 +3172,8 @@ window.selectMode = async function (mode) {
                 evalBriefView?.classList.add('animate-fade-in');
                 updateEvaluationBriefAutoUI();
                 renderEvaluationCompletedState();
+                updateFormadorButtonState();
+                ensureFormadorLoaded().then(() => updateFormadorButtonState());
                 window.setRoute('/evaluaciones');
             } else if (mode === 'pills') {
                 pillsConstructionView?.classList.remove('hidden');
@@ -3198,6 +3200,232 @@ window.startEvaluationSession = function () {
     startQuiz();
 }
 
+// ─── EVALUACIÓN 360 AL FORMADOR / EQUIPO (banco_evaluar_formador) ───────────
+// Flujo propio: rúbrica sin respuesta correcta, sin timer, sin puntaje.
+// Solo registra las respuestas del usuario en respuestas_evaluar_formador.
+let formadorData = [];
+let formadorSession = [];
+let formadorIndex = 0;
+let formadorAnswers = [];
+const FORMADOR_RANDOM_EXTRA = 10;
+const FORMADOR_BLOCK_ORDER = ['Evaluación al formador', 'Evaluación a mi equipo'];
+
+async function loadFormadorQuestions() {
+    if (!supabase) return;
+    try {
+        const { data, error } = await supabase
+            .from('banco_evaluar_formador')
+            .select('*')
+            .eq('active', true);
+        if (error) throw error;
+        formadorData = data || [];
+    } catch (e) {
+        debugError('Error al cargar banco_evaluar_formador:', e);
+    }
+}
+
+async function ensureFormadorLoaded() {
+    if (formadorData.length === 0) await loadFormadorQuestions();
+}
+
+/** Bucket común para cruzar ranking_user.especialidad con puesto_1..6. */
+function formadorRoleBucket(raw) {
+    const n = normalizeLabelKey(raw);
+    if (!n) return '';
+    if (n.includes('product designer')) return 'product';
+    if (n.includes('customer success')) return 'customer';
+    const t = specialtyTokens(raw);
+    if (t.includes('writer') || t.includes('writing')) return 'writer';
+    const hasUx = t.includes('ux');
+    const hasUi = t.includes('ui');
+    if (hasUx && hasUi) return 'dual';
+    if (hasUi) return 'ui';
+    if (hasUx) return 'ux';
+    return '';
+}
+
+/** ¿La pregunta aplica al puesto del usuario? (cualquier puesto_1..6 con el mismo bucket) */
+function formadorQuestionMatchesPuesto(row, userBucket) {
+    if (!userBucket) return false;
+    for (let i = 1; i <= 6; i++) {
+        const b = formadorRoleBucket(row[`puesto_${i}`]);
+        if (b && b === userBucket) return true;
+    }
+    return false;
+}
+
+/** Obligatorias: «Conocimientos y Habilidades Técnicas» + las «sin parámetro» (nivel NA) del formador. */
+function isFormadorMandatory(row) {
+    if (String(row.competencia || '').trim() === 'Conocimientos y Habilidades Técnicas') return true;
+    const nivelNA = ['nivel_b', 'nivel_c', 'nivel_d']
+        .some(k => String(row[k] || '').trim().toUpperCase() === 'NA');
+    return nivelNA && String(row.comportamiento || '').trim() === 'Evaluación al formador';
+}
+
+/** Sesión: obligatorias (fijas) + FORMADOR_RANDOM_EXTRA aleatorias, ordenadas por bloque. */
+function buildFormadorSession() {
+    const bucket = formadorRoleBucket(userProfile.especialidad);
+    if (!bucket) return [];
+    const pool = formadorData.filter(r => formadorQuestionMatchesPuesto(r, bucket));
+    const mandatory = pool.filter(isFormadorMandatory);
+    const rest = pool.filter(r => !isFormadorMandatory(r));
+    const randomExtra = shuffleArray(rest).slice(0, FORMADOR_RANDOM_EXTRA);
+    const chosen = [...mandatory, ...randomExtra];
+
+    // Ordenar por bloque (formador → equipo); obligatorias primero dentro de cada bloque.
+    const session = [];
+    FORMADOR_BLOCK_ORDER.forEach(comp => {
+        const block = chosen.filter(r => String(r.comportamiento || '').trim() === comp);
+        const oblig = block.filter(isFormadorMandatory);
+        const rnd = shuffleArray(block.filter(r => !isFormadorMandatory(r)));
+        session.push(...oblig, ...rnd);
+    });
+    return session;
+}
+
+function updateFormadorButtonState() {
+    const btn = document.getElementById('btn-start-formador');
+    if (!btn) return;
+    const disponible = formadorData.length > 0 && buildFormadorSession().length > 0;
+    btn.disabled = !disponible;
+    btn.classList.toggle('is-disabled', !disponible);
+    const block = document.getElementById('formador-brief-block');
+    if (block) block.classList.toggle('hidden', !disponible);
+}
+
+window.startFormadorSession = function () {
+    formadorSession = buildFormadorSession();
+    if (!formadorSession.length) return;
+    formadorIndex = 0;
+    formadorAnswers = [];
+    switchSection('formador-interface', () => {
+        document.getElementById('formador-done')?.classList.add('hidden');
+        document.getElementById('formador-notice')?.classList.add('hidden');
+        renderFormadorStep();
+    });
+};
+
+function renderFormadorStep() {
+    const q = formadorSession[formadorIndex];
+    const prev = formadorSession[formadorIndex - 1];
+    const blockChanged = prev &&
+        String(prev.comportamiento || '').trim() !== String(q.comportamiento || '').trim();
+    if (formadorIndex > 0 && blockChanged) {
+        showFormadorNotice(renderFormadorQuestion);
+        return;
+    }
+    renderFormadorQuestion();
+}
+
+function showFormadorNotice(onContinue) {
+    const quiz = document.getElementById('formador-quiz');
+    const notice = document.getElementById('formador-notice');
+    const title = document.getElementById('formador-notice-title');
+    const text = document.getElementById('formador-notice-text');
+    const btn = document.getElementById('btn-formador-continue');
+    if (!notice) { onContinue(); return; }
+    if (title) title.textContent = 'Cambio de sección 🔁';
+    if (text) text.textContent = 'Terminaste la evaluación a tu formador. Ahora vas a evaluar a tu equipo; responde con la misma honestidad.';
+    quiz?.classList.add('hidden');
+    notice.classList.remove('hidden');
+    if (btn) btn.onclick = () => {
+        notice.classList.add('hidden');
+        quiz?.classList.remove('hidden');
+        onContinue();
+    };
+}
+
+function renderFormadorQuestion() {
+    const q = formadorSession[formadorIndex];
+    document.getElementById('formador-quiz')?.classList.remove('hidden');
+
+    const numEl = document.getElementById('formador-q-num');
+    const totEl = document.getElementById('formador-q-total');
+    if (numEl) numEl.textContent = String(formadorIndex + 1);
+    if (totEl) totEl.textContent = String(formadorSession.length);
+
+    const label = document.getElementById('formador-block-label');
+    if (label) label.textContent = String(q.comportamiento || '').trim() || 'Evaluación';
+
+    const qText = document.getElementById('formador-question-text');
+    if (qText) qText.textContent = q.pregunta || '';
+
+    const cont = document.getElementById('formador-options-container');
+    if (!cont) return;
+    cont.innerHTML = '';
+    cont.style.pointerEvents = '';
+
+    const opts = [
+        { k: 'a', text: q.opcion_a, nivel: q.nivel_a },
+        { k: 'b', text: q.opcion_b, nivel: q.nivel_b },
+        { k: 'c', text: q.opcion_c, nivel: q.nivel_c },
+        { k: 'd', text: q.opcion_d, nivel: q.nivel_d },
+    ].filter(o => o.text && String(o.text).trim());
+
+    opts.forEach(o => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-option';
+        const span = document.createElement('span');
+        span.className = 'option-text';
+        span.textContent = o.text;
+        btn.appendChild(span);
+        btn.onclick = () => selectFormadorAnswer(o);
+        cont.appendChild(btn);
+    });
+}
+
+function selectFormadorAnswer(opt) {
+    const q = formadorSession[formadorIndex];
+    const cont = document.getElementById('formador-options-container');
+    if (cont) cont.style.pointerEvents = 'none';
+
+    formadorAnswers.push({
+        pregunta_id: q.id,
+        comportamiento: String(q.comportamiento || '').trim() || null,
+        competencia: String(q.competencia || '').trim() || null,
+        puesto: String(userProfile.especialidad || '').trim() || null,
+        opcion_elegida: opt.k,
+        respuesta: String(opt.text || '').trim() || null,
+        nivel: String(opt.nivel || '').trim() || null,
+    });
+
+    formadorIndex++;
+    if (formadorIndex >= formadorSession.length) {
+        finishFormadorSession();
+    } else {
+        renderFormadorStep();
+    }
+}
+
+async function saveFormadorAnswers() {
+    if (!supabase || formadorAnswers.length === 0) return false;
+    let userId = supabaseSession?.user?.id || '';
+    if (!userId) {
+        const { data: authData } = await supabase.auth.getUser();
+        userId = authData?.user?.id || '';
+    }
+    if (!userId) { debugWarn('saveFormadorAnswers: sin user id'); return false; }
+    const rows = formadorAnswers.map(a => ({ ...a, user_id: userId }));
+    const { error } = await supabase.from('respuestas_evaluar_formador').insert(rows);
+    if (error) { debugError('saveFormadorAnswers error:', error); return false; }
+    return true;
+}
+
+async function finishFormadorSession() {
+    document.getElementById('formador-quiz')?.classList.add('hidden');
+    beginGlobalLoading('Guardando tus respuestas…');
+    try {
+        await saveFormadorAnswers();
+    } finally {
+        endGlobalLoading();
+    }
+    document.getElementById('formador-done')?.classList.remove('hidden');
+}
+
+window.formadorBackToEval = function () {
+    switchSection('landing-page', () => window.selectMode('evaluation'));
+};
+
 async function startGuestMode() {
     // Modo invitado eliminado - todos los usuarios deben tener cuenta
     showAppAlert({
@@ -3209,7 +3437,7 @@ async function startGuestMode() {
 }
 
 function switchSection(targetId, onShow) {
-    const sections = ['landing-page', 'quiz-interface', 'pills-quiz-interface', 'break-screen', 'results-screen'];
+    const sections = ['landing-page', 'quiz-interface', 'pills-quiz-interface', 'break-screen', 'results-screen', 'formador-interface'];
     const visibleSectionId = sections.find(id => !document.getElementById(id).classList.contains('hidden'));
 
     const executeSwitch = () => {
@@ -3305,22 +3533,33 @@ function isUiDesignCategory(value) {
     return normalizeLabelKey(value) === 'ui design';
 }
 
-/** Especialidad tipo «UX/UI»: mitad UI Design y mitad UX Research en evaluación. */
-function isUxUiDualSpecialty(especialidadRaw) {
-    const n = normalizeLabelKey(especialidadRaw);
-    if (!n) return false;
-    if (n.includes('ux/ui') || n.includes('ux-ui')) return true;
-    if (n === 'ux ui' || n === 'uxui') return true;
-    if (n.includes('ux') && n.includes('ui') && (n.includes('/') || n.includes('-'))) return true;
-    return false;
+/**
+ * Tokens de la especialidad, tolerante a la nomenclatura de RRHH.
+ * Separa por espacios, «/», «-» y desdobla «UXUI» en «ux ui».
+ *   "Diseñador UX/UI" → ['disenador','ux','ui']
+ *   "UXUI" / "UX-UI"  → ['ux','ui']
+ *   "Diseñador UX"    → ['disenador','ux']
+ * Así «Diseñador UX» == «UX», «Diseñador UI» == «UI Design», «Diseñador UX UI» == «UXUI», etc.
+ */
+function specialtyTokens(especialidadRaw) {
+    return normalizeLabelKey(especialidadRaw)
+        .replace(/uxui/g, 'ux ui')
+        .split(/[^a-z]+/)
+        .filter(Boolean);
 }
 
-/** Especialidad UX (sin UI): incluye etiquetas UX, UX Research o UX Researcher. */
+/** Especialidad tipo «UX/UI» (incl. «Diseñador UX UI», «UXUI»): mitad UI Design y mitad UX Research. */
+function isUxUiDualSpecialty(especialidadRaw) {
+    const t = specialtyTokens(especialidadRaw);
+    return t.includes('ux') && t.includes('ui');
+}
+
+/** Especialidad UX (sin UI): «UX», «UX Research», «UX Researcher», «Diseñador UX». */
 function isUxOnlySpecialty(especialidadRaw) {
-    const n = normalizeLabelKey(especialidadRaw);
-    if (!n) return false;
     if (isUxUiDualSpecialty(especialidadRaw)) return false;
-    return n === 'ux' || n === 'ux research' || n === 'ux researcher';
+    if (isUxWritingSpecialty(especialidadRaw)) return false;
+    const t = specialtyTokens(especialidadRaw);
+    return t.includes('ux') && !t.includes('ui');
 }
 
 /**
@@ -3328,11 +3567,9 @@ function isUxOnlySpecialty(especialidadRaw) {
  * Cubre: "UX Writer", "UX Writing", "ux writer", "writing", etc.
  */
 function isUxWritingSpecialty(especialidadRaw) {
-    const n = normalizeLabelKey(especialidadRaw);
-    if (!n) return false;
     if (isUxUiDualSpecialty(especialidadRaw)) return false;
-    return n === 'ux writer' || n === 'ux writing' || n === 'writing' ||
-           n.includes('ux writer') || n.includes('ux writing');
+    const t = specialtyTokens(especialidadRaw);
+    return t.includes('writer') || t.includes('writing');
 }
 
 /** Categoría "UX Writing" en la pregunta (ya normalizada por normalizeCategoryLabel). */
@@ -3345,11 +3582,9 @@ function isUxWritingCategory(value) {
  * Debe ver preguntas con Cat = "UI Design".
  */
 function isUiOnlySpecialty(especialidadRaw) {
-    const n = normalizeLabelKey(especialidadRaw);
-    if (!n) return false;
     if (isUxUiDualSpecialty(especialidadRaw)) return false;
-    return n === 'ui' || n === 'ui design' || n === 'ui designer' ||
-           (n.startsWith('ui') && !n.includes('ux'));
+    const t = specialtyTokens(especialidadRaw);
+    return t.includes('ui') && !t.includes('ux');
 }
 
 /**
@@ -5279,7 +5514,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
 
     const pointsFieldByMode = {
         practice: 'quest_points',
-        evaluation: 'tests_points',
+        evaluation: 'tests_points_q2',
         pills: 'pills_points'
     };
     const pointsField = pointsFieldByMode[currentQuizMode] || 'quest_points';
@@ -5343,7 +5578,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         // Leer ranking actual
         const [{ data: rankingData }, { data: scoresData }] = await Promise.all([
             supabase.from('ranking_user').select('user_id, nombre, email, seniority, especialidad, formador').eq('email', userEmail.toLowerCase()).single(),
-            supabase.from('user_scores').select('quest_points, tests_points, pills_points, pills_rank_pill_id, pills_rank_tiempo, puntos, tiempo, fecha').eq('user_id', userId).maybeSingle(),
+            supabase.from('user_scores').select('quest_points, tests_points_q2, pills_points, pills_rank_pill_id, pills_rank_tiempo, puntos, tiempo, fecha').eq('user_id', userId).maybeSingle(),
         ]);
         const existing = { ...(rankingData || {}), ...(scoresData || {}) };
 
@@ -5376,9 +5611,9 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             scoresMerge.quest_points = Math.max(cur, next);
             shouldUpdate = next > cur;
         } else if (currentQuizMode === 'evaluation') {
-            const isFirstEvalAttempt = existing.tests_points == null;
+            const isFirstEvalAttempt = existing.tests_points_q2 == null;
             if (isFirstEvalAttempt) {
-                scoresMerge.tests_points = Number(finalScore || 0);
+                scoresMerge.tests_points_q2 = Number(finalScore || 0);
             }
         } else if (currentQuizMode === 'pills') {
             if (isLatestPillSession && !pillsRankingLockedByRanking && currentPillAttemptQualifies) {
@@ -5423,7 +5658,7 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         if (currentQuizMode === 'evaluation') {
             const newScore = Number(finalScore || 0);
             const newTime = Number(timeSeconds || 0);
-            const isFirstEvalAttempt = existing.tests_points == null;
+            const isFirstEvalAttempt = existing.tests_points_q2 == null;
 
             shouldUpdate = isFirstEvalAttempt;
 
@@ -5612,15 +5847,15 @@ async function openLeaderboard(mode = 'practice') {
                 modalTitleEl.innerHTML = T.leaderboard.top10Title;
             }
             const modeFieldMap = {
-                evaluation: 'tests_points',
+                evaluation: 'tests_points_q2',
                 quest: 'quest_points',
                 practice: 'quest_points',
                 pills: 'pills_points'
             };
-            const pointsField = modeFieldMap[mode] || 'tests_points';
+            const pointsField = modeFieldMap[mode] || 'tests_points_q2';
             const { data: rawScores, error } = await supabase
                 .from('user_scores')
-                .select('user_id, tiempo, quest_points, tests_points, pills_points')
+                .select('user_id, tiempo, quest_points, tests_points_q2, pills_points')
                 .order(pointsField, { ascending: false })
                 .limit(50);
             if (error) throw error;
@@ -5644,7 +5879,7 @@ async function openLeaderboard(mode = 'practice') {
                     tiempo: d.tiempo,
                     questPoints: d.quest_points,
                     quest_points: d.quest_points,
-                    tests_points: d.tests_points,
+                    tests_points_q2: d.tests_points_q2,
                     pills_points: d.pills_points
                 };
             });
