@@ -54,6 +54,8 @@ export const TEST_MODE_ALLOWED_EMAILS = [
     'miriam.martinezm@jansan.mx',
     'angelica.arano@upax.com.mx',
     'samanta.camacho@upax.com.mx',
+    'erick.sanchezl@jansan.mx',
+    'paola.toledo@elektra.com.mx',
 ];
 
 /** Path fijo para el redirect de recuperación de contraseña. Debe estar en Supabase > Auth > Redirect URLs. */
