@@ -3568,7 +3568,7 @@ let formadorData = [];
 let formadorSession = [];
 let formadorIndex = 0;
 let formadorAnswers = [];
-const FORMADOR_RANDOM_EXTRA = 0; // Solo obligatorias por ahora (sin preguntas extra aleatorias).
+const FORMADOR_RANDOM_EXTRA = 10; // Obligatorias + 10 extra aleatorias del pool del bucket del perfil.
 const FORMADOR_BLOCK_ORDER = ['Evaluación al formador', 'Evaluación a mi equipo'];
 
 async function loadFormadorQuestions() {
