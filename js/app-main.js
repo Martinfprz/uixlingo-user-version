@@ -3919,6 +3919,15 @@ function isUiOnlySpecialty(especialidadRaw) {
 }
 
 /**
+ * Puestos «OPS» (ResearchOPS, InterfaceOPS, WritingOPS, GerenteOPS, OPS…).
+ * Sus preguntas de evaluación NO están niveladas por seniority (hoy todas son 'junior'),
+ * así que el match es solo por categoría (cat = especialidad) e ignora el seniority.
+ */
+function isOpsSpecialty(especialidadRaw) {
+    return normalizeLabelKey(especialidadRaw).replace(/\s+/g, '').endsWith('ops');
+}
+
+/**
  * ¿La categoría de la pregunta (Cat) corresponde a la Especialidad del usuario en ranking_user?
  * Sin especialidad en perfil: no se filtra por área (solo seniority), por compatibilidad.
  *
@@ -4014,14 +4023,18 @@ function filterEvaluationQuestionsByUserProfile(normalizedQuestions) {
     const userRaw = String(userProfile.seniority || '').trim();
     const userNorm = getNormalizedSeniority(userRaw);
     const esp = String(userProfile.especialidad || '').trim();
+    // Puestos OPS: match solo por categoría (sus preguntas no están niveladas por seniority).
+    const opsSpecialty = isOpsSpecialty(esp);
 
     const matched = normalizedQuestions.filter((q) => {
-        const qNorm = q.seniority;
-        const qRaw = String(q.seniorityRaw || '').trim();
-        const seniorityOk =
-            (userNorm && qNorm && userNorm === qNorm) ||
-            (userRaw && qRaw && stripAccents(userRaw) === stripAccents(qRaw));
-        if (!seniorityOk) return false;
+        if (!opsSpecialty) {
+            const qNorm = q.seniority;
+            const qRaw = String(q.seniorityRaw || '').trim();
+            const seniorityOk =
+                (userNorm && qNorm && userNorm === qNorm) ||
+                (userRaw && qRaw && stripAccents(userRaw) === stripAccents(qRaw));
+            if (!seniorityOk) return false;
+        }
         return categoryMatchesUserEspecialidad(q.category, esp);
     });
 
