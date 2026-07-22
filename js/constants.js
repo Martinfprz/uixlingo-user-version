@@ -26,7 +26,7 @@ export const EVALUATION_SESSION_LENGTH_UX_ONLY = 15;
 /** Activar solo en desarrollo: logs extra en consola (no exponer en producción). */
 export const DEBUG = false;
 
-export const EVALUATION_QUESTION_TIME = 30;
+export const EVALUATION_QUESTION_TIME = 60;
 export const ENABLE_EVAL_HARD_BLOCK = true;
 export const EVAL_VIOLATION_STORAGE_PREFIX = 'uix_eval_violations_v1';
 export const EVAL_FOCUS_EVENT_DEBOUNCE_MS = 1200;

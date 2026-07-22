@@ -19,7 +19,7 @@ import {
     RESET_PASSWORD_PATH,
     PUBLIC_APP_ORIGIN,
     TEST_MODE_ALLOWED_EMAILS,
-} from './constants.js?v=2';
+} from './constants.js?v=3';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
 import { showAppAlert, showAppConfirm } from './ui.js';
