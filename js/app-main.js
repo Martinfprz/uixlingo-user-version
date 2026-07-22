@@ -1613,6 +1613,22 @@ function refreshTestModeButton() {
     btn.classList.toggle('hidden', !isTestModeAllowed());
 }
 
+/**
+ * Colapsa variantes de la misma especialidad de DISEÑO a una etiqueta canónica,
+ * usando la misma clasificación que el matcher de evaluación (así 'UI DESIGN' y
+ * 'Diseñador UI' se muestran como una sola entrada aunque en la base difieran).
+ * Los puestos que NO son de diseño (CEO, HRBP, OPS, etc.) se mantienen tal cual,
+ * cada uno como entrada distinta.
+ */
+function canonicalEspecialidad(raw) {
+    const value = String(raw || '').trim();
+    if (isUxUiDualSpecialty(value)) return { key: 'ux-ui', label: 'Diseñador UX UI' };
+    if (isUxWritingSpecialty(value)) return { key: 'ux-writer', label: 'UX Writer' };
+    if (isUxOnlySpecialty(value) || isUxResearchFamilyLabel(value)) return { key: 'ux', label: 'Diseñador UX' };
+    if (isUiOnlySpecialty(value)) return { key: 'ui', label: 'Diseñador UI' };
+    return { key: 'other:' + normalizeLabelKey(value), label: value };
+}
+
 /** Valores distintos de `especialidad` y `seniority` presentes hoy en ranking_user. */
 async function loadTestModeOptions() {
     if (testModeOptionsCache) return testModeOptionsCache;
@@ -1629,15 +1645,18 @@ async function loadTestModeOptions() {
             .from('ranking_user')
             .select('especialidad, seniority');
         if (error) throw error;
-        const espSet = new Set();
+        const espMap = new Map(); // key canónica -> etiqueta a mostrar (dedupe de variantes)
         const senSet = new Set();
         (data || []).forEach((r) => {
             const e = String(r.especialidad || '').trim();
             const s = String(r.seniority || '').trim();
-            if (e) espSet.add(e);
+            if (e) {
+                const { key, label } = canonicalEspecialidad(e);
+                if (!espMap.has(key)) espMap.set(key, label);
+            }
             if (s) senSet.add(s);
         });
-        const especialidades = [...espSet].sort((a, b) => a.localeCompare(b, 'es'));
+        const especialidades = [...espMap.values()].sort((a, b) => a.localeCompare(b, 'es'));
         const seniorities = [...senSet].sort((a, b) => a.localeCompare(b, 'es'));
         testModeOptionsCache = {
             especialidades: especialidades.length ? especialidades : fallback.especialidades,
