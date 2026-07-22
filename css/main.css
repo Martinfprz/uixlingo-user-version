@@ -8,7 +8,7 @@
 @import url("profile.css");
 @import url("components.css");
 @import url("mode-selection.css");
-@import url("dashboard.css");
+@import url("dashboard.css?v=2");
 @import url("quiz.css");
 @import url("results.css");
 @import url("footer.css");

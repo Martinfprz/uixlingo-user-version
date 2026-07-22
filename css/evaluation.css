@@ -144,12 +144,31 @@
 .eval-split {
     display: flex;
     gap: 2rem;
-    align-items: flex-start;
+    align-items: stretch; /* columnas de igual altura para alinear los botones abajo */
 }
 
 .eval-split__col {
     flex: 1 1 0;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* El panel visible (normal o completado) llena la altura de la columna. */
+.eval-split__col > div {
+    flex: 1 1 auto;
+}
+
+/* Los paneles del formador también son flex-column para poder empujar su botón. */
+#formador-brief-panel,
+#formador-completed-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Botón siempre pegado al borde inferior de su columna. */
+.eval-split__col .action-group {
+    margin-top: auto;
 }
 
 .eval-split__divider {
