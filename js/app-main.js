@@ -2610,7 +2610,9 @@ function renderSeals() {
         return effectiveSealQuarter(s) === sealsFilter.q;
     });
 
-    renderSealsStepper(filtered.length);
+    // Cada sello acumulable (ej. Orador xN) cuenta como N sellos hacia el premio, no como 1.
+    const sealTotal = filtered.reduce((sum, s) => sum + (Number(s.count) > 0 ? Number(s.count) : 1), 0);
+    renderSealsStepper(sealTotal);
 
     if (filtered.length === 0) {
         const safeQ = esc(String(sealsFilter.q || ''));
