@@ -159,11 +159,13 @@
     flex: 1 1 auto;
 }
 
-/* Los paneles del formador también son flex-column para poder empujar su botón. */
+/* Los paneles del formador también son flex-column (y centrados) para empujar
+   su botón al fondo y alinearlo igual que la columna izquierda. */
 #formador-brief-panel,
 #formador-completed-panel {
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 
 /* Botón siempre pegado al borde inferior de su columna. */
