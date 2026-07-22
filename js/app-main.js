@@ -763,6 +763,9 @@ async function loadRankingUserStats() {
     }
 }
 
+/** Imagen (GIF) del sello de Orador, común a todos los ponentes. */
+const SPEAKER_SEAL_IMAGE_URL = 'https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/sellos-pill/ponentes.gif';
+
 /**
  * Sella el perfil: `user_sellos` (legacy), `user_pill_scores` (V/F), `user_pill_badges` (asignación admin).
  * Mismo `pill_id` se deduplica a un solo ítem: id canónico `pill-{uuid}`; si hay fila en ambas tablas, gana la de badges (última en el merge).
@@ -882,7 +885,39 @@ async function loadUserSeals(uid) {
             };
         });
 
-        const merged = [...legacySeals, ...pillSeals, ...pillBadgeSeals];
+        // Sello de "Orador" (speaker_awards): un solo sello por (año, quarter) con contador ×N.
+        let speakerSeals = [];
+        const { data: speakerRows, error: speakerErr } = await supabase
+            .from('speaker_awards')
+            .select('quarter, year, awarded_at')
+            .eq('user_id', uid);
+
+        if (speakerErr) {
+            debugWarn('loadUserSeals speaker_awards:', speakerErr);
+        } else {
+            const qStartMonth = { Q1: '01', Q2: '04', Q3: '07', Q4: '10' };
+            const groups = new Map(); // `${year}-${quarter}` -> { year, quarter, count }
+            (speakerRows || []).forEach((r) => {
+                const q = normalizePillQuarter(r.quarter);
+                const year = Number(r.year);
+                if (!q || !year) return;
+                const key = `${year}-${q}`;
+                const g = groups.get(key) || { year, quarter: q, count: 0 };
+                g.count += 1;
+                groups.set(key, g);
+            });
+            speakerSeals = [...groups.values()].map((g) => ({
+                id: `speaker-${g.year}-${g.quarter}`,
+                name: g.count > 1 ? `Orador ×${g.count}` : 'Orador',
+                icon: 'fa-microphone-lines',
+                imageUrl: SPEAKER_SEAL_IMAGE_URL,
+                quarter: g.quarter,
+                count: g.count,
+                date: `${g.year}-${qStartMonth[g.quarter] || '01'}-01T12:00:00`
+            }));
+        }
+
+        const merged = [...legacySeals, ...pillSeals, ...pillBadgeSeals, ...speakerSeals];
         const byId = new Map();
         merged.forEach((seal) => {
             if (!seal?.id) return;
@@ -2610,6 +2645,12 @@ function renderSeals() {
         circle.className = 'bento-seal-circle';
         circle.title = seal.name;
         appendSealVisual(circle, seal);
+        if (Number(seal?.count) > 1) {
+            const countBadge = document.createElement('span');
+            countBadge.className = 'bento-seal-count';
+            countBadge.textContent = `×${seal.count}`;
+            circle.appendChild(countBadge);
+        }
         const nameSpan = document.createElement('span');
         nameSpan.className = 'bento-seal-name';
         nameSpan.textContent = seal.name;
