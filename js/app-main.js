@@ -974,7 +974,7 @@ async function loadAllUserData(uid) {
     ]);
     await loadRankingUserStats();
     // Estado de la evaluación al formador (solo aplica a puestos con equipo a su cargo).
-    if (isTeamManagerEspecialidad(userProfile.especialidad)) await loadFormadorCompletion();
+    if (canEvaluateFormador(userProfile.especialidad)) await loadFormadorCompletion();
 }
 
 /** ¿El usuario ya completó la evaluación al formador? Guarda la fecha más reciente en userProfile.formadorDoneAt. */
@@ -1009,6 +1009,17 @@ const TEAM_MANAGER_ESPECIALIDAD_KEYS = new Set([
 function isTeamManagerEspecialidad(especialidadRaw) {
     const key = normalizeLabelKey(especialidadRaw);
     return TEAM_MANAGER_ESPECIALIDAD_KEYS.has(key);
+}
+
+/**
+ * ¿Este perfil puede hacer la evaluación 360 al formador?
+ * Team managers (PD/CS/Administrativo) + cualquier perfil con bucket de rol
+ * (UX, UI, UX/UI, UX Writer). Sus preguntas se filtran por bucket en buildFormadorSession.
+ * OJO: la card «Mi equipo» sigue gobernada por isTeamManagerEspecialidad (solo managers reales),
+ * para no mostrar una card de equipo vacía a un IC.
+ */
+function canEvaluateFormador(especialidadRaw) {
+    return isTeamManagerEspecialidad(especialidadRaw) || formadorRoleBucket(especialidadRaw) !== '';
 }
 
 function formadorNameKey(name) {
@@ -1561,7 +1572,7 @@ function renderProfile() {
     if (especialidadBadge) especialidadBadge.textContent = userProfile.especialidad || '';
 
     // Precargar el banco del formador para puestos con equipo a su cargo (Product Designer, Customer Success, Administrativo).
-    if (isTeamManagerEspecialidad(userProfile.especialidad)) ensureFormadorLoaded();
+    if (canEvaluateFormador(userProfile.especialidad)) ensureFormadorLoaded();
     // Stats
     document.getElementById('profile-quest-pts').innerText = userProfile.questPoints;
     renderProfilePillsCard();
@@ -1770,7 +1781,7 @@ function closeTestModePanel() {
 /** Re-render del home + recarga del estado de formador tras cambiar el perfil (real o simulado). */
 async function refreshAfterProfileChange() {
     userProfile.formadorDoneAt = null;
-    if (isTeamManagerEspecialidad(userProfile.especialidad)) {
+    if (canEvaluateFormador(userProfile.especialidad)) {
         try { await loadFormadorCompletion(); } catch (e) { debugWarn('loadFormadorCompletion:', e); }
     }
     try { renderProfile(); } catch (e) { debugWarn('renderProfile:', e); }
@@ -1885,7 +1896,7 @@ async function initTestMode() {
     renderTestModeIndicator();
     // Recarga estado de formador para el perfil simulado (el render lo hace quien llama).
     userProfile.formadorDoneAt = null;
-    if (isTeamManagerEspecialidad(userProfile.especialidad)) {
+    if (canEvaluateFormador(userProfile.especialidad)) {
         try { await loadFormadorCompletion(); } catch (e) { debugWarn('loadFormadorCompletion:', e); }
     }
 }
@@ -4217,10 +4228,10 @@ function formatFormadorDate(iso) {
 function renderEvaluationBriefSplit() {
     renderEvaluationCompletedState();
 
-    const esTeamManager = isTeamManagerEspecialidad(userProfile.especialidad);
-    document.getElementById('eval-col-formador')?.classList.toggle('hidden', !esTeamManager);
-    document.getElementById('eval-split-divider')?.classList.toggle('hidden', !esTeamManager);
-    if (!esTeamManager) return;
+    const puedeEvaluarFormador = canEvaluateFormador(userProfile.especialidad);
+    document.getElementById('eval-col-formador')?.classList.toggle('hidden', !puedeEvaluarFormador);
+    document.getElementById('eval-split-divider')?.classList.toggle('hidden', !puedeEvaluarFormador);
+    if (!puedeEvaluarFormador) return;
 
     ensureFormadorLoaded();
 
