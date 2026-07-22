@@ -5744,6 +5744,8 @@ function getEvalViolationCount() {
 }
 
 function isEvaluationHardBlocked() {
+    // Test Mode: sin bloqueo por intentos (previsualización).
+    if (isTestModeActive()) return false;
     return ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= 3;
 }
 
@@ -5758,6 +5760,8 @@ function isEvaluationFlowVisible() {
 }
 
 async function handleEvaluationViolation(reason = 'focus_lost') {
+    // Test Mode: no se cuentan violaciones ni se expulsa (previsualización).
+    if (isTestModeActive()) return;
     if (!isEvaluationMode() || !isEvaluationSessionActive || !isEvaluationFlowVisible()) return;
     if (isHandlingEvalViolation) return;
 
