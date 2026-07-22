@@ -1,0 +1,250 @@
+/* ==========================================================================
+   TEST MODE — botón de header, modal de selección e indicador fijo.
+   Solo visible para la allow-list (TEST_MODE_ALLOWED_EMAILS).
+   ========================================================================== */
+
+/* --- Botón en el header --- */
+.btn-test-mode {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: var(--btn-icon-size);
+    padding: 0 0.9rem;
+    border-radius: var(--radius-full);
+    color: var(--color-cta);
+    background: rgba(172, 231, 56, 0.1);
+    border: 1px solid rgba(172, 231, 56, 0.3);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+        color var(--motion-fast) var(--motion-ease-standard),
+        transform var(--motion-fast) var(--motion-ease-emphasis),
+        box-shadow var(--motion-fast) var(--motion-ease-standard),
+        background var(--motion-fast) var(--motion-ease-standard),
+        border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.btn-test-mode i {
+    font-size: 0.85rem;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.btn-test-mode:hover {
+    transform: translateY(-1px);
+    background: rgba(172, 231, 56, 0.18);
+    border-color: rgba(172, 231, 56, 0.5);
+    box-shadow: 0 4px 14px rgba(172, 231, 56, 0.22);
+}
+
+.btn-test-mode:focus-visible {
+    outline: 2px solid var(--color-cta);
+    outline-offset: 2px;
+}
+
+:root[data-theme="light"] .btn-test-mode {
+    color: var(--color-cta-dark);
+    background: rgba(61, 89, 0, 0.08);
+    border-color: rgba(61, 89, 0, 0.25);
+}
+
+@media (max-width: 480px) {
+    .btn-test-mode span {
+        display: none;
+    }
+
+    .btn-test-mode {
+        width: var(--btn-icon-size);
+        padding: 0;
+        justify-content: center;
+    }
+}
+
+/* --- Modal de selección de perfil simulado --- */
+.test-mode-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    background: rgba(10, 10, 10, 0.55);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.test-mode-overlay.hidden {
+    display: none;
+}
+
+.test-mode-modal {
+    width: min(440px, 100%);
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 24px 64px rgba(2, 6, 23, 0.4);
+    padding: 1.5rem;
+}
+
+.test-mode-modal__head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.6rem;
+}
+
+.test-mode-modal__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-full);
+    background: rgba(172, 231, 56, 0.15);
+    color: var(--color-cta);
+    font-size: 1rem;
+}
+
+.test-mode-modal__head h3 {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: 800;
+}
+
+.test-mode-modal__desc {
+    margin: 0 0 1.25rem 0;
+    color: var(--color-text-light);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+}
+
+.test-mode-field {
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.test-mode-field > span {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.test-mode-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.65rem 0.8rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: var(--text-base);
+    cursor: pointer;
+}
+
+.test-mode-field select:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+.test-mode-modal__actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+}
+
+.test-mode-modal__actions .btn-primary,
+.test-mode-modal__actions .btn-outline-blue {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* --- Indicador fijo de modo prueba activo --- */
+.test-mode-indicator {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    z-index: 110;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    max-width: calc(100vw - 2rem);
+    padding: 0.55rem 0.7rem 0.55rem 1rem;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-elevated);
+    border: 1px solid rgba(172, 231, 56, 0.4);
+    box-shadow: 0 10px 32px rgba(2, 6, 23, 0.35);
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+
+.test-mode-indicator__dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: var(--radius-full);
+    background: var(--color-cta);
+    box-shadow: 0 0 0 3px rgba(172, 231, 56, 0.25);
+    flex-shrink: 0;
+    animation: test-mode-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes test-mode-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.test-mode-indicator__label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.test-mode-indicator__btn {
+    flex-shrink: 0;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--motion-ease-standard),
+        border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.test-mode-indicator__btn:hover {
+    background: var(--color-surface-elevated);
+    border-color: var(--color-accent);
+}
+
+.test-mode-indicator__btn--exit {
+    color: var(--color-error);
+    border-color: rgba(255, 90, 106, 0.35);
+}
+
+.test-mode-indicator__btn--exit:hover {
+    background: rgba(255, 90, 106, 0.12);
+    border-color: var(--color-error);
+}
+
+@media (max-width: 480px) {
+    .test-mode-indicator {
+        font-size: var(--text-xs);
+        gap: 0.5rem;
+        padding-left: 0.75rem;
+    }
+}

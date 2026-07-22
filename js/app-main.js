@@ -18,6 +18,7 @@ import {
     PILLS_SEAL_WINDOW_HOURS,
     RESET_PASSWORD_PATH,
     PUBLIC_APP_ORIGIN,
+    TEST_MODE_ALLOWED_EMAILS,
 } from './constants.js';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
@@ -705,7 +706,7 @@ function pickSeniorityFromRankingData(data) {
  * Datos principales del perfil/ranking en `ranking_user`.
  * Fuente de verdad para puntos del perfil:
  * - quest_points  -> #profile-quest-pts
- * - tests_points  -> #profile-tests-pts
+ * - tests_points  -> #eval-completed-score (brief, estado completado)
  * - pills_points  -> #profile-pills-pts
  * Seniority y especialidad del perfil (#profile-seniority, #profile-especialidad) vienen de aquí.
  */
@@ -972,6 +973,27 @@ async function loadAllUserData(uid) {
         loadUserSkills(uid)
     ]);
     await loadRankingUserStats();
+    // Estado de la evaluación al formador (solo aplica a puestos con equipo a su cargo).
+    if (isTeamManagerEspecialidad(userProfile.especialidad)) await loadFormadorCompletion();
+}
+
+/** ¿El usuario ya completó la evaluación al formador? Guarda la fecha más reciente en userProfile.formadorDoneAt. */
+async function loadFormadorCompletion() {
+    userProfile.formadorDoneAt = null;
+    const userId = supabaseSession?.user?.id;
+    if (!supabase || !userId) return;
+    try {
+        const { data, error } = await supabase
+            .from('respuestas_evaluar_formador')
+            .select('fecha')
+            .eq('user_id', userId)
+            .order('fecha', { ascending: false })
+            .limit(1);
+        if (error) throw error;
+        if (data && data.length) userProfile.formadorDoneAt = data[0].fecha;
+    } catch (e) {
+        debugWarn('loadFormadorCompletion error:', e);
+    }
 }
 
 // --- PROFILE LOGIC ---
@@ -1537,9 +1559,11 @@ function renderProfile() {
     if (seniorityBadge) seniorityBadge.textContent = userProfile.seniority || '';
     const especialidadBadge = document.getElementById('profile-especialidad-badge');
     if (especialidadBadge) especialidadBadge.textContent = userProfile.especialidad || '';
+
+    // Precargar el banco del formador para puestos con equipo a su cargo (Product Designer, Customer Success, Administrativo).
+    if (isTeamManagerEspecialidad(userProfile.especialidad)) ensureFormadorLoaded();
     // Stats
     document.getElementById('profile-quest-pts').innerText = userProfile.questPoints;
-    document.getElementById('profile-tests-pts').innerText = userProfile.testsPoints;
     renderProfilePillsCard();
     const rankEl = document.getElementById('profile-practice-rank');
     if (rankEl) rankEl.innerText = T.profile.rankCalculating;
@@ -1547,6 +1571,283 @@ function renderProfile() {
     renderProfileTalentsPreview();
     renderProfileTeam().catch((e) => debugWarn('renderProfileTeam:', e));
     setTimeout(initBannerCanvas, 0);
+}
+
+// ==========================================================================
+// TEST MODE — previsualizar la app como otro perfil (solo allow-list).
+// Sobre-escribe userProfile.especialidad + seniority y re-renderiza; no toca
+// datos reales en Supabase. La selección persiste en sessionStorage para que
+// el quiz/evaluación y una recarga usen el perfil simulado.
+// ==========================================================================
+
+const TEST_MODE_STORAGE_KEY = 'uix_test_mode_v1';
+
+let testModeState = {
+    active: false,
+    especialidad: '',
+    seniority: '',
+    backup: null, // { especialidad, seniority } del perfil real
+};
+
+/** Opciones (especialidad + seniority) traídas en vivo de ranking_user; cacheadas por sesión. */
+let testModeOptionsCache = null;
+
+/** ¿Hay un perfil simulado activo? Usado para bloquear escrituras a Supabase (solo preview). */
+function isTestModeActive() {
+    return testModeState.active === true;
+}
+
+/** ¿El usuario actual puede ver/usar el Test Mode? */
+function isTestModeAllowed() {
+    const email = String(userEmail || '').trim().toLowerCase();
+    if (!email) return false;
+    return TEST_MODE_ALLOWED_EMAILS
+        .map((e) => String(e).trim().toLowerCase())
+        .includes(email);
+}
+
+/** Muestra/oculta el botón del header según la allow-list. */
+function refreshTestModeButton() {
+    const btn = document.getElementById('btn-test-mode');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !isTestModeAllowed());
+}
+
+/** Valores distintos de `especialidad` y `seniority` presentes hoy en ranking_user. */
+async function loadTestModeOptions() {
+    if (testModeOptionsCache) return testModeOptionsCache;
+    const fallback = {
+        especialidades: [
+            'Diseñador UX UI', 'Diseñador UX', 'Diseñador UI',
+            'Product Designer', 'Customer Success', 'UX Writer', 'OPS'
+        ],
+        seniorities: ['junior', 'medium', 'senior'],
+    };
+    if (!supabase) return fallback;
+    try {
+        const { data, error } = await supabase
+            .from('ranking_user')
+            .select('especialidad, seniority');
+        if (error) throw error;
+        const espSet = new Set();
+        const senSet = new Set();
+        (data || []).forEach((r) => {
+            const e = String(r.especialidad || '').trim();
+            const s = String(r.seniority || '').trim();
+            if (e) espSet.add(e);
+            if (s) senSet.add(s);
+        });
+        const especialidades = [...espSet].sort((a, b) => a.localeCompare(b, 'es'));
+        const seniorities = [...senSet].sort((a, b) => a.localeCompare(b, 'es'));
+        testModeOptionsCache = {
+            especialidades: especialidades.length ? especialidades : fallback.especialidades,
+            seniorities: seniorities.length ? seniorities : fallback.seniorities,
+        };
+        return testModeOptionsCache;
+    } catch (e) {
+        debugWarn('loadTestModeOptions error:', e);
+        return fallback;
+    }
+}
+
+/** Crea (una vez) el modal de selección de perfil simulado. */
+function ensureTestModeModal() {
+    if (document.getElementById('test-mode-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'test-mode-overlay';
+    overlay.className = 'test-mode-overlay hidden';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+        <div class="test-mode-modal" role="dialog" aria-modal="true" aria-labelledby="test-mode-title">
+            <div class="test-mode-modal__head">
+                <span class="test-mode-modal__icon"><i class="fa-solid fa-flask" aria-hidden="true"></i></span>
+                <h3 id="test-mode-title">Modo prueba</h3>
+            </div>
+            <p class="test-mode-modal__desc">Previsualiza la app como si tuvieras otro perfil: verás sus preguntas, secciones y evaluaciones. No cambia tu perfil real.</p>
+            <label class="test-mode-field">
+                <span>Especialidad</span>
+                <select id="test-mode-especialidad"></select>
+            </label>
+            <label class="test-mode-field">
+                <span>Seniority</span>
+                <select id="test-mode-seniority"></select>
+            </label>
+            <div class="test-mode-modal__actions">
+                <button type="button" class="btn-outline-blue" id="test-mode-cancel">Cancelar</button>
+                <button type="button" class="btn-primary" id="test-mode-apply">Aplicar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeTestModePanel();
+    });
+    document.getElementById('test-mode-cancel').onclick = closeTestModePanel;
+    document.getElementById('test-mode-apply').onclick = () => {
+        const esp = document.getElementById('test-mode-especialidad').value;
+        const sen = document.getElementById('test-mode-seniority').value;
+        closeTestModePanel();
+        applyTestMode(esp, sen);
+    };
+}
+
+/** Abre el panel con las opciones actuales seleccionadas. */
+async function openTestModePanel() {
+    if (!isTestModeAllowed()) return;
+    ensureTestModeModal();
+    const opts = await loadTestModeOptions();
+    const espSel = document.getElementById('test-mode-especialidad');
+    const senSel = document.getElementById('test-mode-seniority');
+    const currentEsp = testModeState.active ? testModeState.especialidad : userProfile.especialidad;
+    const currentSen = testModeState.active ? testModeState.seniority : userProfile.seniority;
+    const buildOptions = (values, current) => values.map((v) => {
+        const sel = normalizeLabelKey(v) === normalizeLabelKey(current) ? ' selected' : '';
+        return `<option value="${esc(v)}"${sel}>${esc(v)}</option>`;
+    }).join('');
+    espSel.innerHTML = buildOptions(opts.especialidades, currentEsp);
+    senSel.innerHTML = buildOptions(opts.seniorities, currentSen);
+    const overlay = document.getElementById('test-mode-overlay');
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeTestModePanel() {
+    const overlay = document.getElementById('test-mode-overlay');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+}
+
+/** Re-render del home + recarga del estado de formador tras cambiar el perfil (real o simulado). */
+async function refreshAfterProfileChange() {
+    userProfile.formadorDoneAt = null;
+    if (isTeamManagerEspecialidad(userProfile.especialidad)) {
+        try { await loadFormadorCompletion(); } catch (e) { debugWarn('loadFormadorCompletion:', e); }
+    }
+    try { renderProfile(); } catch (e) { debugWarn('renderProfile:', e); }
+    try { updatePracticeRankUI(); } catch (e) { debugWarn('updatePracticeRankUI:', e); }
+}
+
+/** Aplica un perfil simulado (guarda backup del real la primera vez). */
+async function applyTestMode(especialidad, seniority) {
+    if (!isTestModeAllowed()) return;
+    const esp = String(especialidad || '').trim();
+    const sen = String(seniority || '').trim();
+    if (!esp && !sen) return;
+    if (!testModeState.active) {
+        testModeState.backup = {
+            especialidad: userProfile.especialidad,
+            seniority: userProfile.seniority,
+        };
+    }
+    testModeState.active = true;
+    testModeState.especialidad = esp;
+    testModeState.seniority = sen;
+    userProfile.especialidad = esp;
+    userProfile.seniority = sen;
+    persistTestMode();
+    renderTestModeIndicator();
+    await refreshAfterProfileChange();
+}
+
+/** Restaura el perfil real y desactiva el modo prueba. */
+async function exitTestMode() {
+    if (!testModeState.active) return;
+    if (testModeState.backup) {
+        userProfile.especialidad = testModeState.backup.especialidad;
+        userProfile.seniority = testModeState.backup.seniority;
+    }
+    testModeState.active = false;
+    testModeState.especialidad = '';
+    testModeState.seniority = '';
+    testModeState.backup = null;
+    clearPersistTestMode();
+    renderTestModeIndicator();
+    await refreshAfterProfileChange();
+}
+
+function persistTestMode() {
+    try {
+        sessionStorage.setItem(TEST_MODE_STORAGE_KEY, JSON.stringify({
+            especialidad: testModeState.especialidad,
+            seniority: testModeState.seniority,
+            backup: testModeState.backup,
+        }));
+    } catch (_) { /* sessionStorage no disponible */ }
+}
+
+function clearPersistTestMode() {
+    try { sessionStorage.removeItem(TEST_MODE_STORAGE_KEY); } catch (_) { /* ignore */ }
+}
+
+/** Banner fijo que indica el perfil simulado, con botones Cambiar / Salir. */
+function renderTestModeIndicator() {
+    let bar = document.getElementById('test-mode-indicator');
+    if (!testModeState.active) {
+        if (bar) bar.remove();
+        document.body.classList.remove('test-mode-on');
+        return;
+    }
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'test-mode-indicator';
+        bar.className = 'test-mode-indicator';
+        document.body.appendChild(bar);
+    }
+    document.body.classList.add('test-mode-on');
+    const espLabel = testModeState.especialidad || '—';
+    const senLabel = testModeState.seniority || '—';
+    bar.innerHTML = `
+        <span class="test-mode-indicator__dot" aria-hidden="true"></span>
+        <span class="test-mode-indicator__label">Modo prueba · <strong>${esc(espLabel)}</strong> · ${esc(senLabel)}</span>
+        <button type="button" class="test-mode-indicator__btn" id="test-mode-change">Cambiar</button>
+        <button type="button" class="test-mode-indicator__btn test-mode-indicator__btn--exit" id="test-mode-exit">Salir</button>
+    `;
+    bar.querySelector('#test-mode-change').onclick = openTestModePanel;
+    bar.querySelector('#test-mode-exit').onclick = exitTestMode;
+}
+
+/**
+ * Inicializa el Test Mode tras cargar el perfil real. Si había un perfil simulado
+ * guardado (recarga o navegación), lo re-aplica sobre userProfile ANTES del render.
+ * Debe llamarse justo antes de renderProfile() en el flujo post-login.
+ */
+async function initTestMode() {
+    refreshTestModeButton();
+    if (!isTestModeAllowed()) {
+        clearPersistTestMode();
+        testModeState = { active: false, especialidad: '', seniority: '', backup: null };
+        renderTestModeIndicator();
+        return;
+    }
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(TEST_MODE_STORAGE_KEY) || 'null'); } catch (_) { saved = null; }
+    if (!saved || (!saved.especialidad && !saved.seniority)) return;
+
+    testModeState.backup = saved.backup || {
+        especialidad: userProfile.especialidad,
+        seniority: userProfile.seniority,
+    };
+    testModeState.active = true;
+    testModeState.especialidad = saved.especialidad || userProfile.especialidad;
+    testModeState.seniority = saved.seniority || userProfile.seniority;
+    userProfile.especialidad = testModeState.especialidad;
+    userProfile.seniority = testModeState.seniority;
+    renderTestModeIndicator();
+    // Recarga estado de formador para el perfil simulado (el render lo hace quien llama).
+    userProfile.formadorDoneAt = null;
+    if (isTeamManagerEspecialidad(userProfile.especialidad)) {
+        try { await loadFormadorCompletion(); } catch (e) { debugWarn('loadFormadorCompletion:', e); }
+    }
+}
+
+/** Limpia el estado de Test Mode al cerrar sesión. */
+function resetTestModeOnLogout() {
+    testModeState = { active: false, especialidad: '', seniority: '', backup: null };
+    testModeOptionsCache = null;
+    clearPersistTestMode();
+    renderTestModeIndicator();
+    refreshTestModeButton();
 }
 
 function getTalentDescription(talent) {
@@ -2981,6 +3282,7 @@ async function showDashboard(name) {
         document.getElementById('nav-greeting').innerText = T.fmt.navGreeting(userProfile.nickname);
         if (avatarInitial) avatarInitial.textContent = userProfile.nickname.charAt(0).toUpperCase();
 
+        try { await initTestMode(); } catch (e) { debugWarn('initTestMode:', e); }
         try { renderProfile(); } catch (e) { debugWarn('renderProfile:', e); }
         try { updatePracticeRankUI(); } catch (e) { debugWarn('updatePracticeRankUI:', e); }
 
@@ -3038,6 +3340,7 @@ window.logout = async function () {
         talents: []
     };
     hideProfileTeamCard();
+    resetTestModeOnLogout();
 
     const loginView = document.getElementById('login-view');
     const modeView = document.getElementById('mode-selection-view');
@@ -3171,9 +3474,7 @@ window.selectMode = async function (mode) {
                 evalBriefView?.classList.remove('hidden');
                 evalBriefView?.classList.add('animate-fade-in');
                 updateEvaluationBriefAutoUI();
-                renderEvaluationCompletedState();
-                updateFormadorButtonState();
-                ensureFormadorLoaded().then(() => updateFormadorButtonState());
+                renderEvaluationBriefSplit();
                 window.setRoute('/evaluaciones');
             } else if (mode === 'pills') {
                 pillsConstructionView?.classList.remove('hidden');
@@ -3283,24 +3584,25 @@ function buildFormadorSession() {
     return session;
 }
 
-function updateFormadorButtonState() {
-    const btn = document.getElementById('btn-start-formador');
-    if (!btn) return;
-    const disponible = formadorData.length > 0 && buildFormadorSession().length > 0;
-    btn.disabled = !disponible;
-    btn.classList.toggle('is-disabled', !disponible);
-    const block = document.getElementById('formador-brief-block');
-    if (block) block.classList.toggle('hidden', !disponible);
-}
-
-window.startFormadorSession = function () {
-    formadorSession = buildFormadorSession();
-    if (!formadorSession.length) return;
+/** Botón de la columna derecha del brief: arma la sesión y entra directo a las preguntas. */
+window.startFormadorEvaluation = async function () {
+    await ensureFormadorLoaded();
+    const session = buildFormadorSession();
+    if (!session.length) {
+        showAppAlert({
+            title: 'Sin preguntas por ahora',
+            message: 'Todavía no hay preguntas disponibles para tu puesto. Inténtalo más tarde.',
+            variant: 'info',
+            confirmText: T.common.understood
+        });
+        return;
+    }
+    formadorSession = session;
     formadorIndex = 0;
     formadorAnswers = [];
     switchSection('formador-interface', () => {
-        document.getElementById('formador-done')?.classList.add('hidden');
         document.getElementById('formador-notice')?.classList.add('hidden');
+        document.getElementById('formador-done')?.classList.add('hidden');
         renderFormadorStep();
     });
 };
@@ -3398,6 +3700,8 @@ function selectFormadorAnswer(opt) {
 }
 
 async function saveFormadorAnswers() {
+    // Test Mode: solo preview, no se persiste nada.
+    if (isTestModeActive()) { debugWarn('saveFormadorAnswers: omitido por Test Mode'); return true; }
     if (!supabase || formadorAnswers.length === 0) return false;
     let userId = supabaseSession?.user?.id || '';
     if (!userId) {
@@ -3416,14 +3720,22 @@ async function finishFormadorSession() {
     beginGlobalLoading('Guardando tus respuestas…');
     try {
         await saveFormadorAnswers();
+        userProfile.formadorDoneAt = new Date().toISOString();
     } finally {
         endGlobalLoading();
     }
     document.getElementById('formador-done')?.classList.remove('hidden');
 }
 
-window.formadorBackToEval = function () {
-    switchSection('landing-page', () => window.selectMode('evaluation'));
+window.formadorBackToBrief = function () {
+    switchSection('landing-page', () => {
+        ['mode-selection-view', 'profile-view', 'dashboard-view', 'pills-construction-view']
+            .forEach(id => document.getElementById(id)?.classList.add('hidden'));
+        document.getElementById('evaluation-brief-view')?.classList.remove('hidden');
+        renderEvaluationBriefSplit();
+        window.setRoute('/evaluaciones');
+        updateHeaderBackButton();
+    });
 };
 
 async function startGuestMode() {
@@ -3826,6 +4138,39 @@ function renderEvaluationCompletedState() {
     }
 }
 
+/** Fecha legible (es-MX) para el estado completado del formador. */
+function formatFormadorDate(iso) {
+    try {
+        return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (e) {
+        return String(iso || '').slice(0, 10);
+    }
+}
+
+/**
+ * Configura la pantalla dividida del brief:
+ * - Izquierda (preguntas): normal vs completado con puntaje (renderEvaluationCompletedState).
+ * - Derecha (formador): solo para puestos con equipo; instrucciones vs "completado + fecha".
+ */
+function renderEvaluationBriefSplit() {
+    renderEvaluationCompletedState();
+
+    const esTeamManager = isTeamManagerEspecialidad(userProfile.especialidad);
+    document.getElementById('eval-col-formador')?.classList.toggle('hidden', !esTeamManager);
+    document.getElementById('eval-split-divider')?.classList.toggle('hidden', !esTeamManager);
+    if (!esTeamManager) return;
+
+    ensureFormadorLoaded();
+
+    const doneAt = userProfile.formadorDoneAt;
+    document.getElementById('formador-brief-panel')?.classList.toggle('hidden', !!doneAt);
+    document.getElementById('formador-completed-panel')?.classList.toggle('hidden', !doneAt);
+    if (doneAt) {
+        const dateEl = document.getElementById('formador-completed-date');
+        if (dateEl) dateEl.textContent = formatFormadorDate(doneAt);
+    }
+}
+
 function formatSeniorityLabel(seniority) {
     const normalized = getNormalizedSeniority(seniority);
     const labels = T.labels.seniority;
@@ -3968,6 +4313,16 @@ async function savePillRating(pillId, rating) {
     const pid = String(pillId || '').trim();
     const r = Number(rating || 0);
     if (!pid || r < 1 || r > 5) return;
+    // Test Mode: solo preview, no se guarda la calificación.
+    if (isTestModeActive()) {
+        showAppAlert({
+            title: 'Modo prueba',
+            message: 'Estás en modo prueba: la calificación no se guarda.',
+            variant: 'info',
+            confirmText: T.common.understood
+        });
+        return;
+    }
     try {
         const { error } = await supabase
             .from('pill_ratings')
@@ -4706,6 +5061,15 @@ function updateHeaderBackButton() {
         btn.onclick = () => handleHeaderClick();
         btn.title = 'Volver al inicio';
         btn.setAttribute('aria-label', 'Volver al inicio');
+        return;
+    }
+
+    const isFormadorActive = !document.getElementById('formador-interface')?.classList.contains('hidden');
+    if (isFormadorActive) {
+        btn.classList.remove('hidden');
+        btn.onclick = () => formadorBackToBrief();
+        btn.title = 'Volver a la evaluación';
+        btn.setAttribute('aria-label', 'Volver a la evaluación');
         return;
     }
 
@@ -5510,6 +5874,8 @@ async function fetchLatestPillRankingRows(limitN = 10) {
 }
 
 async function saveScoreToCloud(finalScore, timeSeconds) {
+    // Test Mode: solo preview, no se persisten puntajes ni resultados.
+    if (isTestModeActive()) { debugWarn('saveScoreToCloud: omitido por Test Mode'); return false; }
     if (!supabase || !userEmail) return false;
 
     const pointsFieldByMode = {
@@ -6388,6 +6754,8 @@ exposeToWindow({
     closeLeaderboard,
     openTalentPeersModal,
     closeTalentPeersModal,
+    openTestModePanel,
+    exitTestMode,
 });
 
 // Inicialización

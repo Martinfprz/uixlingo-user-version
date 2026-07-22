@@ -44,6 +44,14 @@ export const PILLS_SWIPE_THRESHOLD_DESKTOP_Y = 76;
 export const PILLS_HINT_DEAD_PX = 14;
 export const PILLS_SEAL_WINDOW_HOURS = 168;
 
+/**
+ * Correos autorizados para usar el «Test Mode» (previsualizar la app como otro perfil).
+ * Comparación case-insensitive. Agrega aquí los correos que deban ver el botón.
+ */
+export const TEST_MODE_ALLOWED_EMAILS = [
+    'martin.fuentes@elektra.com.mx',
+];
+
 /** Path fijo para el redirect de recuperación de contraseña. Debe estar en Supabase > Auth > Redirect URLs. */
 export const RESET_PASSWORD_PATH = '/reset-password';
 /** Dominio público canónico para links de recuperación enviados por correo. */

@@ -9,7 +9,7 @@
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
     <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
-    <link rel="stylesheet" href="css/main.css?v=15">
+    <link rel="stylesheet" href="css/main.css?v=16">
     <style>
         /* Transición suave al cambiar de tema */
         *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
@@ -85,6 +85,10 @@
 
             <!-- Derecha: Toggle de tema -->
             <div id="navbar-right" class="navbar-right">
+                <button id="btn-test-mode" class="btn-test-mode hidden" type="button" title="Modo prueba: previsualizar perfiles" onclick="openTestModePanel()">
+                    <i class="fa-solid fa-flask" aria-hidden="true"></i>
+                    <span>Test Mode</span>
+                </button>
                 <button id="btn-theme-toggle" class="btn-theme-toggle" title="Cambiar tema" onclick="toggleTheme()">
                     <i id="theme-icon" class="fas fa-sun"></i>
                 </button>
@@ -215,12 +219,8 @@
                                     <i class="fas fa-clipboard-check"></i>
                                 </div>
                                 <p class="bento-stat-mode-title">Evaluación</p>
-                                <div class="bento-stat-head">
-                                    <p class="bento-stat-label">Puntuación obtenida</p>
-                                </div>
-                                <h4 id="profile-tests-pts" class="bento-stat-value">840</h4>
-                                <button onclick="openModeFromProfile('evaluation')" class="btn-primary bento-stat-cta" data-track-section="evaluaciones" data-track-action="ir-desde-bento">
-                                    Ir a evaluación
+                                <button onclick="openModeFromProfile('evaluation')" class="btn-secondary bento-stat-cta" data-track-section="evaluaciones" data-track-action="ir-desde-bento">
+                                    Iniciar evaluación
                                 </button>
                             </div>
                         </div>
@@ -412,79 +412,116 @@
 
                 <!-- EVALUATION BRIEF VIEW -->
                 <div id="evaluation-brief-view" class="hidden">
+                    <h2 class="view-title">Tu evaluación de mayo a julio 2026</h2>
 
-                    <!-- Estado normal: antes de completar la evaluación -->
-                    <div id="evaluation-brief-content">
-                        <h2 class="view-title">Tu evaluación de mayo a julio 2026</h2>
-                        <p class="section-subtitle">Antes de comenzar, te contamos cómo funcionará esta sección:</p>
+                    <div class="eval-split" id="eval-split">
 
-                        <div class="evaluation-brief-card evaluation-brief-card--summary">
-                            <h3 class="evaluation-brief-title">Tu evaluación</h3>
-                            <p id="evaluation-auto-summary" class="evaluation-auto-summary">
-                                Las preguntas se seleccionan automáticamente según tu nivel de seniority
-                                y especialidad registrada en el sistema.
-                            </p>
-                        </div>
+                        <!-- ── IZQUIERDA: evaluación de preguntas ── -->
+                        <div class="eval-split__col">
+                            <!-- Estado normal: antes de completar la evaluación -->
+                            <div id="evaluation-brief-content">
+                                <p class="section-subtitle">Antes de comenzar, te contamos cómo funcionará esta sección:</p>
 
-                        <div class="evaluation-brief-card">
-                            <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
-                            <ul class="evaluation-brief-list">
-                                <li>Preguntas enfocadas en tu desarrollo profesional.</li>
-                                <li>Dificultad que se adapta según tu nivel de experiencia.</li>
-                                <li>Resultados y puntajes guardados en tu perfil, al finalizar.</li>
-                            </ul>
-                        </div>
+                                <div class="evaluation-brief-card evaluation-brief-card--summary">
+                                    <h3 class="evaluation-brief-title">Tu evaluación</h3>
+                                    <p id="evaluation-auto-summary" class="evaluation-auto-summary">
+                                        Las preguntas se seleccionan automáticamente según tu nivel de seniority
+                                        y especialidad registrada en el sistema.
+                                    </p>
+                                </div>
 
-                        <div class="evaluation-brief-card">
-                            <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
-                            <ul class="evaluation-brief-list">
-                                <li><b class="evaluation-brief-highlight">Tiempo por pregunta:</b> Cada pregunta tiene 30 segundos para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
-                                <li><b class="evaluation-brief-highlight">Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
-                                <li><b class="evaluation-brief-highlight">Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
-                            </ul>
-                            <p>¿Liste para empezar? Haz clic en el botón de abajo cuando estés preparade. 😊</p>
-                        </div>
+                                <div class="evaluation-brief-card">
+                                    <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
+                                    <ul class="evaluation-brief-list">
+                                        <li>Preguntas enfocadas en tu desarrollo profesional.</li>
+                                        <li>Dificultad que se adapta según tu nivel de experiencia.</li>
+                                        <li>Resultados y puntajes guardados en tu perfil, al finalizar.</li>
+                                    </ul>
+                                </div>
 
-                        <div class="action-group">
-                            <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start">
-                                INICIAR EVALUACIÓN
-                            </button>
-                        </div>
-                    </div>
+                                <div class="evaluation-brief-card">
+                                    <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
+                                    <ul class="evaluation-brief-list">
+                                        <li><b class="evaluation-brief-highlight">Tiempo por pregunta:</b> Cada pregunta tiene 30 segundos para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
+                                        <li><b class="evaluation-brief-highlight">Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
+                                        <li><b class="evaluation-brief-highlight">Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
+                                    </ul>
+                                    <p>¿Liste para empezar? Haz clic en el botón de abajo cuando estés preparade. 😊</p>
+                                </div>
 
-                    <!-- Estado completado: ya hiciste la evaluación -->
-                    <div id="evaluation-completed-view" class="hidden">
-                        <h2 class="view-title">Tu evaluación de mayo a julio 2026</h2>
-                        <p class="section-subtitle">Ya completaste tu evaluación. Aquí están tus resultados:</p>
+                                <div class="action-group">
+                                    <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start">
+                                        INICIAR EVALUACIÓN
+                                    </button>
+                                </div>
+                            </div>
 
-                        <div class="evaluation-brief-card evaluation-brief-card--summary">
-                            <h3 class="evaluation-brief-title">Tu puntuación</h3>
-                            <div class="eval-completed-score-wrap">
-                                <span id="eval-completed-score" class="eval-completed-score-value">0</span>
-                                <span class="eval-completed-score-label">aciertos</span>
+                            <!-- Estado completado: ya hiciste la evaluación -->
+                            <div id="evaluation-completed-view" class="hidden">
+                                <p class="section-subtitle">Ya completaste tu evaluación. Aquí están tus resultados:</p>
+
+                                <div class="evaluation-brief-card evaluation-brief-card--summary">
+                                    <h3 class="evaluation-brief-title">Tu puntuación</h3>
+                                    <div class="eval-completed-score-wrap">
+                                        <span id="eval-completed-score" class="eval-completed-score-value">0</span>
+                                        <span class="eval-completed-score-label">aciertos</span>
+                                    </div>
+                                </div>
+
+                                <div id="eval-errors-card" class="evaluation-brief-card hidden">
+                                    <h3 class="evaluation-brief-title">Estudia lo que te faltó</h3>
+                                    <div id="eval-errors-inline-list" class="eval-errors-inline-list">
+                                        <!-- Rellenado por JS desde localStorage -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div id="eval-errors-card" class="evaluation-brief-card hidden">
-                            <h3 class="evaluation-brief-title">Estudia lo que te faltó</h3>
-                            <div id="eval-errors-inline-list" class="eval-errors-inline-list">
-                                <!-- Rellenado por JS desde localStorage -->
+                        <!-- ── DIVIDER (solo cuando hay dos evaluaciones) ── -->
+                        <div class="eval-split__divider" id="eval-split-divider"></div>
+
+                        <!-- ── DERECHA: evaluación al formador (solo puestos con equipo) ── -->
+                        <div class="eval-split__col" id="eval-col-formador">
+                            <!-- Estado normal: instrucciones + botón -->
+                            <div id="formador-brief-panel">
+                                <p class="section-subtitle">Evalúa a tu formador y a tu equipo, de forma confidencial:</p>
+
+                                <div class="evaluation-brief-card evaluation-brief-card--summary">
+                                    <h3 class="evaluation-brief-title">Evaluación al formador / equipo 🤝</h3>
+                                    <p class="evaluation-auto-summary">
+                                        Responde con honestidad; tus respuestas se guardan de forma confidencial y no se te asigna calificación.
+                                    </p>
+                                </div>
+
+                                <div class="evaluation-brief-card">
+                                    <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
+                                    <ul class="evaluation-brief-list">
+                                        <li>Primero evaluarás a tu formador y después a tu equipo.</li>
+                                        <li>Sin límite de tiempo y sin respuestas correctas.</li>
+                                        <li>Es una retroalimentación 360; no se te asigna calificación.</li>
+                                    </ul>
+                                </div>
+
+                                <div class="action-group">
+                                    <button id="btn-start-formador" onclick="startFormadorEvaluation()" class="btn-cta" data-track-section="evaluaciones" data-track-action="start-formador">
+                                        EVALUAR A MI FORMADOR / EQUIPO
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Estado completado: mensaje + fecha (sin calificación) -->
+                            <div id="formador-completed-panel" class="hidden">
+                                <p class="section-subtitle">¡Gracias por tu retroalimentación!</p>
+
+                                <div class="evaluation-brief-card evaluation-brief-card--summary">
+                                    <h3 class="evaluation-brief-title">Ya completaste esta evaluación ✓</h3>
+                                    <p class="evaluation-auto-summary">
+                                        Evaluaste a tu formador y equipo el <b id="formador-completed-date">—</b>. No se te asigna calificación.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                    </div>
-
-                    <!-- Evaluación 360 al formador / equipo (siempre visible, independiente del MCQ) -->
-                    <div id="formador-brief-block" class="evaluation-brief-card evaluation-brief-card--summary hidden" style="margin-top:1rem;">
-                        <h3 class="evaluation-brief-title">Evalúa a tu formador y a tu equipo</h3>
-                        <p id="formador-brief-summary" class="evaluation-auto-summary">
-                            Responde con honestidad; tus respuestas se guardan de forma confidencial y no se te asigna calificación.
-                        </p>
-                        <div class="action-group">
-                            <button id="btn-start-formador" onclick="startFormadorSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start-formador">
-                                EVALUAR A MI FORMADOR / EQUIPO
-                            </button>
-                        </div>
                     </div>
 
                 </div>
@@ -569,7 +606,7 @@
 
             <!-- Evaluación 360 al formador / equipo (rúbrica, sin timer ni puntaje) -->
             <section id="formador-interface" class="hidden">
-                <div id="formador-quiz">
+                <div id="formador-quiz" class="hidden">
                     <div class="quiz-meta-inline">
                         <div id="formador-block-label" class="topic-badge">Evaluación al formador</div>
                         <div class="q-number-display">
@@ -595,7 +632,7 @@
                 <div id="formador-done" class="hidden break-content" style="text-align:center;">
                     <h2>¡Gracias! 🙌</h2>
                     <p>Tus respuestas se guardaron correctamente. No se te asigna calificación.</p>
-                    <button id="btn-formador-back" class="btn-primary" onclick="formadorBackToEval()">VOLVER</button>
+                    <button id="btn-formador-back" class="btn-primary" onclick="formadorBackToBrief()">VOLVER</button>
                 </div>
             </section>
 
@@ -946,7 +983,7 @@
             </div>
         </div>
 
-        <script type="module" src="app.js?v=5"></script>
+        <script type="module" src="app.js?v=9"></script>
         <script src="js/keyboard-nav.js" defer></script>
         <script src="js/easter-egg.js" defer></script>
     </div>
