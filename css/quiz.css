@@ -76,6 +76,14 @@
     padding-top: 0.5rem;
 }
 
+/* Opciones de la evaluación al formador: 16px de separación entre ellas */
+#formador-options-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 0.5rem;
+}
+
 .btn-option {
     transition: border-color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
         background 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),

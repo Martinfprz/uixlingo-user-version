@@ -140,3 +140,35 @@
     flex-wrap: wrap;
 }
 
+/* ── Pantalla dividida del brief: preguntas | divider | formador ── */
+.eval-split {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+.eval-split__col {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.eval-split__divider {
+    align-self: stretch;
+    flex: 0 0 1px;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 1px;
+}
+
+@media (max-width: 768px) {
+    .eval-split {
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    .eval-split__divider {
+        flex-basis: 1px;
+        width: 100%;
+        height: 1px;
+    }
+}
+
