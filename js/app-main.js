@@ -1638,6 +1638,7 @@ async function loadTestModeOptions() {
             'Product Designer', 'Customer Success', 'UX Writer', 'OPS'
         ],
         seniorities: ['junior', 'medium', 'senior'],
+        noSeniorityKeys: new Set(),
     };
     if (!supabase) return fallback;
     try {
@@ -1647,20 +1648,29 @@ async function loadTestModeOptions() {
         if (error) throw error;
         const espMap = new Map(); // key canónica -> etiqueta a mostrar (dedupe de variantes)
         const senSet = new Set();
+        const hasSeniorityByKey = new Map(); // key canónica -> ¿algún registro con seniority?
         (data || []).forEach((r) => {
             const e = String(r.especialidad || '').trim();
             const s = String(r.seniority || '').trim();
             if (e) {
                 const { key, label } = canonicalEspecialidad(e);
                 if (!espMap.has(key)) espMap.set(key, label);
+                if (s) hasSeniorityByKey.set(key, true);
+                else if (!hasSeniorityByKey.has(key)) hasSeniorityByKey.set(key, false);
             }
             if (s) senSet.add(s);
         });
+        // Puestos sin ningún seniority asignado: se bloqueará el selector en Test Mode.
+        const noSeniorityKeys = new Set();
+        for (const key of espMap.keys()) {
+            if (!hasSeniorityByKey.get(key)) noSeniorityKeys.add(key);
+        }
         const especialidades = [...espMap.values()].sort((a, b) => a.localeCompare(b, 'es'));
         const seniorities = [...senSet].sort((a, b) => a.localeCompare(b, 'es'));
         testModeOptionsCache = {
             especialidades: especialidades.length ? especialidades : fallback.especialidades,
             seniorities: seniorities.length ? seniorities : fallback.seniorities,
+            noSeniorityKeys,
         };
         return testModeOptionsCache;
     } catch (e) {
@@ -1724,7 +1734,27 @@ async function openTestModePanel() {
         return `<option value="${esc(v)}"${sel}>${esc(v)}</option>`;
     }).join('');
     espSel.innerHTML = buildOptions(opts.especialidades, currentEsp);
-    senSel.innerHTML = buildOptions(opts.seniorities, currentSen);
+
+    // Bloqueo del seniority para perfiles que no tienen seniority asignado en la base.
+    const noSeniorityKeys = opts.noSeniorityKeys || new Set();
+    let lastSeniority = String(currentSen || '').trim();
+    const renderSenioritySelect = () => {
+        const locked = noSeniorityKeys.has(canonicalEspecialidad(espSel.value).key);
+        if (!locked) {
+            senSel.innerHTML = buildOptions(opts.seniorities, lastSeniority || opts.seniorities[0]);
+        } else {
+            senSel.innerHTML = `<option value="" selected>— Sin seniority —</option>`;
+        }
+        senSel.disabled = locked;
+        senSel.classList.toggle('is-locked', locked);
+        senSel.title = locked ? 'Este perfil no maneja seniority' : '';
+    };
+    espSel.onchange = () => {
+        if (!senSel.disabled && senSel.value) lastSeniority = senSel.value; // recordar antes de bloquear
+        renderSenioritySelect();
+    };
+    renderSenioritySelect();
+
     const overlay = document.getElementById('test-mode-overlay');
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden', 'false');

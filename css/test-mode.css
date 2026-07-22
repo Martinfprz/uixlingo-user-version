@@ -157,6 +157,13 @@
     outline-offset: 1px;
 }
 
+.test-mode-field select:disabled,
+.test-mode-field select.is-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: var(--color-text-muted);
+}
+
 .test-mode-modal__actions {
     display: flex;
     gap: 0.6rem;
