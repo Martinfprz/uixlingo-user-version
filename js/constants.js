@@ -50,6 +50,10 @@ export const PILLS_SEAL_WINDOW_HOURS = 168;
  */
 export const TEST_MODE_ALLOWED_EMAILS = [
     'martin.fuentes@elektra.com.mx',
+    'liliana.torresf@elektra.com.mx',
+    'miriam.martinezm@jansan.mx',
+    'angelica.arano@upax.com.mx',
+    'samanta.camacho@upax.com.mx',
 ];
 
 /** Path fijo para el redirect de recuperación de contraseña. Debe estar en Supabase > Auth > Redirect URLs. */
