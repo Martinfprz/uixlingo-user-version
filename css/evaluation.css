@@ -193,3 +193,38 @@
     }
 }
 
+
+/* ─── Radar de resultados (Evaluación 360) — switcher de las 3 gráficas ─── */
+.formador-radar-switcher {
+    display: flex;
+    gap: .4rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 1rem 0 .5rem;
+}
+.formador-radar-tab {
+    appearance: none;
+    border: 1px solid var(--border-color, rgba(140, 140, 160, .35));
+    background: transparent;
+    color: var(--text-color, inherit);
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+    padding: .4rem .9rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.formador-radar-tab:hover {
+    border-color: var(--accent-color, #597aff);
+}
+.formador-radar-tab.active {
+    background: var(--accent-color, #597aff);
+    border-color: var(--accent-color, #597aff);
+    color: #fff;
+}
+#formador-radar-container {
+    margin-top: .5rem;
+    display: flex;
+    justify-content: center;
+}

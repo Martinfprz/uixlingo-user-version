@@ -716,11 +716,14 @@ async function loadRankingUserStats() {
         const userId = supabaseSession?.user?.id;
         const { data, error } = await supabase
             .from('ranking_user')
-            .select('nickname, foto_url, seniority, especialidad, formador, emp_id, proyecto, proyecto_2, proyecto_3, proyecto_4')
+            .select('nombre, nickname, foto_url, seniority, especialidad, formador, emp_id, proyecto, proyecto_2, proyecto_3, proyecto_4')
             .eq('email', userEmail.toLowerCase())
             .single();
         if (error) throw error;
         if (data) {
+            if (data.nombre && String(data.nombre).trim()) {
+                userProfile.nombre = String(data.nombre).trim();
+            }
             if (data.nickname && String(data.nickname).trim()) {
                 userProfile.nickname = String(data.nickname).trim();
             }
@@ -1049,7 +1052,7 @@ function isTeamManagerEspecialidad(especialidadRaw) {
 /**
  * ¿Este perfil puede hacer la evaluación 360 al formador?
  * Team managers (PD/CS/Administrativo) + cualquier perfil con bucket de rol
- * (UX, UI, UX/UI, UX Writer). Sus preguntas se filtran por bucket en buildFormadorSession.
+ * (UX, UI, UX/UI, UX Writer). Sus preguntas se filtran por bucket en buildFormadorBlocks.
  * OJO: la card «Mi equipo» sigue gobernada por isTeamManagerEspecialidad (solo managers reales),
  * para no mostrar una card de equipo vacía a un IC.
  */
@@ -3608,11 +3611,22 @@ window.startEvaluationSession = function () {
 // Flujo propio: rúbrica sin respuesta correcta, sin timer, sin puntaje.
 // Solo registra las respuestas del usuario en respuestas_evaluar_formador.
 let formadorData = [];
-let formadorSession = [];
-let formadorIndex = 0;
-let formadorAnswers = [];
-const FORMADOR_RANDOM_EXTRA = 10; // Obligatorias + 10 extra aleatorias del pool del bucket del perfil.
-const FORMADOR_BLOCK_ORDER = ['Evaluación al formador', 'Evaluación a mi equipo'];
+let formadorBlocks = [];        // [{ modality, questions:[...] }] pendientes en esta corrida
+let formadorBlockIdx = 0;       // bloque (modalidad) actual
+let formadorQIdx = 0;           // pregunta actual dentro del bloque
+let formadorBlockAnswers = [];  // respuestas del bloque actual (se guardan al terminar el bloque)
+let formadorTestAnswers = [];   // acumulado en memoria (radar en Test Mode)
+let formadorContext = null;     // { ownBucket, formadorBucket, teamBuckets:Set } resuelto por perfil
+let formadorCompletedMods = new Set(); // modalidades ya guardadas (de la BD) → para reanudar
+let formadorRadarData = {};     // { modalidad: [{comp, avg, n}] } para el gráfico
+// Modalidad = tipo_evaluacion. Orden de los 3 bloques de la corrida.
+const FORMADOR_MODALITY_ORDER = ['Autoevaluación', 'Evaluación al formador', 'Evaluación a mi equipo'];
+const FORMADOR_RANDOM_PER_PICO = 5; // Preguntas por comportamiento (pico) cuando NO tiene obligatorias.
+// Picos del radar (comportamientos) y escala de nivel.
+const FORMADOR_PICOS = ['Confianza y respeto mutuo', 'Ejecución impecable', 'Mejora continua', 'Pasión por el Cliente', 'Trabajo en equipo'];
+const FORMADOR_LEVEL_VALUE = { 'en desarrollo': 1, 'satisfactorio': 2, 'avanzado': 3, 'experto': 4 };
+const FORMADOR_LEVEL_LABEL = ['', 'En desarrollo', 'Satisfactorio', 'Avanzado', 'Experto'];
+const FORMADOR_RADAR_LABEL = { 'Autoevaluación': 'Yo', 'Evaluación al formador': 'Mi formador', 'Evaluación a mi equipo': 'Mi equipo' };
 
 async function loadFormadorQuestions() {
     if (!supabase) return;
@@ -3648,109 +3662,281 @@ function formadorRoleBucket(raw) {
     return '';
 }
 
-/** ¿La pregunta aplica al puesto del usuario? (cualquier puesto_1..6 con el mismo bucket) */
-function formadorQuestionMatchesPuesto(row, userBucket) {
-    if (!userBucket) return false;
+/** Normaliza un nombre de persona para emparejar (mayúsculas, sin acentos, espacios colapsados). */
+function normalizePersonName(raw) {
+    return String(raw || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+/** ¿La pregunta aplica a alguno de los buckets dados? (cualquier puesto_1..6) */
+function formadorQuestionMatchesBuckets(row, buckets) {
+    if (!buckets || !buckets.size) return false;
     for (let i = 1; i <= 6; i++) {
         const b = formadorRoleBucket(row[`puesto_${i}`]);
-        if (b && b === userBucket) return true;
+        if (b && buckets.has(b)) return true;
     }
     return false;
 }
 
-/** Obligatorias: «Conocimientos y Habilidades Técnicas» + las «sin parámetro» (nivel NA) del formador. */
-function isFormadorMandatory(row) {
+/** ¿La pregunta tiene parámetro de evaluación (nivel real, no vacío ni NA)? */
+function formadorHasNivel(row) {
+    return ['nivel_a', 'nivel_b', 'nivel_c', 'nivel_d']
+        .some(k => {
+            const v = String(row[k] || '').trim().toUpperCase();
+            return v && v !== 'NA';
+        });
+}
+
+/** Obligatorias (siempre se incluyen): «Conocimientos y Habilidades Técnicas» o «sin parámetro» (Solo Admin / sin nivel). */
+function isFormadorObligatoria(row) {
     if (String(row.competencia || '').trim() === 'Conocimientos y Habilidades Técnicas') return true;
-    const nivelNA = ['nivel_b', 'nivel_c', 'nivel_d']
-        .some(k => String(row[k] || '').trim().toUpperCase() === 'NA');
-    return nivelNA && String(row.comportamiento || '').trim() === 'Evaluación al formador';
+    return !formadorHasNivel(row);
 }
 
-/** Sesión: obligatorias (fijas) + FORMADOR_RANDOM_EXTRA aleatorias, ordenadas por bloque. */
-function buildFormadorSession() {
-    const bucket = formadorRoleBucket(userProfile.especialidad);
-    if (!bucket) return [];
-    const pool = formadorData.filter(r => formadorQuestionMatchesPuesto(r, bucket));
-    const mandatory = pool.filter(isFormadorMandatory);
-    const rest = pool.filter(r => !isFormadorMandatory(r));
-    const randomExtra = shuffleArray(rest).slice(0, FORMADOR_RANDOM_EXTRA);
-    const chosen = [...mandatory, ...randomExtra];
+/**
+ * Resuelve los buckets de puesto por modalidad (puesto = persona EVALUADA):
+ *  - Autoevaluación → tu propio puesto.
+ *  - Evaluación al formador → el puesto de tu formador.
+ *  - Evaluación a mi equipo → los puestos de las personas cuyo `formador` eres tú.
+ */
+async function ensureFormadorContext() {
+    if (formadorContext) return formadorContext;
+    const ctx = { ownBucket: '', formadorBucket: '', teamBuckets: new Set() };
+    ctx.ownBucket = formadorRoleBucket(userProfile.especialidad);
 
-    // Ordenar por bloque (formador → equipo); obligatorias primero dentro de cada bloque.
-    const session = [];
-    FORMADOR_BLOCK_ORDER.forEach(comp => {
-        const block = chosen.filter(r => String(r.comportamiento || '').trim() === comp);
-        const oblig = block.filter(isFormadorMandatory);
-        const rnd = shuffleArray(block.filter(r => !isFormadorMandatory(r)));
-        session.push(...oblig, ...rnd);
+    if (supabase) {
+        try {
+            const { data } = await supabase
+                .from('ranking_user')
+                .select('nombre, especialidad, formador');
+            const rows = data || [];
+            const myName = normalizePersonName(userProfile.nombre);
+            const myFormador = normalizePersonName(userProfile.formador);
+            rows.forEach(r => {
+                const nombre = normalizePersonName(r.nombre);
+                // Mi formador → su puesto (para "al formador").
+                if (myFormador && nombre === myFormador) {
+                    const b = formadorRoleBucket(r.especialidad);
+                    if (b) ctx.formadorBucket = b;
+                }
+                // Personas cuyo formador soy yo → su puesto (para "a mi equipo").
+                if (myName && normalizePersonName(r.formador) === myName) {
+                    const b = formadorRoleBucket(r.especialidad);
+                    if (b) ctx.teamBuckets.add(b);
+                }
+            });
+        } catch (e) {
+            debugWarn('ensureFormadorContext error:', e);
+        }
+    }
+    formadorContext = ctx;
+    return ctx;
+}
+
+/** Buckets de puesto que aplican a una modalidad según el perfil. */
+function formadorBucketsForModality(modality, ctx) {
+    if (modality === 'Autoevaluación') return ctx.ownBucket ? new Set([ctx.ownBucket]) : new Set();
+    if (modality === 'Evaluación al formador') return ctx.formadorBucket ? new Set([ctx.formadorBucket]) : new Set();
+    if (modality === 'Evaluación a mi equipo') return new Set(ctx.teamBuckets);
+    return new Set();
+}
+
+/**
+ * Arma los BLOQUES pendientes (uno por modalidad NO completada). Por cada comportamiento (pico):
+ *  - si tiene obligatorias → TODAS sus obligatorias,
+ *  - si no → FORMADOR_RANDOM_PER_PICO aleatorias.
+ */
+async function buildFormadorBlocks() {
+    const ctx = await ensureFormadorContext();
+    const blocks = [];
+
+    FORMADOR_MODALITY_ORDER.forEach(modality => {
+        if (formadorCompletedMods.has(modality)) return; // ya contestada → reanudar sin repetir
+        const buckets = formadorBucketsForModality(modality, ctx);
+        if (!buckets.size) return; // sin puesto aplicable → se salta el bloque
+
+        const pool = formadorData.filter(r =>
+            String(r.tipo_evaluacion || '').trim() === modality &&
+            formadorQuestionMatchesBuckets(r, buckets)
+        );
+        if (!pool.length) return;
+
+        // Agrupar por comportamiento (pico).
+        const byPico = new Map();
+        pool.forEach(r => {
+            const key = String(r.comportamiento || '').trim() || '—';
+            if (!byPico.has(key)) byPico.set(key, []);
+            byPico.get(key).push(r);
+        });
+
+        const questions = [];
+        byPico.forEach(rows => {
+            const oblig = rows.filter(isFormadorObligatoria);
+            if (oblig.length) questions.push(...oblig);
+            else questions.push(...shuffleArray(rows).slice(0, FORMADOR_RANDOM_PER_PICO));
+        });
+        if (questions.length) blocks.push({ modality, questions });
     });
-    return session;
+
+    return blocks;
 }
 
-/** Botón de la columna derecha del brief: arma la sesión y entra directo a las preguntas. */
+/** Modalidades ya contestadas (para reanudar). En Test Mode no hay persistencia. */
+async function loadFormadorCompletedModalities() {
+    formadorCompletedMods = new Set();
+    if (isTestModeActive()) return;
+    const userId = supabaseSession?.user?.id;
+    if (!supabase || !userId) return;
+    try {
+        const { data } = await supabase
+            .from('respuestas_evaluar_formador')
+            .select('tipo_evaluacion')
+            .eq('user_id', userId);
+        (data || []).forEach(r => {
+            const t = String(r.tipo_evaluacion || '').trim();
+            if (t) formadorCompletedMods.add(t);
+        });
+    } catch (e) {
+        debugWarn('loadFormadorCompletedModalities error:', e);
+    }
+}
+
+/**
+ * Estado para el brief:
+ *  'empty'   → puede por rol pero no hay preguntas para su puesto,
+ *  'none'    → no ha empezado,
+ *  'partial' → tiene etapas contestadas y otras pendientes,
+ *  'done'    → contestó todas las modalidades aplicables.
+ */
+async function getFormadorBriefStatus() {
+    await ensureFormadorLoaded();
+    formadorContext = null;
+    await loadFormadorCompletedModalities();
+    const pending = await buildFormadorBlocks();
+    const done = formadorCompletedMods.size;
+    if (!pending.length && !done) return 'empty';
+    if (!pending.length) return 'done';
+    if (done) return 'partial';
+    return 'none';
+}
+
+/** Botón del brief: reanuda lo pendiente, o muestra el radar si ya terminó todo. */
 window.startFormadorEvaluation = async function () {
     await ensureFormadorLoaded();
-    const session = buildFormadorSession();
-    if (!session.length) {
-        showAppAlert({
-            title: 'Sin preguntas por ahora',
-            message: 'Todavía no hay preguntas disponibles para tu puesto. Inténtalo más tarde.',
-            variant: 'info',
-            confirmText: T.common.understood
-        });
-        return;
-    }
-    formadorSession = session;
-    formadorIndex = 0;
-    formadorAnswers = [];
-    switchSection('formador-interface', () => {
-        document.getElementById('formador-notice')?.classList.add('hidden');
-        document.getElementById('formador-done')?.classList.add('hidden');
-        renderFormadorStep();
+    formadorContext = null; // recalcular por si cambió el perfil (p. ej. Test Mode)
+    formadorTestAnswers = [];
+    await loadFormadorCompletedModalities();
+    const blocks = await buildFormadorBlocks();
+
+    switchSection('formador-interface', async () => {
+        ['formador-notice', 'formador-done', 'formador-quiz'].forEach(id =>
+            document.getElementById(id)?.classList.add('hidden'));
+
+        if (!blocks.length) {
+            if (formadorCompletedMods.size) {
+                await showFormadorResults(); // ya completó → ver sus radares
+            } else {
+                showAppAlert({
+                    title: 'Sin preguntas por ahora',
+                    message: 'Todavía no hay preguntas disponibles para tu puesto. Inténtalo más tarde.',
+                    variant: 'info',
+                    confirmText: T.common.understood
+                });
+            }
+            return;
+        }
+        formadorBlocks = blocks;
+        formadorBlockIdx = 0;
+        renderFormadorBlockIntro();
     });
 };
 
-function renderFormadorStep() {
-    const q = formadorSession[formadorIndex];
-    const prev = formadorSession[formadorIndex - 1];
-    const blockChanged = prev &&
-        String(prev.comportamiento || '').trim() !== String(q.comportamiento || '').trim();
-    if (formadorIndex > 0 && blockChanged) {
-        showFormadorNotice(renderFormadorQuestion);
-        return;
-    }
-    renderFormadorQuestion();
+// Textos de la pantalla de transición por modalidad (a quién se evalúa).
+const FORMADOR_NOTICE = {
+    'Autoevaluación': {
+        title: 'Autoevaluación 🪞',
+        text: 'Ahora vas a evaluarte a ti mismo(a). Lee con cuidado y responde con honestidad.'
+    },
+    'Evaluación al formador': {
+        title: 'Evaluación a tu formador 🎓',
+        text: 'Ahora vas a evaluar a tu formador(a). Lee con cuidado y responde con honestidad.'
+    },
+    'Evaluación a mi equipo': {
+        title: 'Evaluación a tu equipo 👥',
+        text: 'Ahora vas a evaluar a tu equipo. Lee con cuidado y responde con honestidad.'
+    },
+};
+
+/** Intro del bloque actual: pantalla que dice a quién se evalúa. */
+function renderFormadorBlockIntro() {
+    const block = formadorBlocks[formadorBlockIdx];
+    formadorQIdx = 0;
+    formadorBlockAnswers = [];
+    showFormadorNotice({ modality: block.modality, mode: 'intro', onContinue: renderFormadorQuestion });
 }
 
-function showFormadorNotice(onContinue) {
+/**
+ * Pantalla de aviso. mode 'intro' = antes de un bloque (1 botón).
+ * mode 'interstage' = terminó un bloque (Continuar ahora / Guardar y salir).
+ */
+function showFormadorNotice({ modality, mode, finishedModality, onContinue, onSaveExit }) {
     const quiz = document.getElementById('formador-quiz');
     const notice = document.getElementById('formador-notice');
     const title = document.getElementById('formador-notice-title');
     const text = document.getElementById('formador-notice-text');
     const btn = document.getElementById('btn-formador-continue');
-    if (!notice) { onContinue(); return; }
-    if (title) title.textContent = 'Cambio de sección 🔁';
-    if (text) text.textContent = 'Terminaste la evaluación a tu formador. Ahora vas a evaluar a tu equipo; responde con la misma honestidad.';
+    const btnExit = document.getElementById('btn-formador-save-exit');
+    if (!notice) { onContinue && onContinue(); return; }
+
+    let copy;
+    if (mode === 'interstage') {
+        copy = {
+            title: '¡Progreso guardado! ✅',
+            text: `Terminaste "${finishedModality}". Tus respuestas quedaron guardadas: puedes continuar ahora o seguir después.`
+        };
+    } else {
+        copy = FORMADOR_NOTICE[modality] || { title: 'Evaluación', text: 'Lee con cuidado y responde con honestidad.' };
+    }
+    if (title) title.textContent = copy.title;
+    if (text) text.textContent = copy.text;
+    if (btn) {
+        btn.textContent = mode === 'interstage' ? 'CONTINUAR AHORA' : 'CONTINUAR';
+        btn.onclick = () => { notice.classList.add('hidden'); onContinue && onContinue(); };
+    }
+    if (btnExit) {
+        if (mode === 'interstage' && onSaveExit) {
+            btnExit.classList.remove('hidden');
+            btnExit.onclick = () => { notice.classList.add('hidden'); onSaveExit(); };
+        } else {
+            btnExit.classList.add('hidden');
+        }
+    }
     quiz?.classList.add('hidden');
+    document.getElementById('formador-done')?.classList.add('hidden');
     notice.classList.remove('hidden');
-    if (btn) btn.onclick = () => {
-        notice.classList.add('hidden');
-        quiz?.classList.remove('hidden');
-        onContinue();
-    };
 }
 
 function renderFormadorQuestion() {
-    const q = formadorSession[formadorIndex];
+    const block = formadorBlocks[formadorBlockIdx];
+    const q = block.questions[formadorQIdx];
+    document.getElementById('formador-notice')?.classList.add('hidden');
     document.getElementById('formador-quiz')?.classList.remove('hidden');
 
     const numEl = document.getElementById('formador-q-num');
     const totEl = document.getElementById('formador-q-total');
-    if (numEl) numEl.textContent = String(formadorIndex + 1);
-    if (totEl) totEl.textContent = String(formadorSession.length);
+    if (numEl) numEl.textContent = String(formadorQIdx + 1);
+    if (totEl) totEl.textContent = String(block.questions.length);
 
     const label = document.getElementById('formador-block-label');
-    if (label) label.textContent = String(q.comportamiento || '').trim() || 'Evaluación';
+    if (label) {
+        let blockLabel = String(q.comportamiento || '').trim();
+        // "Solo Admin" es una marca interna; al usuario le mostramos la competencia.
+        if (!blockLabel || blockLabel === 'Solo Admin') {
+            blockLabel = String(q.competencia || '').trim() || 'Evaluación';
+        }
+        label.textContent = blockLabel;
+    }
 
     const qText = document.getElementById('formador-question-text');
     if (qText) qText.textContent = q.pregunta || '';
@@ -3780,54 +3966,210 @@ function renderFormadorQuestion() {
 }
 
 function selectFormadorAnswer(opt) {
-    const q = formadorSession[formadorIndex];
+    const block = formadorBlocks[formadorBlockIdx];
+    const q = block.questions[formadorQIdx];
     const cont = document.getElementById('formador-options-container');
     if (cont) cont.style.pointerEvents = 'none';
 
-    formadorAnswers.push({
+    const answer = {
         pregunta_id: q.id,
+        tipo_evaluacion: block.modality,
         comportamiento: String(q.comportamiento || '').trim() || null,
         competencia: String(q.competencia || '').trim() || null,
         puesto: String(userProfile.especialidad || '').trim() || null,
         opcion_elegida: opt.k,
         respuesta: String(opt.text || '').trim() || null,
         nivel: String(opt.nivel || '').trim() || null,
-    });
+    };
+    formadorBlockAnswers.push(answer);
+    formadorTestAnswers.push(answer);
 
-    formadorIndex++;
-    if (formadorIndex >= formadorSession.length) {
-        finishFormadorSession();
+    formadorQIdx++;
+    if (formadorQIdx >= block.questions.length) {
+        finishFormadorBlock();
     } else {
-        renderFormadorStep();
+        renderFormadorQuestion();
     }
 }
 
-async function saveFormadorAnswers() {
+/** Guarda un lote de respuestas (el bloque recién terminado). */
+async function saveFormadorAnswers(answers) {
     // Test Mode: solo preview, no se persiste nada.
     if (isTestModeActive()) { debugWarn('saveFormadorAnswers: omitido por Test Mode'); return true; }
-    if (!supabase || formadorAnswers.length === 0) return false;
+    if (!supabase || !answers || !answers.length) return false;
     let userId = supabaseSession?.user?.id || '';
     if (!userId) {
         const { data: authData } = await supabase.auth.getUser();
         userId = authData?.user?.id || '';
     }
     if (!userId) { debugWarn('saveFormadorAnswers: sin user id'); return false; }
-    const rows = formadorAnswers.map(a => ({ ...a, user_id: userId }));
+    const rows = answers.map(a => ({ ...a, user_id: userId }));
     const { error } = await supabase.from('respuestas_evaluar_formador').insert(rows);
     if (error) { debugError('saveFormadorAnswers error:', error); return false; }
     return true;
 }
 
-async function finishFormadorSession() {
+/** Al terminar un bloque: guarda su progreso y ofrece continuar o salir; al final muestra el radar. */
+async function finishFormadorBlock() {
+    const block = formadorBlocks[formadorBlockIdx];
     document.getElementById('formador-quiz')?.classList.add('hidden');
-    beginGlobalLoading('Guardando tus respuestas…');
+    beginGlobalLoading('Guardando tu progreso…');
     try {
-        await saveFormadorAnswers();
+        await saveFormadorAnswers(formadorBlockAnswers);
+        formadorCompletedMods.add(block.modality);
         userProfile.formadorDoneAt = new Date().toISOString();
     } finally {
         endGlobalLoading();
     }
+    formadorBlockAnswers = [];
+
+    const hasNext = formadorBlockIdx < formadorBlocks.length - 1;
+    if (hasNext) {
+        showFormadorNotice({
+            mode: 'interstage',
+            finishedModality: block.modality,
+            onContinue: () => { formadorBlockIdx++; renderFormadorBlockIntro(); },
+            onSaveExit: () => window.formadorBackToBrief(),
+        });
+    } else {
+        await showFormadorResults();
+    }
+}
+
+// ─── Radar (gráfico de telaraña) de resultados ─────────────────────────────
+
+/** Trae las respuestas para el radar: BD (usuarios reales) o memoria (Test Mode). */
+async function fetchFormadorAnswersForRadar() {
+    if (isTestModeActive()) return formadorTestAnswers;
+    const userId = supabaseSession?.user?.id;
+    if (!supabase || !userId) return formadorTestAnswers;
+    try {
+        const { data } = await supabase
+            .from('respuestas_evaluar_formador')
+            .select('tipo_evaluacion, comportamiento, nivel')
+            .eq('user_id', userId);
+        return (data && data.length) ? data : formadorTestAnswers;
+    } catch (e) {
+        debugWarn('fetchFormadorAnswersForRadar error:', e);
+        return formadorTestAnswers;
+    }
+}
+
+/** Promedia el nivel (1-4) por modalidad × comportamiento. Excluye Solo Admin / sin nivel. */
+function computeFormadorRadar(answers) {
+    const acc = {};
+    (answers || []).forEach(a => {
+        const mod = String(a.tipo_evaluacion || '').trim();
+        const comp = String(a.comportamiento || '').trim();
+        const val = FORMADOR_LEVEL_VALUE[String(a.nivel || '').trim().toLowerCase()];
+        if (!mod || !comp || comp === 'Solo Admin' || !val) return;
+        acc[mod] = acc[mod] || {};
+        acc[mod][comp] = acc[mod][comp] || { sum: 0, count: 0 };
+        acc[mod][comp].sum += val;
+        acc[mod][comp].count += 1;
+    });
+    const out = {};
+    Object.keys(acc).forEach(mod => {
+        out[mod] = Object.keys(acc[mod]).map(comp => ({
+            comp, avg: acc[mod][comp].sum / acc[mod][comp].count, n: acc[mod][comp].count
+        }));
+    });
+    return out;
+}
+
+/** Muestra el panel final con los 3 radares y el switcher. */
+async function showFormadorResults() {
+    ['formador-quiz', 'formador-notice'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+    beginGlobalLoading('Preparando tus resultados…');
+    let answers = [];
+    try { answers = await fetchFormadorAnswersForRadar(); } finally { endGlobalLoading(); }
+    formadorRadarData = computeFormadorRadar(answers);
+
+    const mods = FORMADOR_MODALITY_ORDER.filter(m => (formadorRadarData[m] || []).length);
     document.getElementById('formador-done')?.classList.remove('hidden');
+
+    const sw = document.getElementById('formador-radar-switcher');
+    if (sw) {
+        sw.innerHTML = (mods.length > 1)
+            ? mods.map((m, i) => `<button type="button" class="formador-radar-tab${i === 0 ? ' active' : ''}" data-mod="${m}">${FORMADOR_RADAR_LABEL[m] || m}</button>`).join('')
+            : '';
+        sw.querySelectorAll('.formador-radar-tab').forEach(b => {
+            b.onclick = () => {
+                sw.querySelectorAll('.formador-radar-tab').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                renderFormadorRadar(b.dataset.mod);
+            };
+        });
+    }
+    const cont = document.getElementById('formador-radar-container');
+    if (mods.length) {
+        renderFormadorRadar(mods[0]);
+    } else if (cont) {
+        cont.innerHTML = '<p style="color:var(--text-muted,#888)">Aún no hay datos suficientes para tu gráfico.</p>';
+    }
+}
+
+/** Dibuja el radar (SVG, 5 ejes fijos) de una modalidad. */
+function renderFormadorRadar(modality) {
+    const cont = document.getElementById('formador-radar-container');
+    if (!cont) return;
+    const arr = formadorRadarData[modality] || [];
+    const byComp = {};
+    arr.forEach(d => { byComp[d.comp] = d; });
+
+    const S = 320, C = S / 2, R = 112, MAX = 4;
+    const angle = i => -Math.PI / 2 + i * 2 * Math.PI / FORMADOR_PICOS.length;
+    const pt = (i, r) => [C + r * Math.cos(angle(i)), C + r * Math.sin(angle(i))];
+    const col = '#597aff';
+
+    let s = `<svg viewBox="0 0 ${S} ${S}" width="100%" style="max-width:340px;overflow:visible" role="img" aria-label="Radar ${modality}">`;
+    // anillos (niveles 1-4)
+    for (let k = 1; k <= MAX; k++) {
+        const pts = FORMADOR_PICOS.map((_, i) => pt(i, R * k / MAX).map(n => n.toFixed(1)).join(',')).join(' ');
+        s += `<polygon points="${pts}" fill="none" stroke="rgba(140,140,160,0.25)" stroke-width="1"/>`;
+    }
+    // ejes + etiquetas
+    FORMADOR_PICOS.forEach((pico, i) => {
+        const [x, y] = pt(i, R);
+        s += `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(140,140,160,0.25)" stroke-width="1"/>`;
+        const [lx, ly] = pt(i, R + 16);
+        const anchor = Math.abs(lx - C) < 8 ? 'middle' : (lx > C ? 'start' : 'end');
+        const present = !!byComp[pico];
+        const words = pico.split(' '); const lines = []; let cur = '';
+        words.forEach(w => { if ((cur + ' ' + w).trim().length > 12) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; });
+        if (cur.trim()) lines.push(cur.trim());
+        const y0 = ly - (lines.length - 1) * 5.5;
+        s += `<text x="${lx.toFixed(1)}" y="${y0.toFixed(1)}" text-anchor="${anchor}" font-size="10.5" fill="${present ? 'var(--text-color,#333)' : 'rgba(140,140,160,0.6)'}" font-family="inherit">`
+            + lines.map((ln, k) => `<tspan x="${lx.toFixed(1)}" dy="${k ? 11 : 0}">${ln}</tspan>`).join('') + `</text>`;
+    });
+    // polígono de valores (solo comportamientos presentes)
+    const verts = FORMADOR_PICOS.map((p, i) => byComp[p] ? { i, d: byComp[p] } : null).filter(Boolean);
+    if (verts.length >= 3) {
+        const poly = verts.map(v => pt(v.i, R * v.d.avg / MAX).map(n => n.toFixed(1)).join(',')).join(' ');
+        s += `<polygon points="${poly}" fill="${col}33" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    } else if (verts.length === 2) {
+        const a = pt(verts[0].i, R * verts[0].d.avg / MAX), b = pt(verts[1].i, R * verts[1].d.avg / MAX);
+        s += `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="2.5"/>`;
+    }
+    verts.forEach(v => {
+        const [x, y] = pt(v.i, R * v.d.avg / MAX);
+        s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${col}" stroke="#fff" stroke-width="1.5"><title>${v.d.comp}: ${FORMADOR_LEVEL_LABEL[Math.round(v.d.avg)]} (${v.d.avg.toFixed(1)})</title></circle>`;
+    });
+    s += `</svg>`;
+
+    // leyenda de valores por comportamiento
+    const rows = FORMADOR_PICOS.filter(p => byComp[p]).map(p => {
+        const d = byComp[p];
+        return `<li style="display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;font-size:.85rem"><span>${p}</span><b>${FORMADOR_LEVEL_LABEL[Math.round(d.avg)]}</b></li>`;
+    }).join('');
+
+    cont.innerHTML =
+        `<div style="display:flex;flex-direction:column;align-items:center;gap:.6rem">
+            <div style="font-weight:700;font-size:1rem">${FORMADOR_RADAR_LABEL[modality] || modality}</div>
+            ${s}
+            <ul style="list-style:none;padding:0;margin:.4rem 0 0;width:100%;max-width:340px">${rows}</ul>
+            <p style="font-size:.75rem;color:var(--text-muted,#888);margin:.2rem 0 0">Escala: En desarrollo · Satisfactorio · Avanzado · Experto</p>
+        </div>`;
 }
 
 window.formadorBackToBrief = function () {
@@ -4268,7 +4610,7 @@ function formatFormadorDate(iso) {
  * - Izquierda (preguntas): normal vs completado con puntaje (renderEvaluationCompletedState).
  * - Derecha (formador): solo para puestos con equipo; instrucciones vs "completado + fecha".
  */
-function renderEvaluationBriefSplit() {
+async function renderEvaluationBriefSplit() {
     renderEvaluationCompletedState();
 
     const puedeEvaluarFormador = canEvaluateFormador(userProfile.especialidad);
@@ -4276,14 +4618,28 @@ function renderEvaluationBriefSplit() {
     document.getElementById('eval-split-divider')?.classList.toggle('hidden', !puedeEvaluarFormador);
     if (!puedeEvaluarFormador) return;
 
-    ensureFormadorLoaded();
+    const status = await getFormadorBriefStatus();
 
-    const doneAt = userProfile.formadorDoneAt;
-    document.getElementById('formador-brief-panel')?.classList.toggle('hidden', !!doneAt);
-    document.getElementById('formador-completed-panel')?.classList.toggle('hidden', !doneAt);
-    if (doneAt) {
+    // 'empty' = puede por rol pero no hay preguntas para su puesto → ocultar la columna.
+    if (status === 'empty') {
+        document.getElementById('eval-col-formador')?.classList.add('hidden');
+        document.getElementById('eval-split-divider')?.classList.add('hidden');
+        return;
+    }
+
+    const isDone = status === 'done';
+    document.getElementById('formador-brief-panel')?.classList.toggle('hidden', isDone);
+    document.getElementById('formador-completed-panel')?.classList.toggle('hidden', !isDone);
+
+    const startBtn = document.getElementById('btn-start-formador');
+    if (!isDone && startBtn) {
+        startBtn.textContent = status === 'partial'
+            ? 'CONTINUAR EVALUACIÓN'
+            : 'EVALUAR A MI FORMADOR / EQUIPO';
+    }
+    if (isDone) {
         const dateEl = document.getElementById('formador-completed-date');
-        if (dateEl) dateEl.textContent = formatFormadorDate(doneAt);
+        if (dateEl && userProfile.formadorDoneAt) dateEl.textContent = formatFormadorDate(userProfile.formadorDoneAt);
     }
 }
 

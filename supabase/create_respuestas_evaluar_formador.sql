@@ -4,20 +4,25 @@
 
 -- ─── PASO 1: Crear la tabla de respuestas ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.respuestas_evaluar_formador (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id        uuid NOT NULL,
-  pregunta_id    uuid NOT NULL REFERENCES public.banco_evaluar_formador(id),
-  comportamiento text,          -- "Evaluación al formador" | "Evaluación a mi equipo"
-  competencia    text,
-  puesto         text,          -- puesto del usuario con el que se resolvió el filtro
-  opcion_elegida text,          -- 'a' | 'b' | 'c' | 'd'
-  respuesta      text,          -- texto de la opción elegida (opcion_x)
-  nivel          text,          -- "En desarrollo" | "Satisfactorio" | "Avanzado" | "NA"
-  fecha          timestamptz NOT NULL DEFAULT now()
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid NOT NULL,
+  pregunta_id     uuid NOT NULL REFERENCES public.banco_evaluar_formador(id),
+  tipo_evaluacion text,          -- "Autoevaluación" | "Evaluación al formador" | "Evaluación a mi equipo" (modalidad / radar)
+  comportamiento  text,          -- pico del radar (Trabajo en equipo, Mejora continua, …)
+  competencia     text,
+  puesto          text,          -- puesto del usuario con el que se resolvió el filtro
+  opcion_elegida  text,          -- 'a' | 'b' | 'c' | 'd'
+  respuesta       text,          -- texto de la opción elegida (opcion_x)
+  nivel           text,          -- "En desarrollo" | "Satisfactorio" | "Avanzado" | "Experto" (vacío/NA = Solo Admin, fuera del radar)
+  fecha           timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ref_user      ON public.respuestas_evaluar_formador (user_id);
 CREATE INDEX IF NOT EXISTS idx_ref_pregunta  ON public.respuestas_evaluar_formador (pregunta_id);
+CREATE INDEX IF NOT EXISTS idx_ref_tipo_eval ON public.respuestas_evaluar_formador (tipo_evaluacion);
+
+-- Si la tabla ya existía, agrega la columna nueva:
+ALTER TABLE public.respuestas_evaluar_formador ADD COLUMN IF NOT EXISTS tipo_evaluacion text;
 
 -- ─── PASO 2: RLS — cada usuario solo inserta/lee sus propias respuestas ────
 ALTER TABLE public.respuestas_evaluar_formador ENABLE ROW LEVEL SECURITY;
