@@ -134,7 +134,7 @@ function isValidPillFirstAttemptRow(row) {
 async function loadPracticeQuestions() {
     if (!supabase) return;
     try {
-        const { data, error } = await supabase.from('banco_preguntas').select('*');
+        const { data, error } = await supabase.from('banco_preguntas').select('*').eq('active', true);
         if (error) throw error;
         practiceData = data || [];
         if (currentQuizMode === 'practice') {
@@ -149,7 +149,7 @@ async function loadPracticeQuestions() {
 async function loadEvaluationQuestions() {
     if (!supabase) return;
     try {
-        const { data, error } = await supabase.from('preguntas_evaluacion').select('*');
+        const { data, error } = await supabase.from('preguntas_evaluacion').select('*').eq('active', true);
         if (error) throw error;
         evaluationData = data || [];
         if (currentQuizMode === 'evaluation') {
@@ -588,6 +588,8 @@ function pillsUpdateCardDraggable() {
 // --- USER PROFILE DATA (loaded from Supabase on login) ---
 let userProfile = {
     avatarUrl: MATERIAL.favicon,
+    /** Nombre completo tal como está en ranking_user. Con él se resuelve quién es su equipo. */
+    nombre: '',
     nickname: '',
     seniority: '',
     especialidad: '',
@@ -1060,8 +1062,17 @@ function canEvaluateFormador(especialidadRaw) {
     return isTeamManagerEspecialidad(especialidadRaw) || formadorRoleBucket(especialidadRaw) !== '';
 }
 
+/**
+ * Clave para emparejar nombres de personas entre `ranking_user.nombre` y
+ * `ranking_user.formador`. Va SIN acentos a propósito: en la base los dos campos
+ * se capturaron distinto (p. ej. nombre «MIGUEL ÁNGEL FLORES REYES» vs formador
+ * «MIGUEL ANGEL FLORES REYES»), y comparando literal se perdían 13 formadores
+ * con 65 reportes entre todos.
+ */
 function formadorNameKey(name) {
-    return String(name || '').trim().toLowerCase();
+    return String(name || '')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 function hideProfileTeamCard() {
@@ -1635,7 +1646,10 @@ let testModeState = {
     active: false,
     especialidad: '',
     seniority: '',
-    backup: null, // { especialidad, seniority } del perfil real
+    // Modo «por persona»: simula el perfil completo de alguien real (nombre incluido),
+    // para ver exactamente sus preguntas, su formador y su equipo.
+    persona: null,  // { user_id, nombre, nickname, especialidad, seniority, formador }
+    backup: null,   // perfil real { especialidad, seniority, nombre, nickname, formador }
 };
 
 /** Opciones (especialidad + seniority) traídas en vivo de ranking_user; cacheadas por sesión. */
@@ -1688,13 +1702,26 @@ async function loadTestModeOptions() {
         ],
         seniorities: ['junior', 'medium', 'senior'],
         noSeniorityKeys: new Set(),
+        personas: [],
     };
     if (!supabase) return fallback;
     try {
         const { data, error } = await supabase
             .from('ranking_user')
-            .select('especialidad, seniority');
+            .select('user_id, nombre, nickname, especialidad, seniority, formador');
         if (error) throw error;
+        // Lista de personas reales para el modo «por persona».
+        const personas = (data || [])
+            .filter(r => r.user_id && String(r.nombre || '').trim())
+            .map(r => ({
+                user_id: r.user_id,
+                nombre: String(r.nombre || '').trim(),
+                nickname: String(r.nickname || '').trim(),
+                especialidad: String(r.especialidad || '').trim(),
+                seniority: String(r.seniority || '').trim(),
+                formador: String(r.formador || '').trim(),
+            }))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
         const espMap = new Map(); // key canónica -> etiqueta a mostrar (dedupe de variantes)
         const senSet = new Set();
         const hasSeniorityByKey = new Map(); // key canónica -> ¿algún registro con seniority?
@@ -1720,6 +1747,7 @@ async function loadTestModeOptions() {
             especialidades: especialidades.length ? especialidades : fallback.especialidades,
             seniorities: seniorities.length ? seniorities : fallback.seniorities,
             noSeniorityKeys,
+            personas,
         };
         return testModeOptionsCache;
     } catch (e) {
@@ -1741,15 +1769,31 @@ function ensureTestModeModal() {
                 <span class="test-mode-modal__icon"><i class="fa-solid fa-flask" aria-hidden="true"></i></span>
                 <h3 id="test-mode-title">Modo prueba</h3>
             </div>
-            <p class="test-mode-modal__desc">Previsualiza la app como si tuvieras otro perfil: verás sus preguntas, secciones y evaluaciones. No cambia tu perfil real.</p>
-            <label class="test-mode-field">
-                <span>Especialidad</span>
-                <select id="test-mode-especialidad"></select>
-            </label>
-            <label class="test-mode-field">
-                <span>Seniority</span>
-                <select id="test-mode-seniority"></select>
-            </label>
+            <p class="test-mode-modal__desc">Previsualiza la app como si tuvieras otro perfil: verás sus preguntas, secciones y evaluaciones. No cambia tu perfil real ni guarda nada.</p>
+            <div class="test-mode-tabs" role="tablist">
+                <button type="button" class="test-mode-tab is-active" id="test-mode-tab-puesto" role="tab">Por puesto</button>
+                <button type="button" class="test-mode-tab" id="test-mode-tab-persona" role="tab">Por persona</button>
+            </div>
+
+            <div id="test-mode-pane-puesto">
+                <label class="test-mode-field">
+                    <span>Especialidad</span>
+                    <select id="test-mode-especialidad"></select>
+                </label>
+                <label class="test-mode-field">
+                    <span>Seniority</span>
+                    <select id="test-mode-seniority"></select>
+                </label>
+            </div>
+
+            <div id="test-mode-pane-persona" class="hidden">
+                <label class="test-mode-field">
+                    <span>Persona</span>
+                    <select id="test-mode-persona"></select>
+                </label>
+                <p class="test-mode-modal__hint" id="test-mode-persona-hint">—</p>
+            </div>
+
             <div class="test-mode-modal__actions">
                 <button type="button" class="btn-outline-blue" id="test-mode-cancel">Cancelar</button>
                 <button type="button" class="btn-primary" id="test-mode-apply">Aplicar</button>
@@ -1760,14 +1804,36 @@ function ensureTestModeModal() {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeTestModePanel();
     });
+
+    const tabPuesto = document.getElementById('test-mode-tab-puesto');
+    const tabPersona = document.getElementById('test-mode-tab-persona');
+    const setTab = (modo) => {
+        testModePanelMode = modo;
+        tabPuesto.classList.toggle('is-active', modo === 'puesto');
+        tabPersona.classList.toggle('is-active', modo === 'persona');
+        document.getElementById('test-mode-pane-puesto')?.classList.toggle('hidden', modo !== 'puesto');
+        document.getElementById('test-mode-pane-persona')?.classList.toggle('hidden', modo !== 'persona');
+    };
+    tabPuesto.onclick = () => setTab('puesto');
+    tabPersona.onclick = () => setTab('persona');
+
     document.getElementById('test-mode-cancel').onclick = closeTestModePanel;
     document.getElementById('test-mode-apply').onclick = () => {
+        if (testModePanelMode === 'persona') {
+            const id = document.getElementById('test-mode-persona').value;
+            closeTestModePanel();
+            applyTestModePersona(id);
+            return;
+        }
         const esp = document.getElementById('test-mode-especialidad').value;
         const sen = document.getElementById('test-mode-seniority').value;
         closeTestModePanel();
         applyTestMode(esp, sen);
     };
 }
+
+/** Pestaña activa del panel: 'puesto' | 'persona'. */
+let testModePanelMode = 'puesto';
 
 /** Abre el panel con las opciones actuales seleccionadas. */
 async function openTestModePanel() {
@@ -1804,6 +1870,38 @@ async function openTestModePanel() {
     };
     renderSenioritySelect();
 
+    // ── Pestaña «Por persona» ──
+    const perSel = document.getElementById('test-mode-persona');
+    const perHint = document.getElementById('test-mode-persona-hint');
+    const personas = opts.personas || [];
+    if (perSel) {
+        const actual = testModeState.persona?.user_id || '';
+        perSel.innerHTML = personas.length
+            ? personas.map(p => {
+                const sel = p.user_id === actual ? ' selected' : '';
+                const sen = p.seniority ? ` · ${p.seniority}` : '';
+                return `<option value="${esc(p.user_id)}"${sel}>${esc(p.nombre)} — ${esc(p.especialidad || 'sin puesto')}${esc(sen)}</option>`;
+            }).join('')
+            : `<option value="">— No se pudo cargar la lista —</option>`;
+
+        // Cuántos reportes tiene y quién es su formador: adelanta qué secciones va a ver.
+        const pintarHint = () => {
+            const p = personas.find(x => x.user_id === perSel.value);
+            if (!p) { if (perHint) perHint.textContent = '—'; return; }
+            // Mismo emparejamiento que usa la app (sin acentos), o el conteo saldría en 0.
+            const reportes = personas.filter(x => formadorNameKey(x.formador) === formadorNameKey(p.nombre)).length;
+            const partes = [
+                p.especialidad || 'sin puesto',
+                p.seniority || 'sin seniority',
+                p.formador ? `formador: ${p.formador}` : 'sin formador',
+                reportes ? `${reportes} a su cargo → verá «Evaluar a mi equipo»` : 'sin gente a su cargo',
+            ];
+            if (perHint) perHint.textContent = partes.join(' · ');
+        };
+        perSel.onchange = pintarHint;
+        pintarHint();
+    }
+
     const overlay = document.getElementById('test-mode-overlay');
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden', 'false');
@@ -1819,30 +1917,82 @@ function closeTestModePanel() {
 /** Re-render del home + recarga del estado de formador tras cambiar el perfil (real o simulado). */
 async function refreshAfterProfileChange() {
     userProfile.formadorDoneAt = null;
+    formadorContext = null; // el bucket depende del puesto, que acaba de cambiar
     if (canEvaluateFormador(userProfile.especialidad)) {
         try { await loadFormadorCompletion(); } catch (e) { debugWarn('loadFormadorCompletion:', e); }
     }
     try { renderProfile(); } catch (e) { debugWarn('renderProfile:', e); }
     try { updatePracticeRankUI(); } catch (e) { debugWarn('updatePracticeRankUI:', e); }
+    // Si el usuario ya está parado en el brief de evaluación, hay que repintar sus
+    // secciones: al cambiar de perfil cambian las preguntas, el formador y el equipo.
+    const brief = document.getElementById('evaluation-brief-view');
+    if (brief && !brief.classList.contains('hidden')) {
+        try {
+            updateEvaluationBriefAutoUI();
+            await renderEvaluationBrief();
+        } catch (e) { debugWarn('renderEvaluationBrief tras cambio de perfil:', e); }
+    }
 }
 
-/** Aplica un perfil simulado (guarda backup del real la primera vez). */
+/** Guarda una sola vez el perfil real, para poder restaurarlo al salir. */
+function snapshotRealProfile() {
+    if (testModeState.active) return;
+    testModeState.backup = {
+        especialidad: userProfile.especialidad,
+        seniority: userProfile.seniority,
+        nombre: userProfile.nombre,
+        nickname: userProfile.nickname,
+        formador: userProfile.formador,
+    };
+}
+
+/** Aplica un perfil simulado por PUESTO (nombre y formador siguen siendo los reales). */
 async function applyTestMode(especialidad, seniority) {
     if (!isTestModeAllowed()) return;
     const esp = String(especialidad || '').trim();
     const sen = String(seniority || '').trim();
     if (!esp && !sen) return;
-    if (!testModeState.active) {
-        testModeState.backup = {
-            especialidad: userProfile.especialidad,
-            seniority: userProfile.seniority,
-        };
+    snapshotRealProfile();
+    // Si venías simulando a una persona, se restaura tu nombre real.
+    if (testModeState.persona && testModeState.backup) {
+        userProfile.nombre = testModeState.backup.nombre;
+        userProfile.nickname = testModeState.backup.nickname;
+        userProfile.formador = testModeState.backup.formador;
     }
     testModeState.active = true;
+    testModeState.persona = null;
     testModeState.especialidad = esp;
     testModeState.seniority = sen;
     userProfile.especialidad = esp;
     userProfile.seniority = sen;
+    persistTestMode();
+    renderTestModeIndicator();
+    await refreshAfterProfileChange();
+}
+
+/**
+ * Aplica el perfil simulado de una PERSONA real: nombre, puesto, seniority y formador.
+ * Al simular el nombre, la app resuelve su formador y su equipo igual que ella los vería,
+ * así que aparecen exactamente sus secciones y sus preguntas.
+ */
+async function applyTestModePersona(userId) {
+    if (!isTestModeAllowed()) return;
+    const id = String(userId || '').trim();
+    if (!id) return;
+    const opts = await loadTestModeOptions();
+    const p = (opts.personas || []).find(x => x.user_id === id);
+    if (!p) { debugWarn('applyTestModePersona: persona no encontrada', id); return; }
+
+    snapshotRealProfile();
+    testModeState.active = true;
+    testModeState.persona = { ...p };
+    testModeState.especialidad = p.especialidad;
+    testModeState.seniority = p.seniority;
+    userProfile.especialidad = p.especialidad;
+    userProfile.seniority = p.seniority;
+    userProfile.nombre = p.nombre;
+    userProfile.nickname = p.nickname;
+    userProfile.formador = p.formador;
     persistTestMode();
     renderTestModeIndicator();
     await refreshAfterProfileChange();
@@ -1854,10 +2004,14 @@ async function exitTestMode() {
     if (testModeState.backup) {
         userProfile.especialidad = testModeState.backup.especialidad;
         userProfile.seniority = testModeState.backup.seniority;
+        userProfile.nombre = testModeState.backup.nombre;
+        userProfile.nickname = testModeState.backup.nickname;
+        userProfile.formador = testModeState.backup.formador;
     }
     testModeState.active = false;
     testModeState.especialidad = '';
     testModeState.seniority = '';
+    testModeState.persona = null;
     testModeState.backup = null;
     clearPersistTestMode();
     renderTestModeIndicator();
@@ -1869,6 +2023,7 @@ function persistTestMode() {
         sessionStorage.setItem(TEST_MODE_STORAGE_KEY, JSON.stringify({
             especialidad: testModeState.especialidad,
             seniority: testModeState.seniority,
+            persona: testModeState.persona,
             backup: testModeState.backup,
         }));
     } catch (_) { /* sessionStorage no disponible */ }
@@ -1895,9 +2050,13 @@ function renderTestModeIndicator() {
     document.body.classList.add('test-mode-on');
     const espLabel = testModeState.especialidad || '—';
     const senLabel = testModeState.seniority || '—';
+    // Al simular a una persona real se muestra su nombre, que es lo que se está previsualizando.
+    const label = testModeState.persona
+        ? `Viendo como <strong>${esc(testModeState.persona.nombre)}</strong> · ${esc(espLabel)}${senLabel !== '—' ? ' · ' + esc(senLabel) : ''}`
+        : `Modo prueba · <strong>${esc(espLabel)}</strong> · ${esc(senLabel)}`;
     bar.innerHTML = `
         <span class="test-mode-indicator__dot" aria-hidden="true"></span>
-        <span class="test-mode-indicator__label">Modo prueba · <strong>${esc(espLabel)}</strong> · ${esc(senLabel)}</span>
+        <span class="test-mode-indicator__label">${label}</span>
         <button type="button" class="test-mode-indicator__btn" id="test-mode-change">Cambiar</button>
         <button type="button" class="test-mode-indicator__btn test-mode-indicator__btn--exit" id="test-mode-exit">Salir</button>
     `;
@@ -1914,23 +2073,32 @@ async function initTestMode() {
     refreshTestModeButton();
     if (!isTestModeAllowed()) {
         clearPersistTestMode();
-        testModeState = { active: false, especialidad: '', seniority: '', backup: null };
+        testModeState = { active: false, especialidad: '', seniority: '', persona: null, backup: null };
         renderTestModeIndicator();
         return;
     }
     let saved = null;
     try { saved = JSON.parse(sessionStorage.getItem(TEST_MODE_STORAGE_KEY) || 'null'); } catch (_) { saved = null; }
-    if (!saved || (!saved.especialidad && !saved.seniority)) return;
+    if (!saved || (!saved.especialidad && !saved.seniority && !saved.persona)) return;
 
     testModeState.backup = saved.backup || {
         especialidad: userProfile.especialidad,
         seniority: userProfile.seniority,
+        nombre: userProfile.nombre,
+        nickname: userProfile.nickname,
+        formador: userProfile.formador,
     };
     testModeState.active = true;
+    testModeState.persona = saved.persona || null;
     testModeState.especialidad = saved.especialidad || userProfile.especialidad;
     testModeState.seniority = saved.seniority || userProfile.seniority;
     userProfile.especialidad = testModeState.especialidad;
     userProfile.seniority = testModeState.seniority;
+    if (testModeState.persona) {
+        userProfile.nombre = testModeState.persona.nombre;
+        userProfile.nickname = testModeState.persona.nickname;
+        userProfile.formador = testModeState.persona.formador;
+    }
     renderTestModeIndicator();
     // Recarga estado de formador para el perfil simulado (el render lo hace quien llama).
     userProfile.formadorDoneAt = null;
@@ -1941,7 +2109,7 @@ async function initTestMode() {
 
 /** Limpia el estado de Test Mode al cerrar sesión. */
 function resetTestModeOnLogout() {
-    testModeState = { active: false, especialidad: '', seniority: '', backup: null };
+    testModeState = { active: false, especialidad: '', seniority: '', persona: null, backup: null };
     testModeOptionsCache = null;
     clearPersistTestMode();
     renderTestModeIndicator();
@@ -3661,12 +3829,15 @@ let formadorBlockAnswers = [];  // respuestas del bloque actual (se guardan al t
 let formadorTestAnswers = [];   // acumulado en memoria (radar en Test Mode)
 let formadorContext = null;     // { ownBucket } resuelto por perfil
 let formadorCompletedMods = new Set(); // modalidades ya guardadas (de la BD) → para reanudar
+let formadorEvaluado = null;    // { user_id, nombre, etiqueta } al evaluar a un colaborador; null en bloques propios
 let formadorRadarData = {};     // { modalidad: [{comp, avg, n}] } para el gráfico
 // Modalidad = tipo_evaluacion. Orden global de las 3 modalidades.
 const FORMADOR_MODALITY_ORDER = ['Autoevaluación', 'Evaluación al formador', 'Evaluación a mi equipo'];
 // Cada sección del brief corre su propio grupo de modalidades.
-const MODALIDADES_AUTOEVAL = ['Autoevaluación'];                                   // sección izquierda
-const MODALIDADES_FORMADOR = ['Evaluación al formador', 'Evaluación a mi equipo']; // sección derecha
+const MODALIDADES_AUTOEVAL = ['Autoevaluación'];             // sección 1: tu autoevaluación
+const MODALIDADES_FORMADOR = ['Evaluación al formador'];     // sección 2: tu formador
+// Sección 3: se evalúa colaborador por colaborador, no como bloque agregado.
+const MODALIDAD_EQUIPO = 'Evaluación a mi equipo';
 const FORMADOR_RANDOM_PER_PICO = 5; // Preguntas por comportamiento (pico) cuando NO tiene obligatorias.
 // Picos del radar (comportamientos) y escala de nivel.
 const FORMADOR_PICOS = ['Confianza y respeto mutuo', 'Ejecución impecable', 'Mejora continua', 'Pasión por el Cliente', 'Trabajo en equipo'];
@@ -3791,11 +3962,13 @@ async function ensureFormadorContext() {
 }
 
 /**
- * Buckets de puesto que aplican a una modalidad: el del usuario, en las tres.
- * REGLA ÚNICA: manda el puesto de la pregunta. Si el puesto del usuario aparece en
- * `puesto_1..6`, la pregunta le toca — sin reglas extra de jerarquía ni de equipo.
+ * Buckets de puesto para las modalidades que se corren en bloque (Autoevaluación y
+ * Evaluación al formador): manda el puesto propio contra `puesto_1..6`.
+ * «Evaluación a mi equipo» NO pasa por aquí: se resuelve por colaborador, con el
+ * puesto de la persona evaluada (ver buildEquipoQuestions).
  */
 function formadorBucketsForModality(modality, ctx) {
+    if (modality === MODALIDAD_EQUIPO) return new Set();
     if (!FORMADOR_MODALITY_ORDER.includes(modality)) return new Set();
     return ctx.ownBucket ? new Set([ctx.ownBucket]) : new Set();
 }
@@ -3829,16 +4002,32 @@ async function buildFormadorBlocks(modalities = FORMADOR_MODALITY_ORDER) {
             byPico.get(key).push(r);
         });
 
-        const questions = [];
-        byPico.forEach(rows => {
-            const oblig = rows.filter(isFormadorObligatoria);
-            if (oblig.length) questions.push(...oblig);
-            else questions.push(...shuffleArray(rows).slice(0, FORMADOR_RANDOM_PER_PICO));
-        });
+        const questions = pickByPico(pool);
         if (questions.length) blocks.push({ modality, questions });
     });
 
     return blocks;
+}
+
+/**
+ * Selección por comportamiento (pico): si el pico tiene obligatorias mete TODAS esas,
+ * si no, FORMADOR_RANDOM_PER_PICO aleatorias. La comparten los bloques por modalidad
+ * y las evaluaciones por colaborador.
+ */
+function pickByPico(pool) {
+    const byPico = new Map();
+    pool.forEach(r => {
+        const key = String(r.comportamiento || '').trim() || '—';
+        if (!byPico.has(key)) byPico.set(key, []);
+        byPico.get(key).push(r);
+    });
+    const questions = [];
+    byPico.forEach(rows => {
+        const oblig = rows.filter(isFormadorObligatoria);
+        if (oblig.length) questions.push(...oblig);
+        else questions.push(...shuffleArray(rows).slice(0, FORMADOR_RANDOM_PER_PICO));
+    });
+    return questions;
 }
 
 /** Modalidades ya contestadas (para reanudar). En Test Mode no hay persistencia. */
@@ -3889,12 +4078,13 @@ async function runFormadorGroup(modalities) {
     await ensureFormadorLoaded();
     formadorContext = null; // recalcular por si cambió el perfil (p. ej. Test Mode)
     formadorTestAnswers = [];
+    formadorEvaluado = null; // estos bloques son sobre uno mismo o su formador
     await loadFormadorCompletedModalities();
     const blocks = await buildFormadorBlocks(modalities);
     const doneEnGrupo = modalities.some(m => formadorCompletedMods.has(m));
 
     switchSection('formador-interface', async () => {
-        ['formador-notice', 'formador-done', 'formador-quiz'].forEach(id =>
+        ['formador-notice', 'formador-done', 'formador-quiz', 'equipo-list'].forEach(id =>
             document.getElementById(id)?.classList.add('hidden'));
 
         if (!blocks.length) {
@@ -3921,10 +4111,201 @@ async function startAutoevalSoftSkills() {
     await runFormadorGroup(MODALIDADES_AUTOEVAL);
 }
 
-/** Botón de la sección derecha: formador y equipo. */
+/** Botón de la sección 2: evaluación a tu formador. */
 window.startFormadorEvaluation = async function () {
     await runFormadorGroup(MODALIDADES_FORMADOR);
 };
+
+// ─── SECCIÓN 3: EVALUAR A MI EQUIPO, UNO POR UNO ────────────────────────────
+// Solo para quien tiene gente a su cargo (aparece como `formador` de alguien en
+// ranking_user). Cada colaborador se evalúa por separado, con las preguntas de su
+// propio puesto, y sus respuestas se guardan con evaluado_user_id.
+
+let equipoMembers = [];              // [{ user_id, nombre, nickname, foto_url, especialidad, bucket }]
+let equipoEvaluados = new Set();     // evaluado_user_id ya guardados en la BD
+let equipoEvaluadosTest = new Set(); // igual, pero en memoria para Test Mode
+
+/** Colaboradores cuyo `formador` soy yo. */
+async function loadEquipoMembers() {
+    equipoMembers = [];
+    const myKey = formadorNameKey(userProfile.nombre);
+    if (!supabase || !myKey) return equipoMembers;
+    try {
+        const { data } = await supabase
+            .from('ranking_user')
+            .select('user_id, nombre, nickname, foto_url, especialidad, formador')
+            .not('formador', 'is', null);
+        (data || []).forEach(r => {
+            if (formadorNameKey(r.formador) !== myKey) return;
+            if (!r.user_id) return;
+            equipoMembers.push({
+                user_id: r.user_id,
+                nombre: String(r.nombre || '').trim(),
+                nickname: String(r.nickname || '').trim(),
+                foto_url: safeHttpUrl(String(r.foto_url || '').trim()),
+                especialidad: String(r.especialidad || '').trim(),
+                bucket: formadorRoleBucket(r.especialidad),
+            });
+        });
+    } catch (e) {
+        debugWarn('loadEquipoMembers error:', e);
+    }
+    return equipoMembers;
+}
+
+/** Colaboradores que ya evalué (para reanudar sin repetir). */
+async function loadEquipoEvaluados() {
+    equipoEvaluados = new Set();
+    if (isTestModeActive()) { equipoEvaluados = new Set(equipoEvaluadosTest); return equipoEvaluados; }
+    const userId = supabaseSession?.user?.id;
+    if (!supabase || !userId) return equipoEvaluados;
+    try {
+        const { data } = await supabase
+            .from('respuestas_evaluar_formador')
+            .select('evaluado_user_id')
+            .eq('user_id', userId)
+            .eq('tipo_evaluacion', MODALIDAD_EQUIPO)
+            .not('evaluado_user_id', 'is', null);
+        (data || []).forEach(r => equipoEvaluados.add(r.evaluado_user_id));
+    } catch (e) {
+        debugWarn('loadEquipoEvaluados error:', e);
+    }
+    return equipoEvaluados;
+}
+
+/** Preguntas para evaluar a UN colaborador: filtradas por el puesto de esa persona. */
+function buildEquipoQuestions(member) {
+    if (!member || !member.bucket) return [];
+    const buckets = new Set([member.bucket]);
+    const pool = formadorData.filter(r =>
+        String(r.tipo_evaluacion || '').trim() === MODALIDAD_EQUIPO &&
+        formadorQuestionMatchesBuckets(r, buckets)
+    );
+    return pool.length ? pickByPico(pool) : [];
+}
+
+/** ¿Tiene al menos un colaborador con preguntas disponibles? */
+function equipoTienePendientesOEvaluables() {
+    return equipoMembers.some(m => buildEquipoQuestions(m).length > 0);
+}
+
+/**
+ * Estado de la sección 3:
+ *  'na'      → no tiene gente a su cargo (o nadie con preguntas para su puesto),
+ *  'none'    → no ha evaluado a nadie,
+ *  'partial' → evaluó a algunos,
+ *  'done'    → evaluó a todos los evaluables.
+ */
+async function getEquipoBriefStatus() {
+    await ensureFormadorLoaded();
+    await loadEquipoMembers();
+    if (!equipoMembers.length || !equipoTienePendientesOEvaluables()) return 'na';
+    await loadEquipoEvaluados();
+    const evaluables = equipoMembers.filter(m => buildEquipoQuestions(m).length > 0);
+    const hechos = evaluables.filter(m => equipoEvaluados.has(m.user_id)).length;
+    if (hechos === 0) return 'none';
+    if (hechos < evaluables.length) return 'partial';
+    return 'done';
+}
+
+/** Botón de la sección 3: abre la lista de colaboradores. */
+window.startEquipoEvaluation = async function () {
+    await ensureFormadorLoaded();
+    formadorContext = null;
+    await loadEquipoMembers();
+    await loadEquipoEvaluados();
+
+    switchSection('formador-interface', () => {
+        ['formador-notice', 'formador-done', 'formador-quiz'].forEach(id =>
+            document.getElementById(id)?.classList.add('hidden'));
+        renderEquipoList();
+    });
+};
+
+/** Lista de colaboradores con su estado; al elegir uno arranca su evaluación. */
+function renderEquipoList() {
+    const panel = document.getElementById('equipo-list');
+    const cont = document.getElementById('equipo-list-items');
+    if (!panel || !cont) return;
+
+    ['formador-notice', 'formador-done', 'formador-quiz'].forEach(id =>
+        document.getElementById(id)?.classList.add('hidden'));
+    panel.classList.remove('hidden');
+
+    const evaluables = equipoMembers.filter(m => buildEquipoQuestions(m).length > 0);
+    const hechos = evaluables.filter(m => equipoEvaluados.has(m.user_id)).length;
+    const prog = document.getElementById('equipo-list-progress');
+    if (prog) prog.textContent = T.evaluation.equipoProgreso(hechos, evaluables.length);
+
+    cont.innerHTML = '';
+    equipoMembers.forEach(m => {
+        const nQ = buildEquipoQuestions(m).length;
+        const done = equipoEvaluados.has(m.user_id);
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'equipo-member' + (done ? ' equipo-member--done' : '');
+        // Ya evaluado o sin preguntas → no se puede volver a entrar (evita filas duplicadas).
+        row.disabled = nQ === 0 || done;
+
+        const avatar = document.createElement('span');
+        avatar.className = 'equipo-member__avatar';
+        if (m.foto_url) {
+            const img = document.createElement('img');
+            img.src = m.foto_url; img.alt = ''; img.loading = 'lazy';
+            avatar.appendChild(img);
+        } else {
+            avatar.textContent = (m.nombre || '?').trim().charAt(0).toUpperCase();
+        }
+
+        const info = document.createElement('span');
+        info.className = 'equipo-member__info';
+        const nom = document.createElement('span');
+        nom.className = 'equipo-member__name';
+        nom.textContent = m.nickname || m.nombre || '—';
+        const meta = document.createElement('span');
+        meta.className = 'equipo-member__meta';
+        meta.textContent = nQ === 0
+            ? `${m.especialidad || 'Sin puesto'} · sin preguntas`
+            : `${m.especialidad || 'Sin puesto'} · ${nQ} preguntas`;
+        info.append(nom, meta);
+
+        const estado = document.createElement('span');
+        estado.className = 'equipo-member__state';
+        estado.textContent = nQ === 0 ? '—' : (done ? 'Evaluado ✓' : 'Pendiente');
+
+        row.append(avatar, info, estado);
+        if (nQ > 0 && !done) row.onclick = () => startEquipoMemberEval(m.user_id);
+        cont.appendChild(row);
+    });
+}
+
+/** Arranca la evaluación de un colaborador concreto. */
+function startEquipoMemberEval(userId) {
+    const member = equipoMembers.find(m => m.user_id === userId);
+    if (!member) return;
+    const questions = buildEquipoQuestions(member);
+    if (!questions.length) {
+        showAppAlert({
+            title: 'Sin preguntas por ahora',
+            message: T.evaluation.equipoSinPreguntas(member.nombre, member.especialidad),
+            variant: 'info',
+            confirmText: T.common.understood
+        });
+        return;
+    }
+    document.getElementById('equipo-list')?.classList.add('hidden');
+    formadorTestAnswers = [];
+    formadorEvaluado = { user_id: member.user_id, nombre: member.nombre, etiqueta: member.nickname || member.nombre };
+    formadorBlocks = [{ modality: MODALIDAD_EQUIPO, questions }];
+    formadorBlockIdx = 0;
+    renderFormadorBlockIntro();
+}
+
+/** Vuelve a la lista de colaboradores tras cerrar la evaluación de uno. */
+function backToEquipoList() {
+    formadorEvaluado = null;
+    renderEquipoList();
+}
 
 // Textos de la pantalla de transición por modalidad (a quién se evalúa).
 const FORMADOR_NOTICE = {
@@ -3953,10 +4334,11 @@ function renderFormadorBlockIntro() {
 /**
  * Pantalla de aviso. mode 'intro' = antes de un bloque (1 botón).
  * mode 'interstage' = terminó un bloque y viene otro (Continuar ahora / Guardar y salir).
- * mode 'closing' = terminó el último bloque (pasa a los radares).
+ * mode 'closing' = terminó el último bloque (pasa a los radares o vuelve a la lista).
  * `levelMessage` (solo al cerrar un bloque) = texto del nivel que más contestó.
+ * `continueLabel` sobreescribe el texto del botón principal.
  */
-function showFormadorNotice({ modality, mode, finishedModality, levelMessage, onContinue, onSaveExit }) {
+function showFormadorNotice({ modality, mode, finishedModality, levelMessage, continueLabel, onContinue, onSaveExit }) {
     const quiz = document.getElementById('formador-quiz');
     const notice = document.getElementById('formador-notice');
     const title = document.getElementById('formador-notice-title');
@@ -3965,16 +4347,23 @@ function showFormadorNotice({ modality, mode, finishedModality, levelMessage, on
     const btnExit = document.getElementById('btn-formador-save-exit');
     if (!notice) { onContinue && onContinue(); return; }
 
+    // Al evaluar a un colaborador, los textos hablan de esa persona por su nombre.
+    const persona = formadorEvaluado?.etiqueta || formadorEvaluado?.nombre || '';
+
     let copy;
     if (mode === 'closing') {
-        copy = {
-            title: '¡Terminaste! 🎉',
-            text: `Con "${finishedModality}" completaste esta sección. Tus respuestas quedaron guardadas.`
-        };
+        copy = persona
+            ? { title: `Listo, evaluaste a ${persona} ✅`, text: 'Sus respuestas quedaron guardadas. Puedes seguir con otra persona de tu equipo o volver después.' }
+            : { title: '¡Terminaste! 🎉', text: `Con "${finishedModality}" completaste esta sección. Tus respuestas quedaron guardadas.` };
     } else if (mode === 'interstage') {
         copy = {
             title: '¡Progreso guardado! ✅',
             text: `Terminaste "${finishedModality}". Tus respuestas quedaron guardadas: puedes continuar ahora o seguir después.`
+        };
+    } else if (persona) {
+        copy = {
+            title: `Evaluando a ${persona} 🎯`,
+            text: 'Selecciona la respuesta que te haga más sentido con las acciones de esta persona, no hay respuestas buenas o malas. Responde con honestidad.'
         };
     } else {
         copy = FORMADOR_NOTICE[modality] || { title: 'Evaluación', text: 'Lee con cuidado y responde con honestidad.' };
@@ -3991,7 +4380,8 @@ function showFormadorNotice({ modality, mode, finishedModality, levelMessage, on
     }
 
     if (btn) {
-        if (mode === 'closing') btn.textContent = 'VER MIS RESULTADOS 🕸️';
+        if (continueLabel) btn.textContent = continueLabel;
+        else if (mode === 'closing') btn.textContent = 'VER MIS RESULTADOS 🕸️';
         else if (mode === 'interstage') btn.textContent = 'CONTINUAR AHORA';
         else btn.textContent = 'CONTINUAR';
         btn.onclick = () => { notice.classList.add('hidden'); onContinue && onContinue(); };
@@ -4063,15 +4453,18 @@ function selectFormadorAnswer(opt) {
     const cont = document.getElementById('formador-options-container');
     if (cont) cont.style.pointerEvents = 'none';
 
+    // OJO: solo columnas que existen en `respuestas_evaluar_formador`. Antes se mandaban
+    // `puesto` y `respuesta`, que no existen, y PostgREST rechazaba TODO el insert.
     const answer = {
         pregunta_id: q.id,
         tipo_evaluacion: block.modality,
         comportamiento: String(q.comportamiento || '').trim() || null,
         competencia: String(q.competencia || '').trim() || null,
-        puesto: String(userProfile.especialidad || '').trim() || null,
         opcion_elegida: opt.k,
-        respuesta: String(opt.text || '').trim() || null,
         nivel: String(opt.nivel || '').trim() || null,
+        // Solo en «Evaluación a mi equipo»: a quién se está evaluando.
+        evaluado_user_id: formadorEvaluado?.user_id || null,
+        evaluado_nombre: formadorEvaluado?.nombre || null,
     };
     formadorBlockAnswers.push(answer);
     formadorTestAnswers.push(answer);
@@ -4109,16 +4502,34 @@ async function finishFormadorBlock() {
     const block = formadorBlocks[formadorBlockIdx];
     // Se calcula antes de vaciar el acumulado del bloque.
     const levelMessage = formadorBlockClosingMessage(formadorBlockAnswers);
+    const evaluado = formadorEvaluado; // se limpia al volver a la lista
     document.getElementById('formador-quiz')?.classList.add('hidden');
     beginGlobalLoading('Guardando tu progreso…');
+    let guardado = false;
     try {
-        await saveFormadorAnswers(formadorBlockAnswers);
-        formadorCompletedMods.add(block.modality);
+        guardado = await saveFormadorAnswers(formadorBlockAnswers);
+        if (!evaluado) formadorCompletedMods.add(block.modality);
         userProfile.formadorDoneAt = new Date().toISOString();
     } finally {
         endGlobalLoading();
     }
     formadorBlockAnswers = [];
+
+    // Evaluación de un colaborador: marca a esa persona y vuelve a la lista del equipo.
+    if (evaluado) {
+        if (guardado || isTestModeActive()) {
+            equipoEvaluados.add(evaluado.user_id);
+            if (isTestModeActive()) equipoEvaluadosTest.add(evaluado.user_id);
+        }
+        showFormadorNotice({
+            mode: 'closing',
+            finishedModality: evaluado.etiqueta || evaluado.nombre,
+            levelMessage,
+            continueLabel: 'VOLVER A MI EQUIPO',
+            onContinue: () => backToEquipoList(),
+        });
+        return;
+    }
 
     const hasNext = formadorBlockIdx < formadorBlocks.length - 1;
     if (hasNext) {
@@ -4286,6 +4697,8 @@ function renderFormadorRadar(modality) {
 }
 
 window.formadorBackToBrief = function () {
+    formadorEvaluado = null;
+    document.getElementById('equipo-list')?.classList.add('hidden');
     switchSection('landing-page', () => {
         ['mode-selection-view', 'profile-view', 'dashboard-view', 'pills-construction-view']
             .forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -4727,6 +5140,60 @@ function formatFormadorDate(iso) {
 async function renderEvaluationBrief() {
     await renderAutoevalColumn();
     await renderFormadorColumn();
+    await renderEquipoColumn();
+    syncEvalDividers();
+}
+
+/**
+ * Los divisores solo tienen sentido ENTRE columnas visibles. Como las tres secciones
+ * aparecen o no según el perfil, se recalculan: el divisor que precede a una columna
+ * se muestra solo si esa columna es visible y hay alguna visible antes que ella.
+ */
+function syncEvalDividers() {
+    const vis = (id) => {
+        const el = document.getElementById(id);
+        return !!el && !el.classList.contains('hidden');
+    };
+    const col1 = vis('eval-col-autoeval');
+    const col2 = vis('eval-col-formador');
+    const col3 = vis('eval-col-equipo');
+    document.getElementById('eval-split-divider')?.classList.toggle('hidden', !(col1 && col2));
+    document.getElementById('eval-split-divider-2')?.classList.toggle('hidden', !(col3 && (col1 || col2)));
+
+    // Si no aplica ninguna sección, el brief quedaría en blanco: se explica por qué.
+    const ninguna = !col1 && !col2 && !col3;
+    document.getElementById('eval-sin-secciones')?.classList.toggle('hidden', !ninguna);
+    document.getElementById('eval-split')?.classList.toggle('hidden', ninguna);
+}
+
+/** Columna 3: evaluar al equipo uno por uno. Solo para quien tiene gente a su cargo. */
+async function renderEquipoColumn() {
+    const col = document.getElementById('eval-col-equipo');
+    const mostrar = (visible) => col?.classList.toggle('hidden', !visible);
+
+    const status = await getEquipoBriefStatus();
+    if (status === 'na') { mostrar(false); return; }
+    mostrar(true);
+
+    const evaluables = equipoMembers.filter(m => buildEquipoQuestions(m).length > 0);
+    const hechos = evaluables.filter(m => equipoEvaluados.has(m.user_id)).length;
+
+    const title = document.getElementById('equipo-brief-title');
+    const text = document.getElementById('equipo-brief-text');
+    const btn = document.getElementById('btn-start-equipo');
+    const isDone = status === 'done';
+
+    if (title) title.textContent = isDone ? T.evaluation.equipoDoneTitle : T.evaluation.equipoBriefTitle;
+    if (text) {
+        text.textContent = isDone
+            ? T.evaluation.equipoDoneText
+            : `${T.evaluation.equipoBriefText} ${T.evaluation.equipoProgreso(hechos, evaluables.length)}`;
+    }
+    if (btn) {
+        btn.textContent = isDone
+            ? T.evaluation.equipoBtnDone
+            : (status === 'partial' ? T.evaluation.equipoBtnContinue : T.evaluation.equipoBtnStart);
+    }
 }
 
 /** Columna izquierda: hard skills + tus soft skills (Autoevaluación). */
@@ -4741,6 +5208,14 @@ async function renderAutoevalColumn() {
     const { hard, soft } = await getEvaluationFlowState();
     const softPending = isSoftSkillsPending(soft);
     const softApplies = soft !== 'na';
+
+    // Sin pool de hard skills y sin soft skills propias no hay nada que contestar
+    // (p. ej. un CEO, cuyo puesto no existe en ninguno de los dos bancos): se oculta
+    // la sección completa en lugar de mostrar un botón que no lleva a ninguna parte.
+    const col = document.getElementById('eval-col-autoeval');
+    const sinNada = hard === 'empty' && !softApplies;
+    col?.classList.toggle('hidden', sinNada);
+    if (sinNada) return;
 
     // Si no hay soft skills propias para su puesto, se omite esa parte del brief.
     document.getElementById('eval-brief-part2-title')?.classList.toggle('hidden', !softApplies);
@@ -4785,11 +5260,7 @@ async function renderAutoevalColumn() {
 /** Columna derecha: formador y equipo. Se oculta si no aplica a su puesto. */
 async function renderFormadorColumn() {
     const col = document.getElementById('eval-col-formador');
-    const divider = document.getElementById('eval-split-divider');
-    const mostrar = (visible) => {
-        col?.classList.toggle('hidden', !visible);
-        divider?.classList.toggle('hidden', !visible);
-    };
+    const mostrar = (visible) => col?.classList.toggle('hidden', !visible);
 
     if (!canEvaluateFormador(userProfile.especialidad)) { mostrar(false); return; }
 
@@ -4805,7 +5276,7 @@ async function renderFormadorColumn() {
     if (!isDone && startBtn) {
         startBtn.textContent = status === 'partial'
             ? 'CONTINUAR EVALUACIÓN'
-            : 'EVALUAR A MI FORMADOR / EQUIPO';
+            : 'EVALUAR A MI FORMADOR';
     }
     if (isDone) {
         const dateEl = document.getElementById('formador-completed-date');

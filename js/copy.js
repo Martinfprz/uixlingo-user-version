@@ -314,6 +314,20 @@ export const UI_TEXT = {
         softDoneTitle: 'Tus soft skills ✓',
         softDoneTextNoDate:
             'Ya te autoevaluaste en los comportamientos UiX. Esta parte no se convierte en calificación.',
+        // Sección «Evaluar a mi equipo»: una evaluación por colaborador.
+        equipoBriefTitle: 'Evalúa a tu equipo 👥',
+        equipoBriefText:
+            'Evalúas a cada persona de tu equipo por separado, con las preguntas que corresponden a su puesto. Puedes hacerlo de a una y volver cuando quieras.',
+        equipoBtnStart: 'EVALUAR A MI EQUIPO',
+        equipoBtnContinue: 'CONTINUAR EVALUANDO',
+        equipoBtnDone: 'VER A MI EQUIPO',
+        equipoDoneTitle: 'Ya evaluaste a todo tu equipo ✓',
+        equipoDoneText: 'Sus respuestas quedaron guardadas de forma confidencial.',
+        equipoProgreso: (hechos, total) => `Has evaluado a ${hechos} de ${total} personas de tu equipo.`,
+        equipoListTitle: '¿A quién quieres evaluar?',
+        equipoListHint: 'Elige a una persona. Las preguntas se ajustan a su puesto.',
+        equipoSinPreguntas: (nombre, puesto) =>
+            `Todavía no hay preguntas para el puesto «${puesto || 'sin puesto'}» de ${nombre}.`,
     },
 
     results: {

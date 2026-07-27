@@ -9,7 +9,7 @@
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
     <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
-    <link rel="stylesheet" href="css/main.css?v=21">
+    <link rel="stylesheet" href="css/main.css?v=25">
     <style>
         /* Transición suave al cambiar de tema */
         *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
@@ -418,7 +418,7 @@
                     <div class="eval-split" id="eval-split">
 
                         <!-- ── IZQUIERDA: tu autoevaluación (hard skills + soft skills de Autoevaluación) ── -->
-                        <div class="eval-split__col">
+                        <div class="eval-split__col" id="eval-col-autoeval">
                             <div id="evaluation-brief-content">
                                 <p class="section-subtitle">Tu autoevaluación: primero conocimientos, después soft skills</p>
 
@@ -507,27 +507,21 @@
                         <!-- ── DERECHA: evaluación al formador y al equipo ── -->
                         <div class="eval-split__col" id="eval-col-formador">
                             <div id="formador-brief-panel">
-                                <p class="section-subtitle">Aquí las reglas las pones tú: evalúa a tu formador y a tu equipo, con toda confianza</p>
-
-                                <div class="evaluation-brief-card evaluation-brief-card--summary">
-                                    <h3 class="evaluation-brief-title">Evaluación al formador / equipo 🤝</h3>
-                                    <p class="evaluation-auto-summary">
-                                        Responde con honestidad; tus respuestas se guardan de forma confidencial y no se te asigna calificación.
-                                    </p>
-                                </div>
+                                <p class="section-subtitle">Aquí las reglas las pones tú: evalúa a tu formador con toda confianza</p>
 
                                 <div class="evaluation-brief-card">
                                     <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
                                     <ul class="evaluation-brief-list">
-                                        <li>Primero, evalúa a tu formador, después, a tu equipo.</li>
+                                        <li>Evalúas a tu formadora o formador.</li>
                                         <li>Ve a tu ritmo: no hay tiempo límite ni respuestas correctas o incorrectas.</li>
                                         <li>Es retro 360°, así que esto no se convierte en una calificación.</li>
+                                        <li>Tus respuestas se guardan de forma confidencial.</li>
                                     </ul>
                                 </div>
 
                                 <div class="action-group">
                                     <button id="btn-start-formador" onclick="startFormadorEvaluation()" class="btn-cta" data-track-section="evaluaciones" data-track-action="start-formador">
-                                        EVALUAR A MI FORMADOR / EQUIPO
+                                        EVALUAR A MI FORMADOR
                                     </button>
                                 </div>
                             </div>
@@ -538,7 +532,7 @@
                                 <div class="evaluation-brief-card evaluation-brief-card--summary">
                                     <h3 class="evaluation-brief-title">Ya completaste esta evaluación ✓</h3>
                                     <p class="evaluation-auto-summary">
-                                        Evaluaste a tu formador y equipo el <b id="formador-completed-date">—</b>. No se te asigna calificación.
+                                        Evaluaste a tu formador el <b id="formador-completed-date">—</b>. No se te asigna calificación.
                                     </p>
                                 </div>
 
@@ -550,6 +544,46 @@
                             </div>
                         </div>
 
+                        <!-- ── DIVIDER 2 (solo si tiene gente a su cargo) ── -->
+                        <div class="eval-split__divider hidden" id="eval-split-divider-2"></div>
+
+                        <!-- ── SECCIÓN 3: evaluar al equipo, uno por uno (solo líderes) ── -->
+                        <div class="eval-split__col hidden" id="eval-col-equipo">
+                            <div id="equipo-brief-panel">
+                                <p class="section-subtitle" id="equipo-brief-subtitle">Evalúa a cada persona de tu equipo</p>
+
+                                <div class="evaluation-brief-card">
+                                    <h3 class="evaluation-brief-title" id="equipo-brief-title">Evalúa a tu equipo 👥</h3>
+                                    <p class="evaluation-auto-summary" id="equipo-brief-text">—</p>
+                                </div>
+
+                                <div class="evaluation-brief-card">
+                                    <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
+                                    <ul class="evaluation-brief-list">
+                                        <li>Eliges a quién evaluar y lo haces de a una persona.</li>
+                                        <li>Las preguntas cambian según el puesto de cada colaborador.</li>
+                                        <li>Puedes salir y volver: se guarda a quién ya evaluaste.</li>
+                                        <li>Sin tiempo límite y sin respuestas correctas o incorrectas.</li>
+                                    </ul>
+                                </div>
+
+                                <div class="action-group">
+                                    <button id="btn-start-equipo" onclick="startEquipoEvaluation()" class="btn-cta" data-track-section="evaluaciones" data-track-action="start-equipo">
+                                        EVALUAR A MI EQUIPO
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Ninguna sección aplica a este perfil (p. ej. puesto que no está en los bancos) -->
+                    <div id="eval-sin-secciones" class="evaluation-brief-card hidden">
+                        <h3 class="evaluation-brief-title">Por ahora no tienes evaluaciones 🙌</h3>
+                        <p class="evaluation-auto-summary">
+                            No hay preguntas disponibles para tu puesto y no tienes gente a tu cargo.
+                            Si crees que esto es un error, contacta al equipo Ops.
+                        </p>
                     </div>
 
                 </div>
@@ -663,6 +697,15 @@
                         <button id="btn-formador-continue" class="btn-primary">CONTINUAR</button>
                         <button id="btn-formador-save-exit" class="btn-secondary hidden">GUARDAR Y SALIR</button>
                     </div>
+                </div>
+
+                <!-- Sección 3: lista de colaboradores a evaluar (uno por uno) -->
+                <div id="equipo-list" class="hidden break-content" style="text-align:center;">
+                    <h2 id="equipo-list-title">¿A quién quieres evaluar?</h2>
+                    <p id="equipo-list-hint">Elige a una persona. Las preguntas se ajustan a su puesto.</p>
+                    <p id="equipo-list-progress" class="equipo-list__progress"></p>
+                    <div id="equipo-list-items" class="equipo-list"></div>
+                    <button type="button" class="btn-secondary" onclick="formadorBackToBrief()" style="margin-top:1.25rem">VOLVER</button>
                 </div>
 
                 <!-- Fin: radares de resultados (telaraña) con switcher -->
@@ -1032,7 +1075,7 @@
             </div>
         </div>
 
-        <script type="module" src="app.js?v=9"></script>
+        <script type="module" src="app.js?v=14"></script>
         <script src="js/keyboard-nav.js" defer></script>
         <script src="js/easter-egg.js" defer></script>
     </div>

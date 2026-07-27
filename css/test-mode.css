@@ -255,3 +255,45 @@
         padding-left: 0.75rem;
     }
 }
+
+/* ── Pestañas del panel: simular por puesto o por persona real ── */
+.test-mode-tabs {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
+    padding: 0.25rem;
+    border-radius: 0.7rem;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.test-mode-tab {
+    flex: 1 1 0;
+    padding: 0.5rem 0.6rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: var(--color-text-light);
+    font: inherit;
+    font-weight: 700;
+    font-size: var(--text-sm, 0.875rem);
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--motion-ease-standard),
+        color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.test-mode-tab:hover {
+    color: var(--color-text);
+}
+
+.test-mode-tab.is-active {
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+}
+
+/* Adelanta qué verá la persona simulada (puesto, formador, gente a su cargo). */
+.test-mode-modal__hint {
+    margin: 0.5rem 0 0;
+    font-size: var(--text-xs, 0.78rem);
+    line-height: 1.5;
+    color: var(--color-text-light);
+}
