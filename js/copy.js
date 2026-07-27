@@ -303,19 +303,17 @@ export const UI_TEXT = {
             ' Sin especialidad en ranking_user: se filtra solo por seniority (todas las áreas que coincidan).',
         btnBlocked: 'EVALUACION BLOQUEADA',
         btnStart: 'INICIAR EVALUACION',
-        // Sesión única: la Parte 2 (soft skills 360°) se encadena a la Parte 1.
-        btnContinueSoft: 'CONTINUAR CON LA PARTE 2',
+        // Sección izquierda: tus soft skills se encadenan tras las hard skills.
+        btnContinueSoft: 'CONTINUAR CON MIS SOFT SKILLS',
         btnViewSoftResults: 'VER MIS RESULTADOS 🕸️',
-        completedPart1Only: 'Ya completaste la Parte 1. Aquí están tus resultados:',
-        completedAll: 'Ya completaste tu evaluación. Aquí están tus resultados:',
-        softPendingTitle: 'Te falta la Parte 2 · Soft skills 360° ⏳',
+        completedPart1Only: 'Ya completaste la parte de conocimientos. Aquí están tus resultados:',
+        completedAll: 'Ya completaste tu autoevaluación. Aquí están tus resultados:',
+        softPendingTitle: 'Te faltan tus soft skills ⏳',
         softPendingText:
-            'Tus respuestas de la Parte 1 ya quedaron guardadas. Continúa con la Parte 2 cuando quieras: no hay tiempo límite ni respuestas correctas o incorrectas.',
-        softDoneTitle: 'Parte 2 · Soft skills 360° completada ✓',
-        softDoneText: (fecha) =>
-            `Respondiste tu evaluación 360° el ${fecha}. Esta parte no se convierte en calificación.`,
+            'Tus respuestas de conocimientos ya quedaron guardadas. Continúa con tus soft skills cuando quieras: no hay tiempo límite ni respuestas correctas o incorrectas.',
+        softDoneTitle: 'Tus soft skills ✓',
         softDoneTextNoDate:
-            'Ya respondiste tu evaluación 360°. Esta parte no se convierte en calificación.',
+            'Ya te autoevaluaste en los comportamientos UiX. Esta parte no se convierte en calificación.',
     },
 
     results: {

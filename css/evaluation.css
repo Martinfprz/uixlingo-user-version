@@ -140,10 +140,56 @@
     flex-wrap: wrap;
 }
 
-/* ── Brief de la sesión única (Parte 1 preguntas + Parte 2 soft skills 360°) ── */
-.eval-brief {
-    max-width: 640px;
-    margin-inline: auto;
+/* ── Brief en dos secciones: tu autoevaluación | formador y equipo ── */
+.eval-split {
+    display: flex;
+    gap: 2rem;
+    align-items: stretch; /* columnas de igual altura para alinear los botones abajo */
+}
+
+.eval-split__col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* El panel visible (normal o completado) llena la altura de la columna. */
+.eval-split__col > div {
+    flex: 1 1 auto;
+}
+
+/* Los paneles del formador son flex-column centrados para alinear su botón abajo. */
+#formador-brief-panel,
+#formador-completed-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Botón siempre pegado al borde inferior de su columna. */
+.eval-split__col .action-group {
+    margin-top: auto;
+}
+
+.eval-split__divider {
+    align-self: stretch;
+    flex: 0 0 1px;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 1px;
+}
+
+@media (max-width: 768px) {
+    .eval-split {
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    .eval-split__divider {
+        flex-basis: 1px;
+        width: 100%;
+        height: 1px;
+    }
 }
 
 /* Encabezado de cada parte dentro de la card «¿Qué encontrarás aquí?» */

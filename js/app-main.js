@@ -3603,49 +3603,51 @@ window.backToModes = function () {
     returnToDashboard();
 }
 
-// ─── SESIÓN ÚNICA: Parte 1 (preguntas_evaluacion) → Parte 2 (soft skills 360°) ──
-// Cada parte conserva su lógica: la Parte 1 con timer y respuesta correcta/incorrecta,
-// la Parte 2 con rúbrica de niveles, sin timer y sin calificación. Solo se encadenan.
+// ─── DOS SECCIONES DE EVALUACIÓN ────────────────────────────────────────────
+// Izquierda «Tu autoevaluación»: hard skills (preguntas_evaluacion, con timer y
+//   respuesta correcta/incorrecta) encadenadas con las soft skills de Autoevaluación.
+// Derecha «Formador / equipo»: las otras dos modalidades del banco de soft skills.
+// Cada sección corre por su cuenta; las respuestas se guardan igual que antes.
 
 /**
- * Estado de los dos tramos de la sesión.
- *  parte1: 'pending' | 'done' | 'blocked' | 'empty'
- *  parte2: 'none' | 'partial' | 'done' | 'na'  ('na' = no aplica a este puesto)
+ * Estado de los dos tramos de la sección izquierda.
+ *  hard: 'pending' | 'done' | 'blocked' | 'empty'
+ *  soft: 'none' | 'partial' | 'done' | 'na'  ('na' = no aplica a este puesto)
  */
 async function getEvaluationFlowState() {
-    let parte1;
-    if (userProfile.evalCompleted) parte1 = 'done';
-    else if (isEvaluationHardBlocked()) parte1 = 'blocked';
-    else if (filterEvaluationQuestionsByUserProfile(normalizePoolForEvaluation()).length === 0) parte1 = 'empty';
-    else parte1 = 'pending';
+    let hard;
+    if (userProfile.evalCompleted) hard = 'done';
+    else if (isEvaluationHardBlocked()) hard = 'blocked';
+    else if (filterEvaluationQuestionsByUserProfile(normalizePoolForEvaluation()).length === 0) hard = 'empty';
+    else hard = 'pending';
 
-    let parte2 = 'na';
+    let soft = 'na';
     if (canEvaluateFormador(userProfile.especialidad)) {
-        const status = await getFormadorBriefStatus(); // 'empty' | 'none' | 'partial' | 'done'
-        parte2 = status === 'empty' ? 'na' : status;
+        const status = await getFormadorBriefStatus(MODALIDADES_AUTOEVAL);
+        soft = status === 'empty' ? 'na' : status;
     }
-    return { parte1, parte2 };
+    return { hard, soft };
 }
 
-function isSoftSkillsPending(parte2) {
-    return parte2 === 'none' || parte2 === 'partial';
+function isSoftSkillsPending(soft) {
+    return soft === 'none' || soft === 'partial';
 }
 
-/** Botón único del brief: entra por donde le toque al usuario. */
+/** Botón de la sección izquierda: hard skills y, al terminar, tus soft skills. */
 window.startEvaluationSession = async function () {
-    const { parte1, parte2 } = await getEvaluationFlowState();
-    // Parte 1 disponible → corre el quiz; al terminar, la pantalla de resultados encadena la Parte 2.
-    if (parte1 === 'pending') { startQuiz(); return; }
-    // Parte 1 hecha (o no disponible para su perfil) y hay 360 → entra directo a la Parte 2.
-    if (parte2 !== 'na') { await startFormadorEvaluation(); return; }
+    const { hard, soft } = await getEvaluationFlowState();
+    // Hard disponibles → corre el quiz; al terminar, los resultados encadenan tus soft skills.
+    if (hard === 'pending') { startQuiz(); return; }
+    // Hard ya hechas (o sin pool para su perfil) y quedan soft propias → entra directo a ellas.
+    if (soft !== 'na') { await startAutoevalSoftSkills(); return; }
     // Sin nada que correr: startQuiz muestra el aviso que corresponda (pool vacío / bloqueada).
     startQuiz();
 };
 
-/** Puente desde la pantalla de resultados de la Parte 1 hacia la Parte 2. */
+/** Puente desde la pantalla de resultados de las hard skills hacia tus soft skills. */
 window.continueToSoftSkills = async function () {
     document.getElementById('results-continue-soft-wrap')?.classList.add('hidden');
-    await startFormadorEvaluation();
+    await startAutoevalSoftSkills();
 };
 
 // ─── EVALUACIÓN 360 AL FORMADOR / EQUIPO (banco_evaluar_formador) ───────────
@@ -3660,8 +3662,11 @@ let formadorTestAnswers = [];   // acumulado en memoria (radar en Test Mode)
 let formadorContext = null;     // { ownBucket } resuelto por perfil
 let formadorCompletedMods = new Set(); // modalidades ya guardadas (de la BD) → para reanudar
 let formadorRadarData = {};     // { modalidad: [{comp, avg, n}] } para el gráfico
-// Modalidad = tipo_evaluacion. Orden de los 3 bloques de la corrida.
+// Modalidad = tipo_evaluacion. Orden global de las 3 modalidades.
 const FORMADOR_MODALITY_ORDER = ['Autoevaluación', 'Evaluación al formador', 'Evaluación a mi equipo'];
+// Cada sección del brief corre su propio grupo de modalidades.
+const MODALIDADES_AUTOEVAL = ['Autoevaluación'];                                   // sección izquierda
+const MODALIDADES_FORMADOR = ['Evaluación al formador', 'Evaluación a mi equipo']; // sección derecha
 const FORMADOR_RANDOM_PER_PICO = 5; // Preguntas por comportamiento (pico) cuando NO tiene obligatorias.
 // Picos del radar (comportamientos) y escala de nivel.
 const FORMADOR_PICOS = ['Confianza y respeto mutuo', 'Ejecución impecable', 'Mejora continua', 'Pasión por el Cliente', 'Trabajo en equipo'];
@@ -3678,16 +3683,11 @@ const FORMADOR_LEVEL_MESSAGE = {
 };
 
 /**
- * Nivel dominante de un bloque: el que el usuario contestó más veces.
- * Ignora las respuestas sin nivel (filas «Solo Admin»). En empate gana el nivel más alto.
+ * Nivel dominante (1-4) a partir de un Map {valorDeNivel → veces contestado}.
+ * En empate gana el nivel más alto. Devuelve 0 si no hay ninguno.
+ * La usan el mensaje de cierre y el radar, para que digan lo mismo.
  */
-function formadorDominantLevel(answers) {
-    const counts = new Map();
-    (answers || []).forEach(a => {
-        const val = FORMADOR_LEVEL_VALUE[String(a.nivel || '').trim().toLowerCase()];
-        if (!val) return;
-        counts.set(val, (counts.get(val) || 0) + 1);
-    });
+function dominantLevelFromCounts(counts) {
     let bestVal = 0;
     let bestCount = 0;
     counts.forEach((count, val) => {
@@ -3696,7 +3696,23 @@ function formadorDominantLevel(answers) {
             bestVal = val;
         }
     });
-    return FORMADOR_LEVEL_LABEL[bestVal] || '';
+    return bestVal;
+}
+
+/** Cuenta cuántas veces cayó cada nivel. Ignora respuestas sin nivel (filas «Solo Admin»). */
+function countLevels(answers) {
+    const counts = new Map();
+    (answers || []).forEach(a => {
+        const val = FORMADOR_LEVEL_VALUE[String(a.nivel || '').trim().toLowerCase()];
+        if (!val) return;
+        counts.set(val, (counts.get(val) || 0) + 1);
+    });
+    return counts;
+}
+
+/** Nivel dominante de un bloque: el que el usuario contestó más veces. */
+function formadorDominantLevel(answers) {
+    return FORMADOR_LEVEL_LABEL[dominantLevelFromCounts(countLevels(answers))] || '';
 }
 
 /** Mensaje de cierre del bloque ('' si ninguna respuesta traía nivel). */
@@ -3785,15 +3801,16 @@ function formadorBucketsForModality(modality, ctx) {
 }
 
 /**
- * Arma los BLOQUES pendientes (uno por modalidad NO completada). Por cada comportamiento (pico):
+ * Arma los BLOQUES pendientes del grupo dado (uno por modalidad NO completada).
+ * Por cada comportamiento (pico):
  *  - si tiene obligatorias → TODAS sus obligatorias,
  *  - si no → FORMADOR_RANDOM_PER_PICO aleatorias.
  */
-async function buildFormadorBlocks() {
+async function buildFormadorBlocks(modalities = FORMADOR_MODALITY_ORDER) {
     const ctx = await ensureFormadorContext();
     const blocks = [];
 
-    FORMADOR_MODALITY_ORDER.forEach(modality => {
+    FORMADOR_MODALITY_ORDER.filter(m => modalities.includes(m)).forEach(modality => {
         if (formadorCompletedMods.has(modality)) return; // ya contestada → reanudar sin repetir
         const buckets = formadorBucketsForModality(modality, ctx);
         if (!buckets.size) return; // sin puesto aplicable → se salta el bloque
@@ -3845,39 +3862,44 @@ async function loadFormadorCompletedModalities() {
 }
 
 /**
- * Estado para el brief:
- *  'empty'   → puede por rol pero no hay preguntas para su puesto,
+ * Estado de un grupo de modalidades para el brief:
+ *  'empty'   → puede por rol pero no hay preguntas de ese grupo para su puesto,
  *  'none'    → no ha empezado,
- *  'partial' → tiene etapas contestadas y otras pendientes,
- *  'done'    → contestó todas las modalidades aplicables.
+ *  'partial' → tiene etapas del grupo contestadas y otras pendientes,
+ *  'done'    → contestó todas las modalidades aplicables del grupo.
  */
-async function getFormadorBriefStatus() {
+async function getFormadorBriefStatus(modalities = FORMADOR_MODALITY_ORDER) {
     await ensureFormadorLoaded();
     formadorContext = null;
     await loadFormadorCompletedModalities();
-    const pending = await buildFormadorBlocks();
-    const done = formadorCompletedMods.size;
+    const pending = await buildFormadorBlocks(modalities);
+    // Solo cuentan las completadas de ESTE grupo: cada sección lleva su propio estado.
+    const done = modalities.filter(m => formadorCompletedMods.has(m)).length;
     if (!pending.length && !done) return 'empty';
     if (!pending.length) return 'done';
     if (done) return 'partial';
     return 'none';
 }
 
-/** Botón del brief: reanuda lo pendiente, o muestra el radar si ya terminó todo. */
-window.startFormadorEvaluation = async function () {
+/**
+ * Corre las modalidades pendientes del grupo dado; si no queda nada, muestra los radares.
+ * Lo usan las dos secciones del brief, cada una con su propio grupo.
+ */
+async function runFormadorGroup(modalities) {
     await ensureFormadorLoaded();
     formadorContext = null; // recalcular por si cambió el perfil (p. ej. Test Mode)
     formadorTestAnswers = [];
     await loadFormadorCompletedModalities();
-    const blocks = await buildFormadorBlocks();
+    const blocks = await buildFormadorBlocks(modalities);
+    const doneEnGrupo = modalities.some(m => formadorCompletedMods.has(m));
 
     switchSection('formador-interface', async () => {
         ['formador-notice', 'formador-done', 'formador-quiz'].forEach(id =>
             document.getElementById(id)?.classList.add('hidden'));
 
         if (!blocks.length) {
-            if (formadorCompletedMods.size) {
-                await showFormadorResults(); // ya completó → ver sus radares
+            if (doneEnGrupo) {
+                await showFormadorResults(); // ya completó el grupo → ver sus radares
             } else {
                 showAppAlert({
                     title: 'Sin preguntas por ahora',
@@ -3892,6 +3914,16 @@ window.startFormadorEvaluation = async function () {
         formadorBlockIdx = 0;
         renderFormadorBlockIntro();
     });
+}
+
+/** Sección izquierda: tus soft skills (Autoevaluación), tras las hard skills. */
+async function startAutoevalSoftSkills() {
+    await runFormadorGroup(MODALIDADES_AUTOEVAL);
+}
+
+/** Botón de la sección derecha: formador y equipo. */
+window.startFormadorEvaluation = async function () {
+    await runFormadorGroup(MODALIDADES_FORMADOR);
 };
 
 // Textos de la pantalla de transición por modalidad (a quién se evalúa).
@@ -3937,7 +3969,7 @@ function showFormadorNotice({ modality, mode, finishedModality, levelMessage, on
     if (mode === 'closing') {
         copy = {
             title: '¡Terminaste! 🎉',
-            text: `Con "${finishedModality}" completaste tu evaluación 360°. Tus respuestas quedaron guardadas.`
+            text: `Con "${finishedModality}" completaste esta sección. Tus respuestas quedaron guardadas.`
         };
     } else if (mode === 'interstage') {
         copy = {
@@ -4126,7 +4158,12 @@ async function fetchFormadorAnswersForRadar() {
     }
 }
 
-/** Promedia el nivel (1-4) por modalidad × comportamiento. Excluye Solo Admin / sin nivel. */
+/**
+ * Nivel DOMINANTE (1-4) por modalidad × comportamiento: el que más veces contestó,
+ * no el promedio. Cada punta del radar cae en el nivel exacto donde se acumularon
+ * más respuestas — 1 = En desarrollo (más cerca del centro) … 4 = Experto (la orilla).
+ * Excluye Solo Admin / sin nivel.
+ */
 function computeFormadorRadar(answers) {
     const acc = {};
     (answers || []).forEach(a => {
@@ -4135,15 +4172,19 @@ function computeFormadorRadar(answers) {
         const val = FORMADOR_LEVEL_VALUE[String(a.nivel || '').trim().toLowerCase()];
         if (!mod || !comp || comp === 'Solo Admin' || !val) return;
         acc[mod] = acc[mod] || {};
-        acc[mod][comp] = acc[mod][comp] || { sum: 0, count: 0 };
-        acc[mod][comp].sum += val;
-        acc[mod][comp].count += 1;
+        acc[mod][comp] = acc[mod][comp] || new Map();
+        const counts = acc[mod][comp];
+        counts.set(val, (counts.get(val) || 0) + 1);
     });
     const out = {};
     Object.keys(acc).forEach(mod => {
-        out[mod] = Object.keys(acc[mod]).map(comp => ({
-            comp, avg: acc[mod][comp].sum / acc[mod][comp].count, n: acc[mod][comp].count
-        }));
+        out[mod] = Object.keys(acc[mod]).map(comp => {
+            const counts = acc[mod][comp];
+            const nivel = dominantLevelFromCounts(counts);
+            let n = 0;
+            counts.forEach(c => { n += c; });
+            return { comp, nivel, n, veces: counts.get(nivel) || 0 };
+        }).filter(d => d.nivel > 0);
     });
     return out;
 }
@@ -4216,22 +4257,23 @@ function renderFormadorRadar(modality) {
     // polígono de valores (solo comportamientos presentes)
     const verts = FORMADOR_PICOS.map((p, i) => byComp[p] ? { i, d: byComp[p] } : null).filter(Boolean);
     if (verts.length >= 3) {
-        const poly = verts.map(v => pt(v.i, R * v.d.avg / MAX).map(n => n.toFixed(1)).join(',')).join(' ');
+        const poly = verts.map(v => pt(v.i, R * v.d.nivel / MAX).map(n => n.toFixed(1)).join(',')).join(' ');
         s += `<polygon points="${poly}" fill="${col}33" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>`;
     } else if (verts.length === 2) {
-        const a = pt(verts[0].i, R * verts[0].d.avg / MAX), b = pt(verts[1].i, R * verts[1].d.avg / MAX);
+        const a = pt(verts[0].i, R * verts[0].d.nivel / MAX), b = pt(verts[1].i, R * verts[1].d.nivel / MAX);
         s += `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="2.5"/>`;
     }
     verts.forEach(v => {
-        const [x, y] = pt(v.i, R * v.d.avg / MAX);
-        s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${col}" stroke="#fff" stroke-width="1.5"><title>${v.d.comp}: ${FORMADOR_LEVEL_LABEL[Math.round(v.d.avg)]} (${v.d.avg.toFixed(1)})</title></circle>`;
+        const [x, y] = pt(v.i, R * v.d.nivel / MAX);
+        // El tooltip dice en cuántas de sus respuestas cayó ese nivel.
+        s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${col}" stroke="#fff" stroke-width="1.5"><title>${v.d.comp}: ${FORMADOR_LEVEL_LABEL[v.d.nivel]} (${v.d.veces} de ${v.d.n} respuestas)</title></circle>`;
     });
     s += `</svg>`;
 
     // leyenda de valores por comportamiento
     const rows = FORMADOR_PICOS.filter(p => byComp[p]).map(p => {
         const d = byComp[p];
-        return `<li style="display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;font-size:.85rem"><span>${p}</span><b>${FORMADOR_LEVEL_LABEL[Math.round(d.avg)]}</b></li>`;
+        return `<li style="display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;font-size:.85rem"><span>${p}</span><b>${FORMADOR_LEVEL_LABEL[d.nivel]}</b></li>`;
     }).join('');
 
     cont.innerHTML =
@@ -4678,12 +4720,17 @@ function formatFormadorDate(iso) {
 }
 
 /**
- * Brief de la sesión única. Un solo botón que resuelve por dónde entra el usuario:
- *  - Parte 1 pendiente        → «Iniciar evaluación» (al terminar encadena la Parte 2).
- *  - Parte 1 hecha, 360 abierto → «Continuar con la Parte 2».
- *  - Todo hecho               → puntaje + errores + «Ver mis resultados» (radares).
+ * Brief con sus dos secciones independientes:
+ *  - izquierda: hard skills + tus soft skills (Autoevaluación),
+ *  - derecha: evaluación al formador y al equipo.
  */
 async function renderEvaluationBrief() {
+    await renderAutoevalColumn();
+    await renderFormadorColumn();
+}
+
+/** Columna izquierda: hard skills + tus soft skills (Autoevaluación). */
+async function renderAutoevalColumn() {
     renderEvaluationCompletedState();
 
     const softCard = document.getElementById('eval-soft-card');
@@ -4691,27 +4738,27 @@ async function renderEvaluationBrief() {
     softCard?.classList.add('hidden');
     softAction?.classList.add('hidden');
 
-    const { parte1, parte2 } = await getEvaluationFlowState();
-    const softPending = isSoftSkillsPending(parte2);
-    const part2Applies = parte2 !== 'na';
+    const { hard, soft } = await getEvaluationFlowState();
+    const softPending = isSoftSkillsPending(soft);
+    const softApplies = soft !== 'na';
 
-    // La Parte 2 solo aplica a quien tiene formador o equipo: si no, se omite del brief.
-    document.getElementById('eval-brief-part2-title')?.classList.toggle('hidden', !part2Applies);
-    document.getElementById('eval-brief-part2-list')?.classList.toggle('hidden', !part2Applies);
+    // Si no hay soft skills propias para su puesto, se omite esa parte del brief.
+    document.getElementById('eval-brief-part2-title')?.classList.toggle('hidden', !softApplies);
+    document.getElementById('eval-brief-part2-list')?.classList.toggle('hidden', !softApplies);
 
-    // Parte 1 no disponible (pool vacío o bloqueada) pero el 360 sí: el botón entra a la Parte 2.
+    // Hard no disponibles (pool vacío o bloqueada) pero quedan soft propias: el botón entra a ellas.
     const startBtn = document.getElementById('btn-start-evaluation');
-    if (startBtn && (parte1 === 'blocked' || parte1 === 'empty') && softPending) {
+    if (startBtn && (hard === 'blocked' || hard === 'empty') && softPending) {
         startBtn.disabled = false;
         startBtn.classList.remove('is-disabled');
         startBtn.innerText = T.evaluation.btnContinueSoft;
     }
 
-    if (parte1 !== 'done') return;
+    if (hard !== 'done') return;
 
-    // ── Estado completado: la Parte 1 ya quedó guardada ──
+    // ── Estado completado: las hard skills ya quedaron guardadas ──
     const subtitle = document.getElementById('eval-completed-subtitle');
-    if (!part2Applies) {
+    if (!softApplies) {
         if (subtitle) subtitle.textContent = T.evaluation.completedAll;
         return;
     }
@@ -4730,12 +4777,39 @@ async function renderEvaluationBrief() {
     } else {
         if (subtitle) subtitle.textContent = T.evaluation.completedAll;
         if (title) title.textContent = T.evaluation.softDoneTitle;
-        if (text) {
-            text.textContent = userProfile.formadorDoneAt
-                ? T.evaluation.softDoneText(formatFormadorDate(userProfile.formadorDoneAt))
-                : T.evaluation.softDoneTextNoDate;
-        }
+        if (text) text.textContent = T.evaluation.softDoneTextNoDate;
         if (btn) btn.innerText = T.evaluation.btnViewSoftResults;
+    }
+}
+
+/** Columna derecha: formador y equipo. Se oculta si no aplica a su puesto. */
+async function renderFormadorColumn() {
+    const col = document.getElementById('eval-col-formador');
+    const divider = document.getElementById('eval-split-divider');
+    const mostrar = (visible) => {
+        col?.classList.toggle('hidden', !visible);
+        divider?.classList.toggle('hidden', !visible);
+    };
+
+    if (!canEvaluateFormador(userProfile.especialidad)) { mostrar(false); return; }
+
+    const status = await getFormadorBriefStatus(MODALIDADES_FORMADOR);
+    if (status === 'empty') { mostrar(false); return; } // sin preguntas para su puesto
+    mostrar(true);
+
+    const isDone = status === 'done';
+    document.getElementById('formador-brief-panel')?.classList.toggle('hidden', isDone);
+    document.getElementById('formador-completed-panel')?.classList.toggle('hidden', !isDone);
+
+    const startBtn = document.getElementById('btn-start-formador');
+    if (!isDone && startBtn) {
+        startBtn.textContent = status === 'partial'
+            ? 'CONTINUAR EVALUACIÓN'
+            : 'EVALUAR A MI FORMADOR / EQUIPO';
+    }
+    if (isDone) {
+        const dateEl = document.getElementById('formador-completed-date');
+        if (dateEl && userProfile.formadorDoneAt) dateEl.textContent = formatFormadorDate(userProfile.formadorDoneAt);
     }
 }
 
@@ -7134,12 +7208,12 @@ async function showResults() {
         const timeTaken = Math.round((endTime - startTime) / 1000); // Segundos
         const isNewRecord = await saveScoreToCloud(score, timeTaken);
 
-        // Sesión única: si le queda la Parte 2 (soft skills 360°), ofrecerla aquí mismo.
+        // Si le quedan sus soft skills (Autoevaluación), ofrecerlas aquí mismo.
         const continueSoftWrap = document.getElementById('results-continue-soft-wrap');
         if (continueSoftWrap) {
             let showContinue = false;
             if (isEvaluationResult && canEvaluateFormador(userProfile.especialidad)) {
-                const status = await getFormadorBriefStatus();
+                const status = await getFormadorBriefStatus(MODALIDADES_AUTOEVAL);
                 showContinue = status === 'none' || status === 'partial';
             }
             continueSoftWrap.classList.toggle('hidden', !showContinue);
