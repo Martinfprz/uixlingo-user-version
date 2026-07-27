@@ -193,19 +193,28 @@
     }
 }
 
-/* Encabezado de cada parte dentro de la card «¿Qué encontrarás aquí?» */
-.evaluation-brief-intro {
-    margin: 0 0 0.75rem;
+/* Los dos pasos («1.- Hard skills», «2.- Soft skills») dentro de «¿Qué encontrarás aquí?» */
+.evaluation-brief-step {
+    margin: 0 0 0.35rem;
+    line-height: 1.65;
 }
 
-.evaluation-brief-part {
-    margin: 1rem 0 0.35rem;
+.evaluation-brief-step + .evaluation-brief-rules-title,
+.evaluation-brief-list + .evaluation-brief-step {
+    margin-top: 1rem;
+}
+
+/* «Reglas (solo para esta parte):» — aplica únicamente al paso 1. */
+.evaluation-brief-rules-title {
+    margin: 0 0 0.35rem;
     font-weight: 700;
     color: var(--color-cta-dark);
 }
 
-.evaluation-brief-part:first-of-type {
-    margin-top: 0.25rem;
+/* «Aquí, todo va sin presión, a tu ritmo.» */
+.evaluation-brief-note {
+    margin: 0;
+    color: var(--color-text-light);
 }
 
 /* ── Sección 3: lista de colaboradores a evaluar ── */

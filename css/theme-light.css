@@ -840,7 +840,7 @@
 }
 
 [data-theme="light"] .evaluation-brief-highlight,
-[data-theme="light"] .evaluation-brief-part {
+[data-theme="light"] .evaluation-brief-rules-title {
     color: var(--color-accent);
 }
 
