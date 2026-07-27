@@ -140,57 +140,72 @@
     flex-wrap: wrap;
 }
 
-/* ── Pantalla dividida del brief: preguntas | divider | formador ── */
-.eval-split {
-    display: flex;
-    gap: 2rem;
-    align-items: stretch; /* columnas de igual altura para alinear los botones abajo */
+/* ── Brief de la sesión única (Parte 1 preguntas + Parte 2 soft skills 360°) ── */
+.eval-brief {
+    max-width: 640px;
+    margin-inline: auto;
 }
 
-.eval-split__col {
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
+/* Encabezado de cada parte dentro de la card «¿Qué encontrarás aquí?» */
+.evaluation-brief-intro {
+    margin: 0 0 0.75rem;
 }
 
-/* El panel visible (normal o completado) llena la altura de la columna. */
-.eval-split__col > div {
-    flex: 1 1 auto;
+.evaluation-brief-part {
+    margin: 1rem 0 0.35rem;
+    font-weight: 700;
+    color: var(--color-cta-dark);
 }
 
-/* Los paneles del formador también son flex-column (y centrados) para empujar
-   su botón al fondo y alinearlo igual que la columna izquierda. */
-#formador-brief-panel,
-#formador-completed-panel {
+.evaluation-brief-part:first-of-type {
+    margin-top: 0.25rem;
+}
+
+/* La sección 360 heredaba blanco fijo en sus títulos y párrafos: ilegible en tema claro. */
+#formador-notice-title,
+#formador-done h2 {
+    color: var(--color-text);
+}
+
+#formador-notice-text,
+#formador-done > p {
+    color: var(--color-text-light);
+}
+
+/* Cierre de sección del 360: mensaje del nivel que más contestó el usuario. */
+.formador-notice-level {
+    margin: 1.25rem auto 0;
+    max-width: 42ch;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+    border-left: 3px solid var(--color-cta-dark);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.formador-notice-level__text {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--color-text);
+}
+
+/* Puente al final de la Parte 1: invita a continuar con la Parte 2. */
+.results-continue-soft {
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 0.75rem;
+    margin: 1.25rem 0 0;
 }
 
-/* Botón siempre pegado al borde inferior de su columna. */
-.eval-split__col .action-group {
-    margin-top: auto;
-}
-
-.eval-split__divider {
-    align-self: stretch;
-    flex: 0 0 1px;
-    width: 1px;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 1px;
-}
-
-@media (max-width: 768px) {
-    .eval-split {
-        flex-direction: column;
-        gap: 1.25rem;
-    }
-    .eval-split__divider {
-        flex-basis: 1px;
-        width: 100%;
-        height: 1px;
-    }
+.results-continue-soft__text {
+    margin: 0;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-text-light);
+    max-width: 40ch;
 }
 
 

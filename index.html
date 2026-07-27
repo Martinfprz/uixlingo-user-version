@@ -9,7 +9,7 @@
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <title>UiX-lingo | Aprende de UX/UI</title>
     <link rel="icon" type="image/webp" href="https://pmezmoobuwwbirwzensj.supabase.co/storage/v1/object/public/materiales/favicon.webp">
-    <link rel="stylesheet" href="css/main.css?v=19">
+    <link rel="stylesheet" href="css/main.css?v=20">
     <style>
         /* Transición suave al cambiar de tema */
         *, *::before, *::after { transition-property: background-color, border-color, color; transition-duration: 0.25s; transition-timing-function: ease; }
@@ -414,117 +414,89 @@
                 <div id="evaluation-brief-view" class="hidden">
                     <h2 class="view-title">Tu evaluación de mayo a julio 2026</h2>
 
-                    <div class="eval-split" id="eval-split">
+                    <!-- Sesión única: Parte 1 (preguntas de evaluación) + Parte 2 (soft skills 360°) -->
+                    <div class="eval-brief" id="eval-brief">
 
-                        <!-- ── IZQUIERDA: evaluación de preguntas ── -->
-                        <div class="eval-split__col">
-                            <!-- Estado normal: antes de completar la evaluación -->
-                            <div id="evaluation-brief-content">
-                                <p class="section-subtitle">Antes de comenzar, te contamos cómo funcionará esta sección:</p>
+                        <!-- Estado normal: antes de completar la evaluación -->
+                        <div id="evaluation-brief-content">
+                            <p class="section-subtitle">Antes de comenzar, te contamos cómo funcionará esta sección:</p>
 
-                                <div class="evaluation-brief-card evaluation-brief-card--summary">
-                                    <h3 class="evaluation-brief-title">Tu evaluación</h3>
-                                    <p id="evaluation-auto-summary" class="evaluation-auto-summary">
-                                        Las preguntas se seleccionan automáticamente según tu nivel de seniority
-                                        y especialidad registrada en el sistema.
-                                    </p>
-                                </div>
-
-                                <div class="evaluation-brief-card">
-                                    <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
-                                    <ul class="evaluation-brief-list">
-                                        <li>Preguntas enfocadas en tu desarrollo profesional.</li>
-                                        <li>Dificultad que se adapta según tu nivel de experiencia.</li>
-                                        <li>Resultados y puntajes guardados en tu perfil, al finalizar.</li>
-                                    </ul>
-                                </div>
-
-                                <div class="evaluation-brief-card">
-                                    <h3 class="evaluation-brief-title">Reglas de la evaluación</h3>
-                                    <ul class="evaluation-brief-list">
-                                        <li><b class="evaluation-brief-highlight">Tiempo por pregunta:</b> Cada pregunta tiene 60 segundos para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
-                                        <li><b class="evaluation-brief-highlight">Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
-                                        <li><b class="evaluation-brief-highlight">Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
-                                    </ul>
-                                    <p>¿Liste para empezar? Haz clic en el botón de abajo cuando estés preparade. 😊</p>
-                                </div>
-
-                                <div class="action-group">
-                                    <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start">
-                                        INICIAR EVALUACIÓN
-                                    </button>
-                                </div>
+                            <div class="evaluation-brief-card evaluation-brief-card--summary">
+                                <h3 class="evaluation-brief-title">Tu evaluación</h3>
+                                <p id="evaluation-auto-summary" class="evaluation-auto-summary">
+                                    Las preguntas se seleccionan automáticamente según tu nivel de seniority
+                                    y especialidad registrada en el sistema.
+                                </p>
                             </div>
 
-                            <!-- Estado completado: ya hiciste la evaluación -->
-                            <div id="evaluation-completed-view" class="hidden">
-                                <p class="section-subtitle">Ya completaste tu evaluación. Aquí están tus resultados:</p>
+                            <div class="evaluation-brief-card">
+                                <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
+                                <p class="evaluation-brief-intro">La evaluación tiene dos partes seguidas, en una sola sesión:</p>
 
-                                <div class="evaluation-brief-card evaluation-brief-card--summary">
-                                    <h3 class="evaluation-brief-title">Tu puntuación</h3>
-                                    <div class="eval-completed-score-wrap">
-                                        <span id="eval-completed-score" class="eval-completed-score-value">0</span>
-                                        <span class="eval-completed-score-label">aciertos</span>
-                                    </div>
-                                </div>
+                                <p class="evaluation-brief-part">Parte 1 · Preguntas de evaluación</p>
+                                <ul class="evaluation-brief-list">
+                                    <li>Preguntas enfocadas en tu desarrollo profesional.</li>
+                                    <li>Dificultad que se adapta según tu nivel de experiencia.</li>
+                                    <li>Tienen respuesta correcta e incorrecta: esta parte sí se califica.</li>
+                                    <li>Resultados y puntajes guardados en tu perfil, al finalizar.</li>
+                                </ul>
 
-                                <div id="eval-errors-card" class="evaluation-brief-card hidden">
-                                    <h3 class="evaluation-brief-title">Estudia lo que te faltó</h3>
-                                    <div id="eval-errors-inline-list" class="eval-errors-inline-list">
-                                        <!-- Rellenado por JS desde localStorage -->
-                                    </div>
-                                </div>
+                                <p class="evaluation-brief-part" id="eval-brief-part2-title">Parte 2 · Soft skills 360°</p>
+                                <ul class="evaluation-brief-list" id="eval-brief-part2-list">
+                                    <li>Primero te evalúas a ti, después a tu formador y al final a tu equipo.</li>
+                                    <li>Ve a tu ritmo: no hay tiempo límite ni respuestas correctas o incorrectas.</li>
+                                    <li>Es retro 360°, así que esta parte no se convierte en calificación.</li>
+                                    <li>Tus respuestas se guardan de forma confidencial.</li>
+                                </ul>
+                            </div>
+
+                            <div class="evaluation-brief-card">
+                                <h3 class="evaluation-brief-title">Reglas de la Parte 1</h3>
+                                <ul class="evaluation-brief-list">
+                                    <li><b class="evaluation-brief-highlight">Tiempo por pregunta:</b> Cada pregunta tiene 60 segundos para responder. ¡No te preocupes, vas a tener el tiempo justo para pensar!</li>
+                                    <li><b class="evaluation-brief-highlight">Cambio de ventana:</b> Si sales de la ventana de la evaluación se cerrará automáticamente. ¡No queremos que te pierdas de nada!</li>
+                                    <li><b class="evaluation-brief-highlight">Repetir la evaluación:</b> Si intentas repetir la evaluación, quedará marcada como conducta no permitida. Pero estamos seguros que lo harás una sola vez. ¡Será un reto emocionante!</li>
+                                </ul>
+                                <p>Estas reglas aplican solo a la Parte 1. La Parte 2 la respondes sin reloj y sin presión.</p>
+                                <p>¿Liste para empezar? Haz clic en el botón de abajo cuando estés preparade. 😊</p>
+                            </div>
+
+                            <div class="action-group">
+                                <button id="btn-start-evaluation" onclick="startEvaluationSession()" class="btn-cta is-disabled" disabled data-track-section="evaluaciones" data-track-action="start">
+                                    INICIAR EVALUACIÓN
+                                </button>
                             </div>
                         </div>
 
-                        <!-- ── DIVIDER (solo cuando hay dos evaluaciones) ── -->
-                        <div class="eval-split__divider" id="eval-split-divider"></div>
+                        <!-- Estado completado: ya hiciste la Parte 1 (y quizá la Parte 2) -->
+                        <div id="evaluation-completed-view" class="hidden">
+                            <p class="section-subtitle" id="eval-completed-subtitle">Ya completaste tu evaluación. Aquí están tus resultados:</p>
 
-                        <!-- ── DERECHA: evaluación al formador (solo puestos con equipo) ── -->
-                        <div class="eval-split__col" id="eval-col-formador">
-                            <!-- Estado normal: instrucciones + botón -->
-                            <div id="formador-brief-panel">
-                                <p class="section-subtitle">Aquí las reglas las pones tú: evalúa a tu formador y a tu equipo, con toda confianza</p>
-
-                                <div class="evaluation-brief-card evaluation-brief-card--summary">
-                                    <h3 class="evaluation-brief-title">Evaluación al formador / equipo 🤝</h3>
-                                    <p class="evaluation-auto-summary">
-                                        Responde con honestidad; tus respuestas se guardan de forma confidencial y no se te asigna calificación.
-                                    </p>
-                                </div>
-
-                                <div class="evaluation-brief-card">
-                                    <h3 class="evaluation-brief-title">¿Qué encontrarás aquí?</h3>
-                                    <ul class="evaluation-brief-list">
-                                        <li>Primero, evalúa a tu formador, después, a tu equipo.</li>
-                                        <li>Ve a tu ritmo: no hay tiempo límite ni respuestas correctas o incorrectas.</li>
-                                        <li>Es retro 360°, así que esto no se convierte en una calificación.</li>
-                                    </ul>
-                                </div>
-
-                                <div class="action-group">
-                                    <button id="btn-start-formador" onclick="startFormadorEvaluation()" class="btn-cta" data-track-section="evaluaciones" data-track-action="start-formador">
-                                        EVALUAR A MI FORMADOR / EQUIPO
-                                    </button>
+                            <div class="evaluation-brief-card evaluation-brief-card--summary">
+                                <h3 class="evaluation-brief-title">Tu puntuación</h3>
+                                <div class="eval-completed-score-wrap">
+                                    <span id="eval-completed-score" class="eval-completed-score-value">0</span>
+                                    <span class="eval-completed-score-label">aciertos</span>
                                 </div>
                             </div>
 
-                            <!-- Estado completado: mensaje + fecha (sin calificación) -->
-                            <div id="formador-completed-panel" class="hidden">
-                                <p class="section-subtitle">¡Gracias por tu retroalimentación!</p>
-
-                                <div class="evaluation-brief-card evaluation-brief-card--summary">
-                                    <h3 class="evaluation-brief-title">Ya completaste esta evaluación ✓</h3>
-                                    <p class="evaluation-auto-summary">
-                                        Evaluaste a tu formador y equipo el <b id="formador-completed-date">—</b>. No se te asigna calificación.
-                                    </p>
+                            <div id="eval-errors-card" class="evaluation-brief-card hidden">
+                                <h3 class="evaluation-brief-title">Estudia lo que te faltó</h3>
+                                <div id="eval-errors-inline-list" class="eval-errors-inline-list">
+                                    <!-- Rellenado por JS desde localStorage -->
                                 </div>
+                            </div>
 
-                                <div class="action-group">
-                                    <button id="btn-view-formador-results" onclick="startFormadorEvaluation()" class="btn-cta">
-                                        VER MIS RESULTADOS 🕸️
-                                    </button>
-                                </div>
+                            <!-- Parte 2: pendiente de continuar, o ya terminada (ver radares) -->
+                            <div id="eval-soft-card" class="evaluation-brief-card hidden">
+                                <h3 class="evaluation-brief-title" id="eval-soft-title">—</h3>
+                                <p class="evaluation-auto-summary" id="eval-soft-text">—</p>
+                            </div>
+
+                            <div class="action-group hidden" id="eval-soft-action">
+                                <button id="btn-eval-soft" onclick="startEvaluationSession()" class="btn-cta" data-track-section="evaluaciones" data-track-action="start-formador">
+                                    CONTINUAR EVALUACIÓN
+                                </button>
                             </div>
                         </div>
 
@@ -627,10 +599,16 @@
                     </div>
                 </div>
 
-                <!-- Aviso antes de cada bloque / entre etapas -->
+                <!-- Aviso antes de cada bloque / entre etapas / al cerrar la última -->
                 <div id="formador-notice" class="hidden break-content" style="text-align:center;">
                     <h2 id="formador-notice-title"></h2>
                     <p id="formador-notice-text"></p>
+
+                    <!-- Cierre de sección: mensaje según el nivel que más contestó -->
+                    <div id="formador-notice-level" class="formador-notice-level hidden">
+                        <p id="formador-notice-level-text" class="formador-notice-level__text"></p>
+                    </div>
+
                     <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-top:1rem">
                         <button id="btn-formador-continue" class="btn-primary">CONTINUAR</button>
                         <button id="btn-formador-save-exit" class="btn-secondary hidden">GUARDAR Y SALIR</button>
@@ -745,6 +723,16 @@
                             <div id="results-eval-errors-wrap" class="hidden">
                                 <button onclick="openReviewSheet()" class="btn-leaderboard btn-leaderboard--wide" data-track-section="pruebas" data-track-action="results-review">
                                     <i class="fas fa-search"></i> Ver mis errores
+                                </button>
+                            </div>
+
+                            <!-- Sesión única: encadena la Parte 2 (soft skills 360°) al terminar la Parte 1 -->
+                            <div id="results-continue-soft-wrap" class="results-continue-soft hidden">
+                                <p class="results-continue-soft__text">
+                                    Terminaste la Parte 1. Ahora sigue la Parte 2: soft skills 360°, sin reloj y sin respuestas correctas o incorrectas.
+                                </p>
+                                <button id="btn-results-continue-soft" onclick="continueToSoftSkills()" class="btn-cta" data-track-section="evaluaciones" data-track-action="continue-formador">
+                                    CONTINUAR CON LA PARTE 2
                                 </button>
                             </div>
 

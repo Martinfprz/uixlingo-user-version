@@ -3580,7 +3580,7 @@ window.selectMode = async function (mode) {
                 evalBriefView?.classList.remove('hidden');
                 evalBriefView?.classList.add('animate-fade-in');
                 updateEvaluationBriefAutoUI();
-                renderEvaluationBriefSplit();
+                renderEvaluationBrief();
                 window.setRoute('/evaluaciones');
             } else if (mode === 'pills') {
                 pillsConstructionView?.classList.remove('hidden');
@@ -3603,9 +3603,50 @@ window.backToModes = function () {
     returnToDashboard();
 }
 
-window.startEvaluationSession = function () {
-    startQuiz();
+// ─── SESIÓN ÚNICA: Parte 1 (preguntas_evaluacion) → Parte 2 (soft skills 360°) ──
+// Cada parte conserva su lógica: la Parte 1 con timer y respuesta correcta/incorrecta,
+// la Parte 2 con rúbrica de niveles, sin timer y sin calificación. Solo se encadenan.
+
+/**
+ * Estado de los dos tramos de la sesión.
+ *  parte1: 'pending' | 'done' | 'blocked' | 'empty'
+ *  parte2: 'none' | 'partial' | 'done' | 'na'  ('na' = no aplica a este puesto)
+ */
+async function getEvaluationFlowState() {
+    let parte1;
+    if (userProfile.evalCompleted) parte1 = 'done';
+    else if (isEvaluationHardBlocked()) parte1 = 'blocked';
+    else if (filterEvaluationQuestionsByUserProfile(normalizePoolForEvaluation()).length === 0) parte1 = 'empty';
+    else parte1 = 'pending';
+
+    let parte2 = 'na';
+    if (canEvaluateFormador(userProfile.especialidad)) {
+        const status = await getFormadorBriefStatus(); // 'empty' | 'none' | 'partial' | 'done'
+        parte2 = status === 'empty' ? 'na' : status;
+    }
+    return { parte1, parte2 };
 }
+
+function isSoftSkillsPending(parte2) {
+    return parte2 === 'none' || parte2 === 'partial';
+}
+
+/** Botón único del brief: entra por donde le toque al usuario. */
+window.startEvaluationSession = async function () {
+    const { parte1, parte2 } = await getEvaluationFlowState();
+    // Parte 1 disponible → corre el quiz; al terminar, la pantalla de resultados encadena la Parte 2.
+    if (parte1 === 'pending') { startQuiz(); return; }
+    // Parte 1 hecha (o no disponible para su perfil) y hay 360 → entra directo a la Parte 2.
+    if (parte2 !== 'na') { await startFormadorEvaluation(); return; }
+    // Sin nada que correr: startQuiz muestra el aviso que corresponda (pool vacío / bloqueada).
+    startQuiz();
+};
+
+/** Puente desde la pantalla de resultados de la Parte 1 hacia la Parte 2. */
+window.continueToSoftSkills = async function () {
+    document.getElementById('results-continue-soft-wrap')?.classList.add('hidden');
+    await startFormadorEvaluation();
+};
 
 // ─── EVALUACIÓN 360 AL FORMADOR / EQUIPO (banco_evaluar_formador) ───────────
 // Flujo propio: rúbrica sin respuesta correcta, sin timer, sin puntaje.
@@ -3616,7 +3657,7 @@ let formadorBlockIdx = 0;       // bloque (modalidad) actual
 let formadorQIdx = 0;           // pregunta actual dentro del bloque
 let formadorBlockAnswers = [];  // respuestas del bloque actual (se guardan al terminar el bloque)
 let formadorTestAnswers = [];   // acumulado en memoria (radar en Test Mode)
-let formadorContext = null;     // { ownBucket, formadorBucket, teamBuckets:Set } resuelto por perfil
+let formadorContext = null;     // { ownBucket } resuelto por perfil
 let formadorCompletedMods = new Set(); // modalidades ya guardadas (de la BD) → para reanudar
 let formadorRadarData = {};     // { modalidad: [{comp, avg, n}] } para el gráfico
 // Modalidad = tipo_evaluacion. Orden de los 3 bloques de la corrida.
@@ -3627,6 +3668,41 @@ const FORMADOR_PICOS = ['Confianza y respeto mutuo', 'Ejecución impecable', 'Me
 const FORMADOR_LEVEL_VALUE = { 'en desarrollo': 1, 'satisfactorio': 2, 'avanzado': 3, 'experto': 4 };
 const FORMADOR_LEVEL_LABEL = ['', 'En desarrollo', 'Satisfactorio', 'Avanzado', 'Experto'];
 const FORMADOR_RADAR_LABEL = { 'Autoevaluación': 'Yo', 'Evaluación al formador': 'Mi formador', 'Evaluación a mi equipo': 'Mi equipo' };
+// Cierre de cada sección: mensaje según el nivel que el usuario contestó más veces.
+// Se muestra solo el mensaje; el nombre del nivel no se le enseña al usuario.
+const FORMADOR_LEVEL_MESSAGE = {
+    'En desarrollo': 'Aún hay cosas que podemos seguir trabajando, acércate con tu formador o formadora.',
+    'Satisfactorio': 'Queremos que brilles más, acércate a tu formador o formadora.',
+    'Avanzado': 'Sabemos tu compromiso y tus compañeros lo notan.',
+    'Experto': 'Eres un ejemplo a seguir para tus compañeros en UiX.',
+};
+
+/**
+ * Nivel dominante de un bloque: el que el usuario contestó más veces.
+ * Ignora las respuestas sin nivel (filas «Solo Admin»). En empate gana el nivel más alto.
+ */
+function formadorDominantLevel(answers) {
+    const counts = new Map();
+    (answers || []).forEach(a => {
+        const val = FORMADOR_LEVEL_VALUE[String(a.nivel || '').trim().toLowerCase()];
+        if (!val) return;
+        counts.set(val, (counts.get(val) || 0) + 1);
+    });
+    let bestVal = 0;
+    let bestCount = 0;
+    counts.forEach((count, val) => {
+        if (count > bestCount || (count === bestCount && val > bestVal)) {
+            bestCount = count;
+            bestVal = val;
+        }
+    });
+    return FORMADOR_LEVEL_LABEL[bestVal] || '';
+}
+
+/** Mensaje de cierre del bloque ('' si ninguna respuesta traía nivel). */
+function formadorBlockClosingMessage(answers) {
+    return FORMADOR_LEVEL_MESSAGE[formadorDominantLevel(answers)] || '';
+}
 
 async function loadFormadorQuestions() {
     if (!supabase) return;
@@ -3662,13 +3738,6 @@ function formadorRoleBucket(raw) {
     return '';
 }
 
-/** Normaliza un nombre de persona para emparejar (mayúsculas, sin acentos, espacios colapsados). */
-function normalizePersonName(raw) {
-    return String(raw || '')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
-        .toUpperCase().replace(/\s+/g, ' ').trim();
-}
-
 /** ¿La pregunta aplica a alguno de los buckets dados? (cualquier puesto_1..6) */
 function formadorQuestionMatchesBuckets(row, buckets) {
     if (!buckets || !buckets.size) return false;
@@ -3695,51 +3764,24 @@ function isFormadorObligatoria(row) {
 }
 
 /**
- * Resuelve los buckets de puesto por modalidad (puesto = persona EVALUADA):
- *  - Autoevaluación → tu propio puesto.
- *  - Evaluación al formador → el puesto de tu formador.
- *  - Evaluación a mi equipo → los puestos de las personas cuyo `formador` eres tú.
+ * Contexto del 360: el bucket de puesto del usuario, y nada más.
+ * Antes se consultaba `ranking_user` para sacar el puesto del formador y de los reportes;
+ * ya no hace falta porque la única regla es el puesto de la propia pregunta.
  */
 async function ensureFormadorContext() {
     if (formadorContext) return formadorContext;
-    const ctx = { ownBucket: '', formadorBucket: '', teamBuckets: new Set() };
-    ctx.ownBucket = formadorRoleBucket(userProfile.especialidad);
-
-    if (supabase) {
-        try {
-            const { data } = await supabase
-                .from('ranking_user')
-                .select('nombre, especialidad, formador');
-            const rows = data || [];
-            const myName = normalizePersonName(userProfile.nombre);
-            const myFormador = normalizePersonName(userProfile.formador);
-            rows.forEach(r => {
-                const nombre = normalizePersonName(r.nombre);
-                // Mi formador → su puesto (para "al formador").
-                if (myFormador && nombre === myFormador) {
-                    const b = formadorRoleBucket(r.especialidad);
-                    if (b) ctx.formadorBucket = b;
-                }
-                // Personas cuyo formador soy yo → su puesto (para "a mi equipo").
-                if (myName && normalizePersonName(r.formador) === myName) {
-                    const b = formadorRoleBucket(r.especialidad);
-                    if (b) ctx.teamBuckets.add(b);
-                }
-            });
-        } catch (e) {
-            debugWarn('ensureFormadorContext error:', e);
-        }
-    }
-    formadorContext = ctx;
-    return ctx;
+    formadorContext = { ownBucket: formadorRoleBucket(userProfile.especialidad) };
+    return formadorContext;
 }
 
-/** Buckets de puesto que aplican a una modalidad según el perfil. */
+/**
+ * Buckets de puesto que aplican a una modalidad: el del usuario, en las tres.
+ * REGLA ÚNICA: manda el puesto de la pregunta. Si el puesto del usuario aparece en
+ * `puesto_1..6`, la pregunta le toca — sin reglas extra de jerarquía ni de equipo.
+ */
 function formadorBucketsForModality(modality, ctx) {
-    if (modality === 'Autoevaluación') return ctx.ownBucket ? new Set([ctx.ownBucket]) : new Set();
-    if (modality === 'Evaluación al formador') return ctx.formadorBucket ? new Set([ctx.formadorBucket]) : new Set();
-    if (modality === 'Evaluación a mi equipo') return new Set(ctx.teamBuckets);
-    return new Set();
+    if (!FORMADOR_MODALITY_ORDER.includes(modality)) return new Set();
+    return ctx.ownBucket ? new Set([ctx.ownBucket]) : new Set();
 }
 
 /**
@@ -3855,16 +3897,16 @@ window.startFormadorEvaluation = async function () {
 // Textos de la pantalla de transición por modalidad (a quién se evalúa).
 const FORMADOR_NOTICE = {
     'Autoevaluación': {
-        title: 'Autoevaluación 🪞',
-        text: 'Ahora vas a evaluarte a ti mismo(a). Lee con cuidado y responde con honestidad.'
+        title: 'Evaluándote a ti 🎯',
+        text: 'Selecciona la respuesta que te haga más sentido con tus propias acciones, no hay respuestas buenas o malas. Responde con honestidad.'
     },
     'Evaluación al formador': {
-        title: 'Evaluación a tu formador 🎓',
-        text: 'Ahora vas a evaluar a tu formador(a). Lee con cuidado y responde con honestidad.'
+        title: 'Evaluando a tu formadora o formador 🎯',
+        text: 'Selecciona la respuesta que te haga más sentido con las acciones de tu formador o formadora, no hay respuestas buenas o malas. Responde con honestidad.'
     },
     'Evaluación a mi equipo': {
-        title: 'Evaluación a tu equipo 👥',
-        text: 'Ahora vas a evaluar a tu equipo. Lee con cuidado y responde con honestidad.'
+        title: 'Evaluando a tu equipo 🎯',
+        text: 'Selecciona la respuesta que te haga más sentido con las acciones de tu equipo, no hay respuestas buenas o malas. Responde con honestidad.'
     },
 };
 
@@ -3878,9 +3920,11 @@ function renderFormadorBlockIntro() {
 
 /**
  * Pantalla de aviso. mode 'intro' = antes de un bloque (1 botón).
- * mode 'interstage' = terminó un bloque (Continuar ahora / Guardar y salir).
+ * mode 'interstage' = terminó un bloque y viene otro (Continuar ahora / Guardar y salir).
+ * mode 'closing' = terminó el último bloque (pasa a los radares).
+ * `levelMessage` (solo al cerrar un bloque) = texto del nivel que más contestó.
  */
-function showFormadorNotice({ modality, mode, finishedModality, onContinue, onSaveExit }) {
+function showFormadorNotice({ modality, mode, finishedModality, levelMessage, onContinue, onSaveExit }) {
     const quiz = document.getElementById('formador-quiz');
     const notice = document.getElementById('formador-notice');
     const title = document.getElementById('formador-notice-title');
@@ -3890,7 +3934,12 @@ function showFormadorNotice({ modality, mode, finishedModality, onContinue, onSa
     if (!notice) { onContinue && onContinue(); return; }
 
     let copy;
-    if (mode === 'interstage') {
+    if (mode === 'closing') {
+        copy = {
+            title: '¡Terminaste! 🎉',
+            text: `Con "${finishedModality}" completaste tu evaluación 360°. Tus respuestas quedaron guardadas.`
+        };
+    } else if (mode === 'interstage') {
         copy = {
             title: '¡Progreso guardado! ✅',
             text: `Terminaste "${finishedModality}". Tus respuestas quedaron guardadas: puedes continuar ahora o seguir después.`
@@ -3900,8 +3949,19 @@ function showFormadorNotice({ modality, mode, finishedModality, onContinue, onSa
     }
     if (title) title.textContent = copy.title;
     if (text) text.textContent = copy.text;
+
+    const levelWrap = document.getElementById('formador-notice-level');
+    const levelText = document.getElementById('formador-notice-level-text');
+    if (levelWrap && levelText) {
+        const msg = String(levelMessage || '').trim();
+        levelText.textContent = msg;
+        levelWrap.classList.toggle('hidden', !msg);
+    }
+
     if (btn) {
-        btn.textContent = mode === 'interstage' ? 'CONTINUAR AHORA' : 'CONTINUAR';
+        if (mode === 'closing') btn.textContent = 'VER MIS RESULTADOS 🕸️';
+        else if (mode === 'interstage') btn.textContent = 'CONTINUAR AHORA';
+        else btn.textContent = 'CONTINUAR';
         btn.onclick = () => { notice.classList.add('hidden'); onContinue && onContinue(); };
     }
     if (btnExit) {
@@ -4009,9 +4069,14 @@ async function saveFormadorAnswers(answers) {
     return true;
 }
 
-/** Al terminar un bloque: guarda su progreso y ofrece continuar o salir; al final muestra el radar. */
+/**
+ * Al terminar un bloque: guarda su progreso y cierra con el mensaje del nivel que más contestó.
+ * Si viene otro bloque ofrece continuar o salir; si era el último, pasa a los radares.
+ */
 async function finishFormadorBlock() {
     const block = formadorBlocks[formadorBlockIdx];
+    // Se calcula antes de vaciar el acumulado del bloque.
+    const levelMessage = formadorBlockClosingMessage(formadorBlockAnswers);
     document.getElementById('formador-quiz')?.classList.add('hidden');
     beginGlobalLoading('Guardando tu progreso…');
     try {
@@ -4028,11 +4093,17 @@ async function finishFormadorBlock() {
         showFormadorNotice({
             mode: 'interstage',
             finishedModality: block.modality,
+            levelMessage,
             onContinue: () => { formadorBlockIdx++; renderFormadorBlockIntro(); },
             onSaveExit: () => window.formadorBackToBrief(),
         });
     } else {
-        await showFormadorResults();
+        showFormadorNotice({
+            mode: 'closing',
+            finishedModality: block.modality,
+            levelMessage,
+            onContinue: () => { showFormadorResults(); },
+        });
     }
 }
 
@@ -4177,7 +4248,8 @@ window.formadorBackToBrief = function () {
         ['mode-selection-view', 'profile-view', 'dashboard-view', 'pills-construction-view']
             .forEach(id => document.getElementById(id)?.classList.add('hidden'));
         document.getElementById('evaluation-brief-view')?.classList.remove('hidden');
-        renderEvaluationBriefSplit();
+        updateEvaluationBriefAutoUI();
+        renderEvaluationBrief();
         window.setRoute('/evaluaciones');
         updateHeaderBackButton();
     });
@@ -4606,40 +4678,64 @@ function formatFormadorDate(iso) {
 }
 
 /**
- * Configura la pantalla dividida del brief:
- * - Izquierda (preguntas): normal vs completado con puntaje (renderEvaluationCompletedState).
- * - Derecha (formador): solo para puestos con equipo; instrucciones vs "completado + fecha".
+ * Brief de la sesión única. Un solo botón que resuelve por dónde entra el usuario:
+ *  - Parte 1 pendiente        → «Iniciar evaluación» (al terminar encadena la Parte 2).
+ *  - Parte 1 hecha, 360 abierto → «Continuar con la Parte 2».
+ *  - Todo hecho               → puntaje + errores + «Ver mis resultados» (radares).
  */
-async function renderEvaluationBriefSplit() {
+async function renderEvaluationBrief() {
     renderEvaluationCompletedState();
 
-    const puedeEvaluarFormador = canEvaluateFormador(userProfile.especialidad);
-    document.getElementById('eval-col-formador')?.classList.toggle('hidden', !puedeEvaluarFormador);
-    document.getElementById('eval-split-divider')?.classList.toggle('hidden', !puedeEvaluarFormador);
-    if (!puedeEvaluarFormador) return;
+    const softCard = document.getElementById('eval-soft-card');
+    const softAction = document.getElementById('eval-soft-action');
+    softCard?.classList.add('hidden');
+    softAction?.classList.add('hidden');
 
-    const status = await getFormadorBriefStatus();
+    const { parte1, parte2 } = await getEvaluationFlowState();
+    const softPending = isSoftSkillsPending(parte2);
+    const part2Applies = parte2 !== 'na';
 
-    // 'empty' = puede por rol pero no hay preguntas para su puesto → ocultar la columna.
-    if (status === 'empty') {
-        document.getElementById('eval-col-formador')?.classList.add('hidden');
-        document.getElementById('eval-split-divider')?.classList.add('hidden');
+    // La Parte 2 solo aplica a quien tiene formador o equipo: si no, se omite del brief.
+    document.getElementById('eval-brief-part2-title')?.classList.toggle('hidden', !part2Applies);
+    document.getElementById('eval-brief-part2-list')?.classList.toggle('hidden', !part2Applies);
+
+    // Parte 1 no disponible (pool vacío o bloqueada) pero el 360 sí: el botón entra a la Parte 2.
+    const startBtn = document.getElementById('btn-start-evaluation');
+    if (startBtn && (parte1 === 'blocked' || parte1 === 'empty') && softPending) {
+        startBtn.disabled = false;
+        startBtn.classList.remove('is-disabled');
+        startBtn.innerText = T.evaluation.btnContinueSoft;
+    }
+
+    if (parte1 !== 'done') return;
+
+    // ── Estado completado: la Parte 1 ya quedó guardada ──
+    const subtitle = document.getElementById('eval-completed-subtitle');
+    if (!part2Applies) {
+        if (subtitle) subtitle.textContent = T.evaluation.completedAll;
         return;
     }
 
-    const isDone = status === 'done';
-    document.getElementById('formador-brief-panel')?.classList.toggle('hidden', isDone);
-    document.getElementById('formador-completed-panel')?.classList.toggle('hidden', !isDone);
+    const title = document.getElementById('eval-soft-title');
+    const text = document.getElementById('eval-soft-text');
+    const btn = document.getElementById('btn-eval-soft');
+    softCard?.classList.remove('hidden');
+    softAction?.classList.remove('hidden');
 
-    const startBtn = document.getElementById('btn-start-formador');
-    if (!isDone && startBtn) {
-        startBtn.textContent = status === 'partial'
-            ? 'CONTINUAR EVALUACIÓN'
-            : 'EVALUAR A MI FORMADOR / EQUIPO';
-    }
-    if (isDone) {
-        const dateEl = document.getElementById('formador-completed-date');
-        if (dateEl && userProfile.formadorDoneAt) dateEl.textContent = formatFormadorDate(userProfile.formadorDoneAt);
+    if (softPending) {
+        if (subtitle) subtitle.textContent = T.evaluation.completedPart1Only;
+        if (title) title.textContent = T.evaluation.softPendingTitle;
+        if (text) text.textContent = T.evaluation.softPendingText;
+        if (btn) btn.innerText = T.evaluation.btnContinueSoft;
+    } else {
+        if (subtitle) subtitle.textContent = T.evaluation.completedAll;
+        if (title) title.textContent = T.evaluation.softDoneTitle;
+        if (text) {
+            text.textContent = userProfile.formadorDoneAt
+                ? T.evaluation.softDoneText(formatFormadorDate(userProfile.formadorDoneAt))
+                : T.evaluation.softDoneTextNoDate;
+        }
+        if (btn) btn.innerText = T.evaluation.btnViewSoftResults;
     }
 }
 
@@ -7037,6 +7133,17 @@ async function showResults() {
         const endTime = new Date();
         const timeTaken = Math.round((endTime - startTime) / 1000); // Segundos
         const isNewRecord = await saveScoreToCloud(score, timeTaken);
+
+        // Sesión única: si le queda la Parte 2 (soft skills 360°), ofrecerla aquí mismo.
+        const continueSoftWrap = document.getElementById('results-continue-soft-wrap');
+        if (continueSoftWrap) {
+            let showContinue = false;
+            if (isEvaluationResult && canEvaluateFormador(userProfile.especialidad)) {
+                const status = await getFormadorBriefStatus();
+                showContinue = status === 'none' || status === 'partial';
+            }
+            continueSoftWrap.classList.toggle('hidden', !showContinue);
+        }
 
         if (!isEvaluationResult && isNewRecord) {
             recordBadge.classList.remove('hidden');
