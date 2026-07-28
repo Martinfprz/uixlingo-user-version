@@ -22,7 +22,7 @@ import {
 } from './constants.js?v=3';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
-import { showAppAlert, showAppConfirm } from './ui.js';
+import { showAppAlert, showAppConfirm } from './ui.js?v=2';
 import { exposeToWindow } from './global-handlers.js';
 import { UI_TEXT as T } from './copy.js';
 
@@ -1013,6 +1013,9 @@ async function loadAllUserData(uid) {
         loadUserSkills(uid)
     ]);
     await loadRankingUserStats();
+    // Respuestas y puntajes de evaluación que quedaron sin subir en una sesión anterior.
+    await flushFormadorPending();
+    await flushEvalScorePending();
     // Estado de la evaluación al formador (solo aplica a puestos con equipo a su cargo).
     if (canEvaluateFormador(userProfile.especialidad)) await loadFormadorCompletion();
 }
@@ -4295,7 +4298,12 @@ function startEquipoMemberEval(userId) {
     }
     document.getElementById('equipo-list')?.classList.add('hidden');
     formadorTestAnswers = [];
-    formadorEvaluado = { user_id: member.user_id, nombre: member.nombre, etiqueta: member.nickname || member.nombre };
+    formadorEvaluado = {
+        user_id: member.user_id,
+        nombre: member.nombre,
+        etiqueta: member.nickname || member.nombre,
+        especialidad: member.especialidad, // con esta se filtraron sus preguntas
+    };
     formadorBlocks = [{ modality: MODALIDAD_EQUIPO, questions }];
     formadorBlockIdx = 0;
     renderFormadorBlockIntro();
@@ -4453,15 +4461,19 @@ function selectFormadorAnswer(opt) {
     const cont = document.getElementById('formador-options-container');
     if (cont) cont.style.pointerEvents = 'none';
 
-    // OJO: solo columnas que existen en `respuestas_evaluar_formador`. Antes se mandaban
-    // `puesto` y `respuesta`, que no existen, y PostgREST rechazaba TODO el insert.
+    // Toda columna de aquí existe en `respuestas_evaluar_formador`: una sola clave de más
+    // hace que PostgREST rechace el insert completo.
     const answer = {
         pregunta_id: q.id,
         tipo_evaluacion: block.modality,
         comportamiento: String(q.comportamiento || '').trim() || null,
         competencia: String(q.competencia || '').trim() || null,
         opcion_elegida: opt.k,
+        // Texto literal de la opción: congela la respuesta aunque luego se edite el banco.
+        respuesta: String(opt.text || '').trim() || null,
         nivel: String(opt.nivel || '').trim() || null,
+        // Especialidad con la que se filtraron las preguntas (la del evaluado en «Mi equipo»).
+        puesto: String(formadorEvaluado?.especialidad || userProfile.especialidad || '').trim() || null,
         // Solo en «Evaluación a mi equipo»: a quién se está evaluando.
         evaluado_user_id: formadorEvaluado?.user_id || null,
         evaluado_nombre: formadorEvaluado?.nombre || null,
@@ -4477,21 +4489,154 @@ function selectFormadorAnswer(opt) {
     }
 }
 
+// ─── Persistencia de las respuestas (a prueba de caídas) ────────────────────
+// Ningún bloque se da por bueno hasta que Supabase confirma el insert. Antes de
+// mandarlo se deja una copia en localStorage; si el insert falla (o se cierra la
+// pestaña a media subida) el lote se reintenta al abrir la siguiente sesión.
+const FORMADOR_PENDING_KEY = 'uixlingo_formador_pending';
+const FORMADOR_SAVE_RETRIES = 3;
+
+const formadorPendingKey = userId => `${FORMADOR_PENDING_KEY}:${userId}`;
+const esperarMs = ms => new Promise(r => setTimeout(r, ms));
+
+/** Lotes pendientes de subir de este usuario: [{ id, rows }]. */
+function readFormadorPending(userId) {
+    try {
+        const raw = JSON.parse(localStorage.getItem(formadorPendingKey(userId)) || '[]');
+        return Array.isArray(raw) ? raw.filter(b => b && Array.isArray(b.rows) && b.rows.length) : [];
+    } catch (e) {
+        debugWarn('readFormadorPending error:', e);
+        return [];
+    }
+}
+
+function writeFormadorPending(userId, batches) {
+    try {
+        if (!batches.length) localStorage.removeItem(formadorPendingKey(userId));
+        else localStorage.setItem(formadorPendingKey(userId), JSON.stringify(batches));
+    } catch (e) {
+        debugWarn('writeFormadorPending error:', e);
+    }
+}
+
+/**
+ * Respalda el lote antes de mandarlo. Devuelve el id con el que se borra al confirmar.
+ * Si el mismo lote ya estaba respaldado (reintento del usuario) reutiliza su id
+ * en lugar de acumular copias.
+ */
+function stashFormadorPending(userId, rows) {
+    const pendientes = readFormadorPending(userId);
+    const huella = JSON.stringify(rows);
+    const yaRespaldado = pendientes.find(b => JSON.stringify(b.rows) === huella);
+    if (yaRespaldado) return yaRespaldado.id;
+
+    const id = `${new Date().toISOString()}-${Math.random().toString(36).slice(2, 8)}`;
+    writeFormadorPending(userId, [...pendientes, { id, rows }]);
+    return id;
+}
+
+function dropFormadorPending(userId, batchId) {
+    writeFormadorPending(userId, readFormadorPending(userId).filter(b => b.id !== batchId));
+}
+
+/** Insert con reintentos (backoff corto). No toca el respaldo local. */
+async function insertFormadorRows(rows) {
+    for (let intento = 1; intento <= FORMADOR_SAVE_RETRIES; intento++) {
+        const { error } = await supabase.from('respuestas_evaluar_formador').insert(rows);
+        if (!error) return true;
+        debugError(`saveFormadorAnswers: intento ${intento} falló:`, error);
+        if (intento < FORMADOR_SAVE_RETRIES) await esperarMs(400 * intento);
+    }
+    return false;
+}
+
+/** Id de usuario para escribir (la sesión en memoria puede venir vacía tras un refresh). */
+async function resolveFormadorUserId() {
+    const fromSession = supabaseSession?.user?.id || '';
+    if (fromSession) return fromSession;
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.id || '';
+}
+
 /** Guarda un lote de respuestas (el bloque recién terminado). */
 async function saveFormadorAnswers(answers) {
     // Test Mode: solo preview, no se persiste nada.
     if (isTestModeActive()) { debugWarn('saveFormadorAnswers: omitido por Test Mode'); return true; }
     if (!supabase || !answers || !answers.length) return false;
-    let userId = supabaseSession?.user?.id || '';
-    if (!userId) {
-        const { data: authData } = await supabase.auth.getUser();
-        userId = authData?.user?.id || '';
-    }
+    const userId = await resolveFormadorUserId();
     if (!userId) { debugWarn('saveFormadorAnswers: sin user id'); return false; }
+
     const rows = answers.map(a => ({ ...a, user_id: userId }));
-    const { error } = await supabase.from('respuestas_evaluar_formador').insert(rows);
-    if (error) { debugError('saveFormadorAnswers error:', error); return false; }
-    return true;
+    const batchId = stashFormadorPending(userId, rows);
+    const ok = await insertFormadorRows(rows);
+    if (ok) dropFormadorPending(userId, batchId);
+    return ok;
+}
+
+/**
+ * Sube los lotes que quedaron pendientes de una sesión anterior.
+ * Descarta las preguntas que ya están en la BD para no duplicar si el insert
+ * había pasado y solo faltó limpiar el respaldo.
+ */
+async function flushFormadorPending() {
+    if (!supabase || isTestModeActive()) return;
+    const userId = supabaseSession?.user?.id;
+    if (!userId) return;
+    const batches = readFormadorPending(userId);
+    if (!batches.length) return;
+
+    let yaEnBD = new Set();
+    try {
+        const { data, error } = await supabase
+            .from('respuestas_evaluar_formador')
+            .select('pregunta_id, tipo_evaluacion, evaluado_user_id')
+            .eq('user_id', userId);
+        if (error) throw error;
+        yaEnBD = new Set((data || []).map(formadorRowKey));
+    } catch (e) {
+        debugWarn('flushFormadorPending: no se pudo leer lo ya guardado', e);
+        return; // sin la foto actual mejor no subir: se reintenta en la próxima sesión
+    }
+
+    for (const batch of batches) {
+        const faltantes = batch.rows.filter(r => !yaEnBD.has(formadorRowKey(r)));
+        if (!faltantes.length) { dropFormadorPending(userId, batch.id); continue; }
+        if (await insertFormadorRows(faltantes)) {
+            faltantes.forEach(r => yaEnBD.add(formadorRowKey(r)));
+            dropFormadorPending(userId, batch.id);
+        }
+    }
+}
+
+/** Identidad de una respuesta para deduplicar reintentos. */
+function formadorRowKey(r) {
+    return [r.pregunta_id, String(r.tipo_evaluacion || ''), r.evaluado_user_id || ''].join('|');
+}
+
+/**
+ * Insiste con el guardado del bloque hasta que Supabase confirme o el usuario decida salir.
+ * Devuelve true solo si las respuestas quedaron realmente en la BD.
+ */
+async function saveFormadorBlockUntilOk() {
+    while (true) {
+        beginGlobalLoading('Guardando tu progreso…');
+        let ok = false;
+        try {
+            ok = await saveFormadorAnswers(formadorBlockAnswers);
+        } finally {
+            endGlobalLoading();
+        }
+        if (ok) return true;
+        const reintentar = await showAppConfirm({
+            title: 'No pudimos guardar tus respuestas',
+            message: 'Revisa tu conexión e inténtalo otra vez. Nada se ha perdido: tus respuestas siguen aquí.',
+            confirmText: 'REINTENTAR',
+            cancelText: 'SALIR',
+            variant: 'warning',
+            primaryAction: 'confirm', // reintentar es la acción segura: va como botón principal
+        });
+        if (!reintentar) return false;
+    }
 }
 
 /**
@@ -4504,23 +4649,30 @@ async function finishFormadorBlock() {
     const levelMessage = formadorBlockClosingMessage(formadorBlockAnswers);
     const evaluado = formadorEvaluado; // se limpia al volver a la lista
     document.getElementById('formador-quiz')?.classList.add('hidden');
-    beginGlobalLoading('Guardando tu progreso…');
-    let guardado = false;
-    try {
-        guardado = await saveFormadorAnswers(formadorBlockAnswers);
-        if (!evaluado) formadorCompletedMods.add(block.modality);
-        userProfile.formadorDoneAt = new Date().toISOString();
-    } finally {
-        endGlobalLoading();
+
+    const guardado = await saveFormadorBlockUntilOk();
+    // Sin confirmación de Supabase NO se cierra el bloque: las respuestas siguen en
+    // memoria y respaldadas en localStorage, y el bloque se queda como pendiente.
+    if (!guardado) {
+        await showAppAlert({
+            title: 'Tus respuestas están a salvo',
+            message: 'No pudimos subirlas ahora mismo. Quedaron guardadas en este dispositivo y las enviaremos solas la próxima vez que entres con conexión.',
+            variant: 'warning',
+            confirmText: T.common.understood,
+        });
+        if (evaluado) backToEquipoList();
+        else window.formadorBackToBrief();
+        return;
     }
+
+    if (!evaluado) formadorCompletedMods.add(block.modality);
+    userProfile.formadorDoneAt = new Date().toISOString();
     formadorBlockAnswers = [];
 
     // Evaluación de un colaborador: marca a esa persona y vuelve a la lista del equipo.
     if (evaluado) {
-        if (guardado || isTestModeActive()) {
-            equipoEvaluados.add(evaluado.user_id);
-            if (isTestModeActive()) equipoEvaluadosTest.add(evaluado.user_id);
-        }
+        equipoEvaluados.add(evaluado.user_id);
+        if (isTestModeActive()) equipoEvaluadosTest.add(evaluado.user_id);
         showFormadorNotice({
             mode: 'closing',
             finishedModality: evaluado.etiqueta || evaluado.nombre,
@@ -5277,6 +5429,14 @@ async function renderFormadorColumn() {
         startBtn.textContent = status === 'partial'
             ? 'CONTINUAR EVALUACIÓN'
             : 'EVALUAR A MI FORMADOR';
+    }
+
+    // Bajo el CTA: a quién va a evaluar, según `ranking_user.formador`.
+    const hint = document.getElementById('formador-target-hint');
+    if (hint) {
+        const nombre = String(userProfile.formador || '').trim();
+        hint.textContent = nombre ? `(${nombre})` : '';
+        hint.classList.toggle('hidden', !nombre);
     }
     if (isDone) {
         const dateEl = document.getElementById('formador-completed-date');
@@ -6990,7 +7150,87 @@ async function fetchLatestPillRankingRows(limitN = 10) {
     }
 }
 
+// ─── Puntaje de la evaluación (hard skills): reintentos y respaldo ──────────
+// Mismo criterio que el 360: la evaluación es de UN SOLO intento, así que un
+// fallo de red no puede quedar en silencio mostrando el resultado como guardado.
+const EVAL_SCORE_PENDING_KEY = 'uixlingo_eval_score_pending';
+const CLOUD_SAVE_RETRIES = 3;
+
+/** True si el último guardado de evaluación no llegó a Supabase (lo lee la pantalla de resultados). */
+let evalScoreSaveFailed = false;
+
+/** Ejecuta una escritura a Supabase reintentando ante fallos transitorios. Lanza si agota los intentos. */
+async function conReintentos(etiqueta, fn) {
+    let ultimo = null;
+    for (let intento = 1; intento <= CLOUD_SAVE_RETRIES; intento++) {
+        try {
+            const { error } = await fn();
+            if (!error) return;
+            ultimo = error;
+        } catch (e) {
+            ultimo = e;
+        }
+        debugError(`${etiqueta}: intento ${intento} falló:`, ultimo);
+        if (intento < CLOUD_SAVE_RETRIES) await esperarMs(400 * intento);
+    }
+    throw ultimo;
+}
+
+const evalScorePendingKey = userId => `${EVAL_SCORE_PENDING_KEY}:${userId}`;
+
+function stashEvalScorePending(userId, payload) {
+    try {
+        localStorage.setItem(evalScorePendingKey(userId), JSON.stringify(payload));
+    } catch (e) {
+        debugWarn('stashEvalScorePending error:', e);
+    }
+}
+
+/**
+ * Sube el puntaje de evaluación que quedó pendiente de una sesión anterior.
+ * Si ya hay un intento en la BD (el guardado sí había pasado) solo limpia el respaldo,
+ * para no pisar la calificación original.
+ */
+async function flushEvalScorePending() {
+    if (!supabase || isTestModeActive()) return;
+    const userId = supabaseSession?.user?.id;
+    if (!userId) return;
+
+    let pendiente = null;
+    try {
+        pendiente = JSON.parse(localStorage.getItem(evalScorePendingKey(userId)) || 'null');
+    } catch (e) {
+        debugWarn('flushEvalScorePending: respaldo ilegible', e);
+        return;
+    }
+    if (!pendiente) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('user_scores')
+            .select('tests_points_q2')
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (error) throw error;
+
+        if (data?.tests_points_q2 == null) {
+            await conReintentos('flushEvalScore', () => supabase.from('user_scores').upsert({
+                user_id: userId,
+                tests_points_q2: Number(pendiente.score || 0),
+                puntos: Number(pendiente.score || 0),
+                tiempo: Number(pendiente.tiempo || 0),
+                fecha: pendiente.fecha || new Date().toISOString(),
+            }, { onConflict: 'user_id' }));
+        }
+        localStorage.removeItem(evalScorePendingKey(userId));
+        userProfile.evalCompleted = true;
+    } catch (e) {
+        debugWarn('flushEvalScorePending: se reintentará en la próxima sesión', e);
+    }
+}
+
 async function saveScoreToCloud(finalScore, timeSeconds) {
+    evalScoreSaveFailed = false;
     // Test Mode: solo preview, no se persisten puntajes ni resultados.
     if (isTestModeActive()) { debugWarn('saveScoreToCloud: omitido por Test Mode'); return false; }
     if (!supabase || !userEmail) return false;
@@ -7007,6 +7247,12 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         pills: 'pillsPoints'
     };
     const profileField = profileFieldByMode[currentQuizMode] || 'questPoints';
+    // Columnas reales de `user_profiles` (distintas de las de `user_scores`).
+    const profileColumnByMode = {
+        practice: 'quest_points',
+        evaluation: 'tests_points',
+        pills: 'pills_points'
+    };
     let userId = supabaseSession?.user?.id || '';
 
     if (!userId) {
@@ -7109,15 +7355,13 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             scoresMerge[pointsField] = Math.max(cur, Number(finalScore || 0));
         }
 
-        const { error: rankingUpsertError } = await supabase
+        await conReintentos('ranking_user upsert', () => supabase
             .from('ranking_user')
-            .upsert(rankingMerge, { onConflict: 'email' });
-        if (rankingUpsertError) throw rankingUpsertError;
+            .upsert(rankingMerge, { onConflict: 'email' }));
 
-        const { error: scoresUpsertError } = await supabase
+        await conReintentos('user_scores upsert', () => supabase
             .from('user_scores')
-            .upsert(scoresMerge, { onConflict: 'user_id' });
-        if (scoresUpsertError) throw scoresUpsertError;
+            .upsert(scoresMerge, { onConflict: 'user_id' }));
 
         // Verificación defensiva para práctica: confirmar que quedó persistido el mejor récord.
         if (currentQuizMode === 'practice') {
@@ -7146,13 +7390,12 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
             shouldUpdate = isFirstEvalAttempt;
 
             if (shouldUpdate) {
-                const { error: evalLegacyUpsertError } = await supabase.from('user_scores').upsert({
+                await conReintentos('user_scores eval upsert', () => supabase.from('user_scores').upsert({
                     user_id: userId,
                     puntos: newScore,
                     tiempo: newTime,
                     fecha: new Date().toISOString()
-                }, { onConflict: 'user_id' });
-                if (evalLegacyUpsertError) throw evalLegacyUpsertError;
+                }, { onConflict: 'user_id' }));
 
                 // Guardar errores en localStorage para que el usuario pueda estudiarlos después
                 try {
@@ -7184,15 +7427,26 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
                 scoreToSave = currentValue;
             }
 
+            // OJO: `user_profiles` NO tiene las mismas columnas que `user_scores`.
+            // La evaluación va a `tests_points` aquí y a `tests_points_q2` allá; mandar
+            // el nombre de la otra tabla hacía que PostgREST rechazara el upsert entero.
             const profilePayload = {
                 id: userId,
-                [pointsField]: scoreToSave,
+                [profileColumnByMode[currentQuizMode] || 'quest_points']: scoreToSave,
                 seniority: userProfile.seniority,
                 nombre: userName,
                 email: userEmail
             };
 
-            await supabase.from('user_profiles').upsert(profilePayload, { onConflict: 'id' });
+            // Espejo secundario: la verdad ya quedó en `user_scores`. Se reintenta, pero un
+            // fallo aquí no debe abortar lo que falta (p. ej. el score de pills, más abajo).
+            try {
+                await conReintentos('user_profiles upsert', () => supabase
+                    .from('user_profiles')
+                    .upsert(profilePayload, { onConflict: 'id' }));
+            } catch (perfilErr) {
+                debugWarn('saveScoreToCloud: no se pudo espejar el puntaje en user_profiles', perfilErr);
+            }
 
             // Guardar pill scores en tabla separada
             const canPersistFirstAttemptAux =
@@ -7277,6 +7531,15 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         return shouldUpdate;
     } catch (e) {
         debugWarn('saveScoreToCloud error:', e);
+        // La evaluación es de un solo intento: su puntaje no se puede perder en silencio.
+        if (currentQuizMode === 'evaluation') {
+            stashEvalScorePending(userId, {
+                score: Number(finalScore || 0),
+                tiempo: Number(timeSeconds || 0),
+                fecha: new Date().toISOString(),
+            });
+            evalScoreSaveFailed = true;
+        }
     }
     return false;
 }
@@ -7678,6 +7941,16 @@ async function showResults() {
         const endTime = new Date();
         const timeTaken = Math.round((endTime - startTime) / 1000); // Segundos
         const isNewRecord = await saveScoreToCloud(score, timeTaken);
+
+        // No pudo subir el puntaje: se le dice, en vez de dar el resultado por guardado.
+        if (isEvaluationResult && evalScoreSaveFailed) {
+            showAppAlert({
+                title: 'Tu resultado está a salvo',
+                message: 'No pudimos subir tu puntuación ahora mismo. Quedó guardada en este dispositivo y la enviaremos sola la próxima vez que entres con conexión.',
+                variant: 'warning',
+                confirmText: T.common.understood,
+            });
+        }
 
         // Si le quedan sus soft skills (Autoevaluación), ofrecerlas aquí mismo.
         const continueSoftWrap = document.getElementById('results-continue-soft-wrap');

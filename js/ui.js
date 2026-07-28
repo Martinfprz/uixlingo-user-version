@@ -68,7 +68,8 @@ function openAppDialog({
     variant = 'info',
     confirmText = D.confirm,
     cancelText = D.cancel,
-    isConfirm = false
+    isConfirm = false,
+    primaryAction = 'cancel'
 }) {
     initAppDialog();
     if (!appDialogInitialized) {
@@ -85,10 +86,12 @@ function openAppDialog({
     appDialogConfirmEl.innerText = confirmText;
     appDialogCancelEl.innerText = cancelText;
 
-    /* Confirmación: acción segura arriba (primary), destructiva abajo (outline). Alert: un solo primary. */
+    /* Confirmación: acción segura arriba (primary), destructiva abajo (outline). Alert: un solo primary.
+       Normalmente la segura es cancelar; con primaryAction:'confirm' se invierte (p. ej. "Reintentar" vs "Salir"). */
     if (isConfirm) {
-        appDialogCancelEl.className = 'btn-primary';
-        appDialogConfirmEl.className = 'btn-outline-blue';
+        const confirmEsSegura = primaryAction === 'confirm';
+        appDialogConfirmEl.className = confirmEsSegura ? 'btn-primary' : 'btn-outline-blue';
+        appDialogCancelEl.className = confirmEsSegura ? 'btn-outline-blue' : 'btn-primary';
     } else {
         appDialogCancelEl.className = 'btn-outline-blue hidden';
         appDialogConfirmEl.className = 'btn-primary';
@@ -123,7 +126,9 @@ function openAppDialog({
         appDialogConfirmEl.onclick = () => appDialogResolver(true);
         appDialogCancelEl.onclick = () => appDialogResolver(false);
 
-        const firstFocus = isConfirm ? appDialogCancelEl : appDialogConfirmEl;
+        // El foco arranca en la acción segura, que es la que queda como primary.
+        const seguraEsConfirm = !isConfirm || primaryAction === 'confirm';
+        const firstFocus = seguraEsConfirm ? appDialogConfirmEl : appDialogCancelEl;
         setTimeout(() => firstFocus.focus(), 10);
     });
 }
@@ -137,7 +142,8 @@ export function showAppConfirm({
     message = '',
     confirmText = D.confirmContinue,
     cancelText = D.cancel,
-    variant = 'warning'
+    variant = 'warning',
+    primaryAction = 'cancel'
 }) {
-    return openAppDialog({ title, message, variant, confirmText, cancelText, isConfirm: true });
+    return openAppDialog({ title, message, variant, confirmText, cancelText, isConfirm: true, primaryAction });
 }

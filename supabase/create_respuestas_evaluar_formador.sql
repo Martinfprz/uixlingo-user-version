@@ -10,10 +10,12 @@ CREATE TABLE IF NOT EXISTS public.respuestas_evaluar_formador (
   tipo_evaluacion text,          -- "Autoevaluación" | "Evaluación al formador" | "Evaluación a mi equipo" (modalidad / radar)
   comportamiento  text,          -- pico del radar (Trabajo en equipo, Mejora continua, …)
   competencia     text,
-  puesto          text,          -- puesto del usuario con el que se resolvió el filtro
+  puesto          text,          -- especialidad con la que se resolvió el filtro (la del evaluado en «Mi equipo»)
   opcion_elegida  text,          -- 'a' | 'b' | 'c' | 'd'
-  respuesta       text,          -- texto de la opción elegida (opcion_x)
+  respuesta       text,          -- texto literal de la opción elegida (opcion_x) al momento de contestar
   nivel           text,          -- "En desarrollo" | "Satisfactorio" | "Avanzado" | "Experto" (vacío/NA = Solo Admin, fuera del radar)
+  evaluado_user_id uuid,         -- solo en «Evaluación a mi equipo»: a quién se evaluó
+  evaluado_nombre  text,
   fecha           timestamptz NOT NULL DEFAULT now()
 );
 
@@ -21,8 +23,13 @@ CREATE INDEX IF NOT EXISTS idx_ref_user      ON public.respuestas_evaluar_formad
 CREATE INDEX IF NOT EXISTS idx_ref_pregunta  ON public.respuestas_evaluar_formador (pregunta_id);
 CREATE INDEX IF NOT EXISTS idx_ref_tipo_eval ON public.respuestas_evaluar_formador (tipo_evaluacion);
 
--- Si la tabla ya existía, agrega la columna nueva:
-ALTER TABLE public.respuestas_evaluar_formador ADD COLUMN IF NOT EXISTS tipo_evaluacion text;
+-- Si la tabla ya existía, agrega las columnas nuevas:
+ALTER TABLE public.respuestas_evaluar_formador
+  ADD COLUMN IF NOT EXISTS tipo_evaluacion  text,
+  ADD COLUMN IF NOT EXISTS respuesta        text,
+  ADD COLUMN IF NOT EXISTS puesto           text,
+  ADD COLUMN IF NOT EXISTS evaluado_user_id uuid,
+  ADD COLUMN IF NOT EXISTS evaluado_nombre  text;
 
 -- ─── PASO 2: RLS — cada usuario solo inserta/lee sus propias respuestas ────
 ALTER TABLE public.respuestas_evaluar_formador ENABLE ROW LEVEL SECURITY;
