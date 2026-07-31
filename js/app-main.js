@@ -3830,7 +3830,7 @@ let formadorBlockIdx = 0;       // bloque (modalidad) actual
 let formadorQIdx = 0;           // pregunta actual dentro del bloque
 let formadorBlockAnswers = [];  // respuestas del bloque actual (se guardan al terminar el bloque)
 let formadorTestAnswers = [];   // acumulado en memoria (radar en Test Mode)
-let formadorContext = null;     // { ownBucket } resuelto por perfil
+let formadorContext = null;     // { ownBucket, sinEvaluacionFormador } resuelto por perfil
 let formadorCompletedMods = new Set(); // modalidades ya guardadas (de la BD) → para reanudar
 let formadorEvaluado = null;    // { user_id, nombre, etiqueta } al evaluar a un colaborador; null en bloques propios
 let formadorRadarData = {};     // { modalidad: [{comp, avg, n}] } para el gráfico
@@ -3841,6 +3841,50 @@ const MODALIDADES_AUTOEVAL = ['Autoevaluación'];             // sección 1: tu 
 const MODALIDADES_FORMADOR = ['Evaluación al formador'];     // sección 2: tu formador
 // Sección 3: se evalúa colaborador por colaborador, no como bloque agregado.
 const MODALIDAD_EQUIPO = 'Evaluación a mi equipo';
+const MODALIDAD_FORMADOR = 'Evaluación al formador';
+
+/**
+ * Formadores a los que NO se evalúa: su gente no ve la sección 2 del brief.
+ * Las llaves van normalizadas con formadorNameKey (minúsculas, sin acentos).
+ * Solo afecta «Evaluación al formador»: su autoevaluación y su «A mi equipo»
+ * siguen igual, y el formador excluido sí evalúa a su propio equipo.
+ * OJO: la misma lista vive en admin-version/admin.js (RESULTADOS_FORMADORES_EXCLUIDOS)
+ * para que la vista Resultados no los cuente como pendientes.
+ */
+const FORMADORES_SIN_EVALUACION = new Set([
+    'ivar arriola perez del valle'
+]);
+
+/** ¿A este formador no se le evalúa? */
+function formadorExcluidoDeEvaluacion(nombreFormador) {
+    return FORMADORES_SIN_EVALUACION.has(formadorNameKey(nombreFormador));
+}
+
+/**
+ * El otro eje de la exclusión: personas que no contestan «Evaluación al formador»
+ * aunque a su formador sí se le evalúe (entraron hace poco y no llevan el tiempo
+ * necesario con él para poder opinar).
+ *
+ * Esta lista NO vive en el código como FORMADORES_SIN_EVALUACION: está en la tabla
+ * `evaluacion_exclusiones`. Va por emp_id, así que se puede registrar a alguien
+ * antes de que tenga cuenta y se administra sin desplegar los dos repos.
+ */
+async function usuarioSinEvaluacionFormador() {
+    const empId = String(userProfile.empId || '').trim();
+    if (!empId || !supabase) return false;
+
+    const { data, error } = await supabase
+        .from('evaluacion_exclusiones')
+        .select('emp_id')
+        .eq('emp_id', empId)
+        .eq('modalidad', MODALIDAD_FORMADOR)
+        .maybeSingle();
+
+    // Si la consulta falla, la sección se muestra. Preferimos que alguien la conteste
+    // de más que dejar fuera por un error de red a quien sí le tocaba.
+    if (error) return false;
+    return !!data;
+}
 const FORMADOR_RANDOM_PER_PICO = 5; // Preguntas por comportamiento (pico) cuando NO tiene obligatorias.
 // Picos del radar (comportamientos) y escala de nivel.
 const FORMADOR_PICOS = ['Confianza y respeto mutuo', 'Ejecución impecable', 'Mejora continua', 'Pasión por el Cliente', 'Trabajo en equipo'];
@@ -3960,7 +4004,10 @@ function isFormadorObligatoria(row) {
  */
 async function ensureFormadorContext() {
     if (formadorContext) return formadorContext;
-    formadorContext = { ownBucket: formadorRoleBucket(userProfile.especialidad) };
+    formadorContext = {
+        ownBucket: formadorRoleBucket(userProfile.especialidad),
+        sinEvaluacionFormador: await usuarioSinEvaluacionFormador()
+    };
     return formadorContext;
 }
 
@@ -3973,6 +4020,14 @@ async function ensureFormadorContext() {
 function formadorBucketsForModality(modality, ctx) {
     if (modality === MODALIDAD_EQUIPO) return new Set();
     if (!FORMADOR_MODALITY_ORDER.includes(modality)) return new Set();
+    // Excluido → sin buckets → buildFormadorBlocks se salta el bloque y
+    // getFormadorBriefStatus devuelve 'empty', que oculta la columna del formador.
+    // Dos motivos posibles: a su formador no se le evalúa, o a esta persona en
+    // particular no le toca todavía (ver usuarioSinEvaluacionFormador).
+    if (modality === MODALIDAD_FORMADOR &&
+        (ctx.sinEvaluacionFormador || formadorExcluidoDeEvaluacion(userProfile.formador))) {
+        return new Set();
+    }
     return ctx.ownBucket ? new Set([ctx.ownBucket]) : new Set();
 }
 
