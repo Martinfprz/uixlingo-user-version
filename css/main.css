@@ -12,10 +12,10 @@
 @import url("quiz.css");
 @import url("results.css");
 @import url("footer.css");
-@import url("modals.css");
+@import url("modals.css?v=2");
 @import url("quiz-feedback.css");
 @import url("responsive.css");
 @import url("theme-toggle.css");
 @import url("theme-light.css?v=5");
 @import url("milo.css");
-@import url("test-mode.css?v=3");
+@import url("test-mode.css?v=4");

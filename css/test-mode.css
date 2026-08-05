@@ -389,7 +389,10 @@
 }
 
 .eval-unblock-row__btn {
-    flex-shrink: 0;
+    /* .btn-primary y .btn-outline-blue traen width:100%, que aquí se comía el renglón
+       completo y dejaba el nombre en una columna de una letra por línea. */
+    width: auto;
+    flex: 0 0 auto;
     padding: 0.45rem 0.8rem;
     font-size: 0.72rem;
 }
