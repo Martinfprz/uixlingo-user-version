@@ -19,7 +19,8 @@ import {
     RESET_PASSWORD_PATH,
     PUBLIC_APP_ORIGIN,
     TEST_MODE_ALLOWED_EMAILS,
-} from './constants.js?v=3';
+    EVAL_UNBLOCK_ALLOWED_EMAILS,
+} from './constants.js?v=4';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
 import { showAppAlert, showAppConfirm } from './ui.js?v=2';
@@ -1016,6 +1017,8 @@ async function loadAllUserData(uid) {
     // Respuestas y puntajes de evaluación que quedaron sin subir en una sesión anterior.
     await flushFormadorPending();
     await flushEvalScorePending();
+    // Bloqueo del anti-cheat: manda el de la nube, para que un desbloqueo aterrice aquí.
+    await syncEvalViolations();
     // Estado de la evaluación al formador (solo aplica a puestos con equipo a su cargo).
     if (canEvaluateFormador(userProfile.especialidad)) await loadFormadorCompletion();
 }
@@ -2074,6 +2077,7 @@ function renderTestModeIndicator() {
  */
 async function initTestMode() {
     refreshTestModeButton();
+    refreshEvalUnblockButton();
     if (!isTestModeAllowed()) {
         clearPersistTestMode();
         testModeState = { active: false, especialidad: '', seniority: '', persona: null, backup: null };
@@ -2117,6 +2121,177 @@ function resetTestModeOnLogout() {
     clearPersistTestMode();
     renderTestModeIndicator();
     refreshTestModeButton();
+    refreshEvalUnblockButton();
+}
+
+// ==========================================================================
+// PANEL DE BLOQUEOS — quitar el bloqueo del anti-cheat de la evaluación.
+// El botón se ve según EVAL_UNBLOCK_ALLOWED_EMAILS, pero el permiso real lo da
+// la RLS de `evaluacion_bloqueos` (is_admin()): sin eso, el panel sale vacío y
+// el desbloqueo no pasa. Es a propósito — la lista de correos es solo la UI.
+// ==========================================================================
+
+/** ¿Este usuario ve el botón de bloqueos? */
+function isEvalUnblockAllowed() {
+    const email = String(userEmail || '').trim().toLowerCase();
+    if (!email) return false;
+    return EVAL_UNBLOCK_ALLOWED_EMAILS
+        .map((e) => String(e).trim().toLowerCase())
+        .includes(email);
+}
+
+function refreshEvalUnblockButton() {
+    const btn = document.getElementById('btn-eval-unblock');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !isEvalUnblockAllowed());
+}
+
+/** Filas con al menos una violación, las bloqueadas primero. */
+async function fetchEvalBloqueos() {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+        .from('evaluacion_bloqueos')
+        .select('user_id, nombre, email, violaciones, ultima_razon, ultima_violacion, desbloqueado_at, desbloqueado_por')
+        .gt('violaciones', 0)
+        .order('violaciones', { ascending: false })
+        .order('ultima_violacion', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+function ensureEvalUnblockModal() {
+    if (document.getElementById('eval-unblock-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'eval-unblock-overlay';
+    // Reusa el overlay/modal del Test Mode: mismo tipo de panel de control del header.
+    overlay.className = 'test-mode-overlay hidden';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+        <div class="test-mode-modal eval-unblock-modal" role="dialog" aria-modal="true" aria-labelledby="eval-unblock-title">
+            <div class="test-mode-modal__head">
+                <span class="test-mode-modal__icon eval-unblock-icon"><i class="fa-solid fa-lock-open" aria-hidden="true"></i></span>
+                <h3 id="eval-unblock-title">Bloqueos de evaluación</h3>
+            </div>
+            <p class="test-mode-modal__desc">Quien se sale de la ventana durante las hard skills acumula un aviso; a los 3 se le bloquea la evaluación. Aquí puedes regresar a cero a quien se bloqueó por error.</p>
+            <div id="eval-unblock-list" class="eval-unblock-list"></div>
+            <div class="test-mode-modal__actions">
+                <button type="button" class="btn-outline-blue" id="eval-unblock-close">Cerrar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closeEvalUnblockPanel();
+    });
+    document.getElementById('eval-unblock-close').onclick = closeEvalUnblockPanel;
+}
+
+window.closeEvalUnblockPanel = function () {
+    const overlay = document.getElementById('eval-unblock-overlay');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    overlay.setAttribute('aria-hidden', 'true');
+};
+
+window.openEvalUnblockPanel = async function () {
+    if (!isEvalUnblockAllowed()) return;
+    ensureEvalUnblockModal();
+    const overlay = document.getElementById('eval-unblock-overlay');
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
+    await renderEvalUnblockList();
+};
+
+async function renderEvalUnblockList() {
+    const cont = document.getElementById('eval-unblock-list');
+    if (!cont) return;
+    cont.innerHTML = `<p class="eval-unblock-empty">Cargando…</p>`;
+
+    let filas = [];
+    try {
+        filas = await fetchEvalBloqueos();
+    } catch (e) {
+        debugWarn('renderEvalUnblockList error:', e);
+        cont.innerHTML = `<p class="eval-unblock-empty">No se pudo leer la lista. Revisa tu conexión y vuelve a abrir el panel.</p>`;
+        return;
+    }
+
+    if (!filas.length) {
+        cont.innerHTML = `<p class="eval-unblock-empty">Nadie tiene avisos ahora mismo. 🎉</p>`;
+        return;
+    }
+
+    cont.innerHTML = '';
+    filas.forEach((f) => {
+        const bloqueado = Number(f.violaciones || 0) >= EVAL_VIOLATION_LIMIT;
+        const row = document.createElement('div');
+        row.className = 'eval-unblock-row' + (bloqueado ? ' eval-unblock-row--blocked' : '');
+
+        const info = document.createElement('div');
+        info.className = 'eval-unblock-row__info';
+        const nombre = document.createElement('span');
+        nombre.className = 'eval-unblock-row__name';
+        nombre.textContent = f.nombre || f.email || f.user_id;
+        const meta = document.createElement('span');
+        meta.className = 'eval-unblock-row__meta';
+        const cuando = f.ultima_violacion ? formatFormadorDate(f.ultima_violacion) : '—';
+        meta.textContent = bloqueado
+            ? `Bloqueada · ${f.violaciones} avisos · último ${cuando}`
+            : `${f.violaciones} de ${EVAL_VIOLATION_LIMIT} avisos · último ${cuando}`;
+        info.append(nombre, meta);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = bloqueado ? 'btn-primary eval-unblock-row__btn' : 'btn-outline-blue eval-unblock-row__btn';
+        btn.textContent = bloqueado ? 'DESBLOQUEAR' : 'BORRAR AVISOS';
+        btn.onclick = () => unblockEvalUser(f, btn);
+
+        row.append(info, btn);
+        cont.appendChild(row);
+    });
+}
+
+/** Regresa el contador a 0. Solo pasa si la RLS reconoce al usuario como admin. */
+async function unblockEvalUser(fila, btn) {
+    const quien = fila.nombre || fila.email || fila.user_id;
+    const ok = await showAppConfirm({
+        title: '¿Quitar el bloqueo?',
+        message: `${quien} podrá hacer su evaluación de nuevo. Sus avisos regresan a cero y el cambio le llega la próxima vez que abra la app.`,
+        confirmText: 'DESBLOQUEAR',
+        cancelText: T.common.cancel,
+        variant: 'warning',
+        primaryAction: 'confirm',
+    });
+    if (!ok) return;
+
+    if (btn) { btn.disabled = true; btn.textContent = 'DESBLOQUEANDO…'; }
+    try {
+        const { error } = await supabase
+            .from('evaluacion_bloqueos')
+            .update({
+                violaciones: 0,
+                desbloqueado_at: new Date().toISOString(),
+                desbloqueado_por: userEmail || null,
+            })
+            .eq('user_id', fila.user_id);
+        if (error) throw error;
+
+        // Si me desbloqueé a mí mismo, el espejo local también tiene que bajar.
+        if (fila.user_id === supabaseSession?.user?.id) {
+            setEvalViolationCount(0);
+            updateEvaluationBriefAutoUI();
+        }
+        await renderEvalUnblockList();
+    } catch (e) {
+        debugWarn('unblockEvalUser error:', e);
+        if (btn) { btn.disabled = false; btn.textContent = 'DESBLOQUEAR'; }
+        await showAppAlert({
+            title: 'No se pudo desbloquear',
+            message: 'Puede ser la conexión, o que esta cuenta no tenga permiso de admin en la base. El bloqueo sigue como estaba.',
+            variant: 'error',
+            confirmText: T.common.understood,
+        });
+    }
 }
 
 function getTalentDescription(talent) {
@@ -6996,6 +7171,13 @@ function isEvaluationMode() {
     return currentQuizMode === 'evaluation';
 }
 
+// ─── Contador de violaciones del anti-cheat ────────────────────────────────
+// Vive en `evaluacion_bloqueos` (Supabase); localStorage queda como espejo para
+// que isEvaluationHardBlocked() siga siendo síncrono y para no perder el conteo
+// si se cae la red. Manda el servidor: así un desbloqueo desde el panel llega a
+// cualquier dispositivo, y ya no se quita borrando la llave del navegador.
+const EVAL_VIOLATION_LIMIT = 3;
+
 function getEvalViolationStorageKey() {
     const uid = supabaseSession?.user?.id || userEmail || 'anon';
     return `${EVAL_VIOLATION_STORAGE_PREFIX}:${uid}`;
@@ -7010,11 +7192,69 @@ function getEvalViolationCount() {
 function isEvaluationHardBlocked() {
     // Test Mode: sin bloqueo por intentos (previsualización).
     if (isTestModeActive()) return false;
-    return ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= 3;
+    return ENABLE_EVAL_HARD_BLOCK && getEvalViolationCount() >= EVAL_VIOLATION_LIMIT;
 }
 
 function setEvalViolationCount(count) {
     localStorage.setItem(getEvalViolationStorageKey(), String(Math.max(0, count)));
+}
+
+/**
+ * Reconcilia el conteo local con el de la nube al entrar.
+ *
+ * En cuanto la fila existe en el servidor, el servidor MANDA. Es lo que hace que
+ * un desbloqueo funcione: si aquí subiéramos el conteo local cuando va más alto,
+ * quien tiene 3 avisos guardados en su navegador se re-bloquearía solo en el
+ * siguiente arranque, justo después de desbloquearlo.
+ *
+ * El conteo local solo se empuja hacia arriba cuando NO hay fila: son los bloqueos
+ * de antes de que existiera esta tabla, que así se vuelven visibles en el panel en
+ * lugar de perderse. El caso raro que esto concede es una violación que no se pudo
+ * subir teniendo ya fila: se pierde ese aviso. Preferimos eso a dejar a alguien
+ * bloqueado sin salida.
+ */
+async function syncEvalViolations() {
+    if (!supabase || isTestModeActive()) return;
+    const userId = supabaseSession?.user?.id;
+    if (!userId) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('evaluacion_bloqueos')
+            .select('violaciones')
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (error) throw error;
+
+        if (!data) {
+            const local = getEvalViolationCount();
+            if (local > 0) await pushEvalViolation(local, 'sync_local');
+            return;
+        }
+        setEvalViolationCount(Number(data.violaciones || 0)); // aquí aterriza un desbloqueo
+    } catch (e) {
+        debugWarn('syncEvalViolations: se usa el conteo local', e);
+    }
+}
+
+/** Sube el conteo de violaciones. El trigger de la tabla impide que baje sin ser admin. */
+async function pushEvalViolation(count, reason) {
+    if (!supabase || isTestModeActive()) return false;
+    const userId = supabaseSession?.user?.id;
+    if (!userId) return false;
+    try {
+        const { error } = await supabase.from('evaluacion_bloqueos').upsert({
+            user_id: userId,
+            violaciones: Math.max(0, count),
+            ultima_razon: reason || null,
+            ultima_violacion: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+        if (error) throw error;
+        return true;
+    } catch (e) {
+        debugWarn('pushEvalViolation: quedó solo local, se sube al siguiente arranque', e);
+        return false;
+    }
 }
 
 function isEvaluationFlowVisible() {
@@ -7036,6 +7276,8 @@ async function handleEvaluationViolation(reason = 'focus_lost') {
 
     const nextCount = getEvalViolationCount() + 1;
     setEvalViolationCount(nextCount);
+    // A la nube para que el bloqueo sea real entre dispositivos y se pueda desbloquear.
+    pushEvalViolation(nextCount, reason);
 
     // Punto de integración para backend (Supabase): registrar reason, timestamp y count.
     if (DEBUG) {

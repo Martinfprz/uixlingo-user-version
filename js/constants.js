@@ -58,6 +58,17 @@ export const TEST_MODE_ALLOWED_EMAILS = [
     'paola.toledo@elektra.com.mx',
 ];
 
+/**
+ * Correos que ven el botón «Bloqueos» del header (desbloquear evaluaciones).
+ * Es solo la visibilidad del botón: el permiso de verdad lo da la RLS de
+ * `evaluacion_bloqueos` con is_admin(), que hoy cubre a martin.fuentes y a
+ * cualquiera con role=admin. Si agregas un correo aquí sin que sea admin en la
+ * base, verá el panel vacío y no podrá desbloquear.
+ */
+export const EVAL_UNBLOCK_ALLOWED_EMAILS = [
+    'martin.fuentes@elektra.com.mx',
+];
+
 /** Path fijo para el redirect de recuperación de contraseña. Debe estar en Supabase > Auth > Redirect URLs. */
 export const RESET_PASSWORD_PATH = '/reset-password';
 /** Dominio público canónico para links de recuperación enviados por correo. */

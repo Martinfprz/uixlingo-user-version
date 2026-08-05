@@ -297,3 +297,110 @@
     line-height: 1.5;
     color: var(--color-text-light);
 }
+
+/* ==========================================================================
+   PANEL DE BLOQUEOS — desbloquear evaluaciones del anti-cheat.
+   Comparte el overlay y el modal del Test Mode (.test-mode-overlay /
+   .test-mode-modal): son el mismo tipo de panel de control del header.
+   Solo visible para EVAL_UNBLOCK_ALLOWED_EMAILS.
+   ========================================================================== */
+
+/* Variante ámbar del botón, para no confundirlo con el de Test Mode. */
+.btn-test-mode--unlock {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.32);
+}
+
+.btn-test-mode--unlock:hover {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.22);
+}
+
+.btn-test-mode--unlock:focus-visible {
+    outline-color: #f59e0b;
+}
+
+:root[data-theme="light"] .btn-test-mode--unlock {
+    color: #92400e;
+    background: rgba(146, 64, 14, 0.08);
+    border-color: rgba(146, 64, 14, 0.25);
+}
+
+.eval-unblock-modal {
+    width: min(520px, 100%);
+}
+
+.eval-unblock-icon {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.eval-unblock-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: min(52vh, 360px);
+    overflow-y: auto;
+}
+
+.eval-unblock-empty {
+    margin: 0;
+    padding: 1.25rem 0.25rem;
+    text-align: center;
+    color: var(--color-text-light);
+    font-size: var(--text-sm);
+}
+
+.eval-unblock-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.eval-unblock-row--blocked {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: rgba(245, 158, 11, 0.07);
+}
+
+.eval-unblock-row__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.eval-unblock-row__name {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+}
+
+.eval-unblock-row__meta {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+.eval-unblock-row__btn {
+    flex-shrink: 0;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.72rem;
+}
+
+@media (max-width: 480px) {
+    .btn-test-mode--unlock span {
+        display: none;
+    }
+
+    .eval-unblock-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
