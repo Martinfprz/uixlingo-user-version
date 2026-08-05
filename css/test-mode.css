@@ -407,3 +407,37 @@
         align-items: stretch;
     }
 }
+
+/* Confirmación en línea del renglón (SÍ / NO) y aviso de resultado del panel. */
+.eval-unblock-row__actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.4rem;
+}
+
+.eval-unblock-row__working {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.eval-unblock-status {
+    margin: 0 0 0.75rem 0;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: rgba(172, 231, 56, 0.12);
+    border: 1px solid rgba(172, 231, 56, 0.35);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+}
+
+.eval-unblock-status--error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.eval-unblock-status.hidden {
+    display: none;
+}

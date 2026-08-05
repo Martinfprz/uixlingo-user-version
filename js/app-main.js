@@ -2173,6 +2173,7 @@ function ensureEvalUnblockModal() {
                 <h3 id="eval-unblock-title">Bloqueos de evaluación</h3>
             </div>
             <p class="test-mode-modal__desc">Quien se sale de la ventana durante las hard skills acumula un aviso; a los 3 se le bloquea la evaluación. Aquí puedes regresar a cero a quien se bloqueó por error.</p>
+            <p id="eval-unblock-status" class="eval-unblock-status hidden" role="status"></p>
             <div id="eval-unblock-list" class="eval-unblock-list"></div>
             <div class="test-mode-modal__actions">
                 <button type="button" class="btn-outline-blue" id="eval-unblock-close">Cerrar</button>
@@ -2199,6 +2200,7 @@ window.openEvalUnblockPanel = async function () {
     const overlay = document.getElementById('eval-unblock-overlay');
     overlay.classList.remove('hidden');
     overlay.setAttribute('aria-hidden', 'false');
+    setEvalUnblockStatus('');
     await renderEvalUnblockList();
 };
 
@@ -2222,76 +2224,117 @@ async function renderEvalUnblockList() {
     }
 
     cont.innerHTML = '';
-    filas.forEach((f) => {
-        const bloqueado = Number(f.violaciones || 0) >= EVAL_VIOLATION_LIMIT;
-        const row = document.createElement('div');
-        row.className = 'eval-unblock-row' + (bloqueado ? ' eval-unblock-row--blocked' : '');
-
-        const info = document.createElement('div');
-        info.className = 'eval-unblock-row__info';
-        const nombre = document.createElement('span');
-        nombre.className = 'eval-unblock-row__name';
-        nombre.textContent = f.nombre || f.email || f.user_id;
-        const meta = document.createElement('span');
-        meta.className = 'eval-unblock-row__meta';
-        const cuando = f.ultima_violacion ? formatFormadorDate(f.ultima_violacion) : '—';
-        meta.textContent = bloqueado
-            ? `Bloqueada · ${f.violaciones} avisos · último ${cuando}`
-            : `${f.violaciones} de ${EVAL_VIOLATION_LIMIT} avisos · último ${cuando}`;
-        info.append(nombre, meta);
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = bloqueado ? 'btn-primary eval-unblock-row__btn' : 'btn-outline-blue eval-unblock-row__btn';
-        btn.textContent = bloqueado ? 'DESBLOQUEAR' : 'BORRAR AVISOS';
-        btn.onclick = () => unblockEvalUser(f, btn);
-
-        row.append(info, btn);
-        cont.appendChild(row);
-    });
+    filas.forEach((f) => cont.appendChild(buildEvalUnblockRow(f)));
 }
 
-/** Regresa el contador a 0. Solo pasa si la RLS reconoce al usuario como admin. */
-async function unblockEvalUser(fila, btn) {
-    const quien = fila.nombre || fila.email || fila.user_id;
-    const ok = await showAppConfirm({
-        title: '¿Quitar el bloqueo?',
-        message: `${quien} podrá hacer su evaluación de nuevo. Sus avisos regresan a cero y el cambio le llega la próxima vez que abra la app.`,
-        confirmText: 'DESBLOQUEAR',
-        cancelText: T.common.cancel,
-        variant: 'warning',
-        primaryAction: 'confirm',
-    });
-    if (!ok) return;
+/** Aviso de resultado dentro del panel. */
+function setEvalUnblockStatus(texto, tipo = 'ok') {
+    const el = document.getElementById('eval-unblock-status');
+    if (!el) return;
+    el.textContent = String(texto || '');
+    el.classList.toggle('hidden', !texto);
+    el.classList.toggle('eval-unblock-status--error', tipo === 'error');
+}
 
-    if (btn) { btn.disabled = true; btn.textContent = 'DESBLOQUEANDO…'; }
-    try {
-        const { error } = await supabase
-            .from('evaluacion_bloqueos')
-            .update({
-                violaciones: 0,
-                desbloqueado_at: new Date().toISOString(),
-                desbloqueado_por: userEmail || null,
-            })
-            .eq('user_id', fila.user_id);
-        if (error) throw error;
+/**
+ * Renglón de una persona con avisos, con su confirmación EN LÍNEA.
+ * La confirmación no usa showAppConfirm a propósito: ese diálogo es una capa
+ * aparte y si algo queda encima, la pregunta se dibuja tapada y el botón parece
+ * no hacer nada. Aquí todo pasa dentro del panel, que ya es la capa de arriba.
+ */
+function buildEvalUnblockRow(fila) {
+    const bloqueado = Number(fila.violaciones || 0) >= EVAL_VIOLATION_LIMIT;
+    const row = document.createElement('div');
+    row.className = 'eval-unblock-row' + (bloqueado ? ' eval-unblock-row--blocked' : '');
 
-        // Si me desbloqueé a mí mismo, el espejo local también tiene que bajar.
-        if (fila.user_id === supabaseSession?.user?.id) {
-            setEvalViolationCount(0);
-            updateEvaluationBriefAutoUI();
+    const info = document.createElement('div');
+    info.className = 'eval-unblock-row__info';
+    const nombre = document.createElement('span');
+    nombre.className = 'eval-unblock-row__name';
+    nombre.textContent = fila.nombre || fila.email || fila.user_id;
+    const meta = document.createElement('span');
+    meta.className = 'eval-unblock-row__meta';
+    const cuando = fila.ultima_violacion ? formatFormadorDate(fila.ultima_violacion) : '—';
+    const metaBase = bloqueado
+        ? `Bloqueada · ${fila.violaciones} avisos · último ${cuando}`
+        : `${fila.violaciones} de ${EVAL_VIOLATION_LIMIT} avisos · último ${cuando}`;
+    meta.textContent = metaBase;
+    info.append(nombre, meta);
+
+    const acciones = document.createElement('div');
+    acciones.className = 'eval-unblock-row__actions';
+
+    const boton = (texto, clase) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `${clase} eval-unblock-row__btn`;
+        b.textContent = texto;
+        return b;
+    };
+
+    const pintar = (modo) => {
+        acciones.innerHTML = '';
+
+        if (modo === 'trabajando') {
+            const span = document.createElement('span');
+            span.className = 'eval-unblock-row__working';
+            span.textContent = 'Guardando…';
+            acciones.appendChild(span);
+            return;
         }
-        await renderEvalUnblockList();
-    } catch (e) {
-        debugWarn('unblockEvalUser error:', e);
-        if (btn) { btn.disabled = false; btn.textContent = 'DESBLOQUEAR'; }
-        await showAppAlert({
-            title: 'No se pudo desbloquear',
-            message: 'Puede ser la conexión, o que esta cuenta no tenga permiso de admin en la base. El bloqueo sigue como estaba.',
-            variant: 'error',
-            confirmText: T.common.understood,
-        });
+
+        if (modo === 'confirmar') {
+            meta.textContent = '¿Seguro? Sus avisos regresan a cero y podrá hacer la evaluación otra vez.';
+            const si = boton('SÍ', 'btn-primary');
+            const no = boton('NO', 'btn-outline-blue');
+            si.onclick = aplicar;
+            no.onclick = () => { meta.textContent = metaBase; pintar('inicio'); };
+            acciones.append(si, no);
+            return;
+        }
+
+        const btn = boton(bloqueado ? 'DESBLOQUEAR' : 'BORRAR AVISOS', bloqueado ? 'btn-primary' : 'btn-outline-blue');
+        btn.onclick = () => pintar('confirmar');
+        acciones.appendChild(btn);
+    };
+
+    async function aplicar() {
+        setEvalUnblockStatus('');
+        pintar('trabajando');
+        const quien = fila.nombre || fila.email || 'esa persona';
+        try {
+            const { error } = await supabase
+                .from('evaluacion_bloqueos')
+                .update({
+                    violaciones: 0,
+                    desbloqueado_at: new Date().toISOString(),
+                    desbloqueado_por: userEmail || null,
+                })
+                .eq('user_id', fila.user_id);
+            if (error) throw error;
+
+            // Si me desbloqueé a mí mismo, el espejo local también tiene que bajar.
+            if (fila.user_id === supabaseSession?.user?.id) {
+                setEvalViolationCount(0);
+                updateEvaluationBriefAutoUI();
+            }
+            setEvalUnblockStatus(`Listo: ${quien} ya puede hacer su evaluación. El cambio le llega al abrir la app.`);
+            await renderEvalUnblockList();
+        } catch (e) {
+            debugWarn('unblockEvalUser error:', e);
+            meta.textContent = metaBase;
+            pintar('inicio');
+            const detalle = String(e?.message || e?.hint || '').trim();
+            setEvalUnblockStatus(
+                `No se pudo desbloquear a ${quien}. El bloqueo sigue como estaba.${detalle ? ` (${detalle})` : ''}`,
+                'error'
+            );
+        }
     }
+
+    pintar('inicio');
+    row.append(info, acciones);
+    return row;
 }
 
 function getTalentDescription(talent) {
