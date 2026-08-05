@@ -6570,10 +6570,19 @@ function handleAnswer(isCorrect, btn, isTimeout = false) {
     updateStreakUI();
 }
 
+/**
+ * Marca la opción correcta SOLO entre los botones de esta pregunta.
+ * OJO: `.btn-option` también lo usa el quiz del 360 (#formador-options-container),
+ * cuyos botones se quedan en el DOM al salir de esa sección. Con un selector global
+ * llegaban más botones que opciones, `q.options[idx]` era undefined y esta función
+ * reventaba a media respuesta: sin panel de feedback ni botón de continuar, la
+ * evaluación quedaba congelada. Se acota al contenedor y se lee con `?.`.
+ */
 function highlightCorrect(q) {
-    const buttons = document.querySelectorAll('.btn-option');
-    buttons.forEach((b, idx) => {
-        if (q.options[idx].correct) b.classList.add('option-correct');
+    const container = document.getElementById('options-container');
+    if (!container) return;
+    container.querySelectorAll('.btn-option').forEach((b, idx) => {
+        if (q.options[idx]?.correct) b.classList.add('option-correct');
     });
 }
 
@@ -8011,9 +8020,16 @@ async function showResults() {
         const continueSoftWrap = document.getElementById('results-continue-soft-wrap');
         if (continueSoftWrap) {
             let showContinue = false;
-            if (isEvaluationResult && canEvaluateFormador(userProfile.especialidad)) {
-                const status = await getFormadorBriefStatus(MODALIDADES_AUTOEVAL);
-                showContinue = status === 'none' || status === 'partial';
+            // Este puente es un extra: si falla, el resultado se muestra igual. Sin el
+            // try/catch un error aquí dejaba la pantalla de resultados en blanco (el
+            // contenido se revela más abajo) y parecía que la app se había colgado.
+            try {
+                if (isEvaluationResult && canEvaluateFormador(userProfile.especialidad)) {
+                    const status = await getFormadorBriefStatus(MODALIDADES_AUTOEVAL);
+                    showContinue = status === 'none' || status === 'partial';
+                }
+            } catch (e) {
+                debugWarn('showResults: no se pudo resolver el puente a soft skills', e);
             }
             continueSoftWrap.classList.toggle('hidden', !showContinue);
         }
