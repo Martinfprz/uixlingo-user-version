@@ -6772,20 +6772,99 @@ function handleAnswer(isCorrect, btn, isTimeout = false) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const q = currentSession[currentIndex];
 
-    if (isCorrect) {
-        score++;
-        streak++;
-        checkStreakBonus();
-        if (btn) btn.classList.add('option-correct');
-        showFeedback(true, q, false);
-    } else {
-        streak = 0;
-        errors.push(q);
-        if (btn) btn.classList.add('option-wrong');
-        highlightCorrect(q);
-        showFeedback(false, q, isTimeout);
+    // Todo lo que va después de deshabilitar las opciones tiene que terminar sí o sí
+    // con el panel de feedback abierto: si algo revienta aquí la pregunta queda muerta
+    // (opciones apagadas, sin "No lo sé" y sin botón de continuar) y solo se sale
+    // recargando, perdiendo la evaluación. Con DEBUG=false el error ni se ve en consola.
+    try {
+        if (isCorrect) {
+            score++;
+            streak++;
+            checkStreakBonus();
+            if (btn) btn.classList.add('option-correct');
+            showFeedback(true, q, false);
+        } else {
+            streak = 0;
+            errors.push(q);
+            if (btn) btn.classList.add('option-wrong');
+            highlightCorrect(q);
+            showFeedback(false, q, isTimeout);
+        }
+    } catch (err) {
+        // A propósito console.error y no debugError: este fallo deja la evaluación
+        // inservible y necesitamos verlo en el navegador del usuario, con DEBUG=false.
+        console.error('[UiX Lingo] handleAnswer falló al mostrar el feedback:', err);
+        forceFeedbackFallback(isCorrect, q, isTimeout);
     }
-    updateStreakUI();
+
+    try {
+        updateStreakUI();
+    } catch (err) {
+        debugError('updateStreakUI falló:', err);
+    }
+
+    ensureFeedbackVisible(isCorrect, q, isTimeout);
+}
+
+/**
+ * Red de seguridad: deja el panel de feedback abierto y usable pase lo que pase.
+ * Se usa cuando showFeedback revienta a medias (panel visible pero sin texto ni
+ * botón, o directamente oculto).
+ */
+function forceFeedbackFallback(isCorrect, q, isTimeout = false) {
+    const panel = document.getElementById('feedback-panel');
+    const overlay = document.getElementById('feedback-overlay');
+    if (!panel) return;
+
+    panel.className = `feedback-panel ${isCorrect ? 'feedback-panel--correct' : 'feedback-panel--wrong'}`;
+    overlay?.classList.remove('hidden', 'opacity-0');
+
+    const title = document.getElementById('feedback-title');
+    if (title) {
+        title.innerText = isCorrect
+            ? T.feedback.correct
+            : (isTimeout ? T.feedback.timeUpTitle : T.feedback.incorrectTitle);
+        title.className = `feedback-title-text ${isCorrect ? 'feedback-title--correct' : 'feedback-title--wrong'}`;
+    }
+
+    const icon = document.getElementById('feedback-icon');
+    if (icon) {
+        icon.innerHTML = isCorrect
+            ? '<i class="fas fa-check-circle icon-feedback-correct"></i>'
+            : '<i class="fas fa-exclamation-triangle icon-feedback-wrong"></i>';
+    }
+
+    document.getElementById('study-tip-box')?.classList.add('hidden');
+
+    const msg = document.getElementById('feedback-msg');
+    if (msg && !msg.innerText.trim()) {
+        const correctOpt = q?.options?.find(o => o.correct);
+        msg.innerHTML = correctOpt
+            ? `<strong class="feedback-correct-answer">Respuesta correcta: ${esc(correctOpt.text)}</strong>${esc(q?.explanation || '')}`
+            : 'Tu respuesta quedó registrada. Continúa con la siguiente pregunta.';
+    }
+
+    const nextBtn = document.getElementById('btn-next-question');
+    if (nextBtn) {
+        nextBtn.innerText = T.feedback.next;
+        nextBtn.classList.remove('hidden');
+    }
+    nextBtn?.focus({ preventScroll: true });
+}
+
+/**
+ * Última verificación después de responder: si el panel quedó oculto (o sin botón
+ * de continuar) por cualquier motivo, lo fuerza. Barato y corre siempre.
+ */
+function ensureFeedbackVisible(isCorrect, q, isTimeout = false) {
+    const panel = document.getElementById('feedback-panel');
+    if (!panel) return;
+    const nextBtn = document.getElementById('btn-next-question');
+    const broken =
+        panel.classList.contains('hidden') ||
+        !nextBtn ||
+        nextBtn.classList.contains('hidden');
+    if (broken) forceFeedbackFallback(isCorrect, q, isTimeout);
 }
 
 /**
@@ -7191,14 +7270,22 @@ function nextQuestion() {
             overlay.classList.add('opacity-0');
 
             setTimeout(() => {
-                loadQuestion();
-                qContent.classList.remove('animate-fade-out');
-                qHeader.classList.remove('animate-fade-out');
-                feedback.classList.remove('animate-fade-out');
-                feedback.classList.add('hidden');
-                overlay.classList.add('hidden');
-                qContent.classList.add('animate-fade-in');
-                qHeader.classList.add('animate-fade-in');
+                // La limpieza de clases va en finally: si loadQuestion revienta, el
+                // panel de feedback se quedaba encima con la pregunta anterior y el
+                // botón SIGUIENTE ya no hacía nada visible.
+                try {
+                    loadQuestion();
+                } catch (err) {
+                    console.error('[UiX Lingo] loadQuestion falló:', err);
+                } finally {
+                    qContent.classList.remove('animate-fade-out');
+                    qHeader.classList.remove('animate-fade-out');
+                    feedback.classList.remove('animate-fade-out');
+                    feedback.classList.add('hidden');
+                    overlay.classList.add('hidden');
+                    qContent.classList.add('animate-fade-in');
+                    qHeader.classList.add('animate-fade-in');
+                }
             }, 300);
         }
     }
