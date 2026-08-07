@@ -5164,7 +5164,14 @@ function switchSection(targetId, onShow) {
             }
         });
 
-        if (onShow) onShow();
+        // onShow en try/catch a propósito: si el callback revienta, la sección ya
+        // se cambió y saltarse updateHeaderBackButton dejaba a la persona sin el
+        // botón de volver, o sea sin salida.
+        try {
+            if (onShow) onShow();
+        } catch (err) {
+            console.error('[UiX Lingo] onShow de switchSection falló:', targetId, err);
+        }
         updateHeaderBackButton();
     };
 
@@ -6542,6 +6549,7 @@ function startQuiz() {
         levelBar.style.height = '0%';
     }
 
+    startStuckWatchdog();
     switchSection('quiz-interface', () => {
         document.getElementById('main-header').classList.remove('hidden');
         loadQuestion();
@@ -6554,6 +6562,7 @@ function restartDirectly() {
 
 function returnToDashboard() {
     isEvaluationSessionActive = false;
+    stopStuckWatchdog();
     switchSection('landing-page', () => {
         // Restablecer vistas dentro de landing page a dashboard (Perfil)
         document.getElementById('dashboard-view')?.classList.add('hidden');
@@ -6704,36 +6713,38 @@ async function handleHeaderClick() {
     }
 }
 
+/**
+ * Pinta la pregunta actual.
+ *
+ * Orden deliberado: lo IMPRESCINDIBLE (opciones clicables + "No lo sé" + panel
+ * cerrado) va primero y aislado; lo cosmético (badge, seniority, contador) va
+ * después en try/catch. Antes iba al revés y un dato raro en `q.category` o
+ * `q.seniority` reventaba la función antes de dibujar las opciones, dejando la
+ * pregunta sin respuestas que tocar.
+ */
 function loadQuestion() {
     window.scrollTo(0, 0);
+    markQuizTransition();
+    lastAnswerContext = null;
     const q = currentSession[currentIndex];
-    document.getElementById('current-q-num').innerText = currentIndex + 1;
-    const qTotal = document.getElementById('q-total');
-    if (qTotal) qTotal.innerText = `/${currentSession.length}`;
 
-    const badge = document.getElementById('topic-badge');
-    const seniorityLabel =
-        formatSeniorityLabel(q.seniority) || (q.seniorityRaw ? String(q.seniorityRaw).trim() : '');
-    const shouldShowSeniority = currentQuizMode === 'evaluation' && seniorityLabel;
-    badge.innerText = shouldShowSeniority ? `${q.category} • ${seniorityLabel}` : q.category;
+    // Pregunta corrupta o índice fuera de rango: no hay nada que responder.
+    // Saltarla es mejor que dejar la sesión colgada.
+    if (!q || !Array.isArray(q.options) || q.options.length === 0) {
+        console.error('[UiX Lingo] Pregunta inválida en el índice', currentIndex, q);
+        skipBrokenQuestion();
+        return;
+    }
 
-    const categoryClass = {
-        "UX Writing": "badge--ux-writing",
-        "UX Research": "badge--ux-research",
-        "UX Researcher": "badge--ux-research",
-        "UI Design": "badge--ui-design",
-        "Product Strategy": "badge--product-strategy",
-        "Casos Prácticos": "badge--casos-practicos"
-    };
-    const badgeMod =
-        categoryClass[q.category] ||
-        (isUiDesignCategory(q.category) ? 'badge--ui-design' : '') ||
-        (isUxResearchFamilyLabel(q.category) ? 'badge--ux-research' : '');
-    badge.className = `topic-badge ${badgeMod}`;
-
-    document.getElementById('question-text').innerText = q.question;
-
+    // --- Imprescindible ---
     const container = document.getElementById('options-container');
+    if (!container) {
+        // Sin contenedor no hay nada que pintar y reintentar solo da vueltas.
+        // Se corta aquí y se saca a la persona con la sesión cerrada.
+        console.error('[UiX Lingo] Falta #options-container: se aborta la sesión.');
+        bailOutOfQuiz();
+        return;
+    }
     container.innerHTML = '';
     container.style.pointerEvents = 'auto';
 
@@ -6742,9 +6753,9 @@ function loadQuestion() {
         btn.className = "btn-option";
         const span = document.createElement('span');
         span.className = 'option-text';
-        span.textContent = opt.text;
+        span.textContent = opt?.text ?? '';
         btn.appendChild(span);
-        btn.onclick = () => handleAnswer(opt.correct, btn);
+        btn.onclick = () => handleAnswer(!!opt?.correct, btn);
         container.appendChild(btn);
     });
 
@@ -6754,7 +6765,95 @@ function loadQuestion() {
     const nextBtn = document.getElementById('btn-next-question');
     if (nextBtn) nextBtn.innerText = T.feedback.next;
 
-    resetQuestionTimer();
+    document.getElementById('question-text').innerText = q.question ?? '';
+
+    // --- Cosmético: nunca debe impedir responder ---
+    try {
+        document.getElementById('current-q-num').innerText = currentIndex + 1;
+        const qTotal = document.getElementById('q-total');
+        if (qTotal) qTotal.innerText = `/${currentSession.length}`;
+
+        const badge = document.getElementById('topic-badge');
+        const seniorityLabel =
+            formatSeniorityLabel(q.seniority) || (q.seniorityRaw ? String(q.seniorityRaw).trim() : '');
+        const shouldShowSeniority = currentQuizMode === 'evaluation' && seniorityLabel;
+        badge.innerText = shouldShowSeniority ? `${q.category} • ${seniorityLabel}` : q.category;
+
+        const categoryClass = {
+            "UX Writing": "badge--ux-writing",
+            "UX Research": "badge--ux-research",
+            "UX Researcher": "badge--ux-research",
+            "UI Design": "badge--ui-design",
+            "Product Strategy": "badge--product-strategy",
+            "Casos Prácticos": "badge--casos-practicos"
+        };
+        const badgeMod =
+            categoryClass[q.category] ||
+            (isUiDesignCategory(q.category) ? 'badge--ui-design' : '') ||
+            (isUxResearchFamilyLabel(q.category) ? 'badge--ux-research' : '');
+        badge.className = `topic-badge ${badgeMod}`;
+    } catch (err) {
+        console.error('[UiX Lingo] Encabezado de la pregunta falló (se sigue igual):', err);
+    }
+
+    try {
+        resetQuestionTimer();
+    } catch (err) {
+        // Sin timer se puede responder; sin opciones no. Que no arrastre a la pregunta.
+        console.error('[UiX Lingo] resetQuestionTimer falló:', err);
+    }
+}
+
+/**
+ * Descarta una pregunta que no se puede pintar y avanza a la siguiente que sí se
+ * pueda. Iterativo y con tope: si loadQuestion falla en cadena (por ejemplo porque
+ * falta un nodo del DOM), reintentar en recursión colgaba el navegador.
+ */
+function skipBrokenQuestion() {
+    let intentos = 0;
+    while (currentIndex < currentSession.length - 1 && intentos < currentSession.length) {
+        currentIndex++;
+        intentos++;
+        try {
+            loadQuestion();
+            return; // se pudo pintar
+        } catch (err) {
+            console.error('[UiX Lingo] Pregunta', currentIndex, 'tampoco se pudo pintar:', err);
+        }
+    }
+
+    // No quedan preguntas utilizables: cerrar la sesión mostrando lo que sí se contestó.
+    try {
+        showResults();
+    } catch (err) {
+        console.error('[UiX Lingo] showResults falló tras pregunta inválida:', err);
+        bailOutOfQuiz();
+    }
+}
+
+/**
+ * Salida de emergencia: cuando ni siquiera se puede pintar una pregunta, es mejor
+ * devolver a la persona al inicio con un aviso que dejarla mirando una pantalla
+ * muerta sin saber si su avance se guardó.
+ */
+function bailOutOfQuiz() {
+    stopStuckWatchdog();
+    stopQuestionTimer();
+    try {
+        showAppAlert({
+            title: 'No pudimos continuar',
+            message: 'Algo falló al cargar la siguiente pregunta. Tus respuestas hasta aquí quedaron registradas. Vuelve a entrar y, si se repite, avísale al equipo.',
+            variant: 'error',
+            confirmText: T.common.understood
+        });
+    } catch (err) {
+        console.error('[UiX Lingo] No se pudo mostrar el aviso de salida:', err);
+    }
+    try {
+        returnToDashboard();
+    } catch (err) {
+        console.error('[UiX Lingo] returnToDashboard falló:', err);
+    }
 }
 
 function handleDontKnow() {
@@ -6771,6 +6870,11 @@ function handleAnswer(isCorrect, btn, isTimeout = false) {
     document.getElementById('btn-dont-know').classList.add('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const q = currentSession[currentIndex];
+
+    // Contexto para el vigilante: desde aquí las opciones ya están apagadas, así que
+    // si algo sale mal necesita saber qué panel reconstruir.
+    lastAnswerContext = { isCorrect, q, isTimeout };
+    markQuizTransition();
 
     // Todo lo que va después de deshabilitar las opciones tiene que terminar sí o sí
     // con el panel de feedback abierto: si algo revienta aquí la pregunta queda muerta
@@ -6866,6 +6970,141 @@ function ensureFeedbackVisible(isCorrect, q, isTimeout = false) {
         nextBtn.classList.contains('hidden');
     if (broken) forceFeedbackFallback(isCorrect, q, isTimeout);
 }
+
+// ===== VIGILANTE DE PREGUNTA COLGADA =====
+//
+// Los try/catch de arriba cubren los fallos síncronos que ya conocemos. Este
+// vigilante cubre el resto: un error asíncrono, una librería de CDN que no cargó,
+// un caso que todavía no vimos. Observa el SÍNTOMA, no la causa.
+//
+// Estado muerto = quiz visible + opciones apagadas + panel de feedback cerrado.
+// Desde ahí no hay nada que tocar y la única salida era recargar, perdiendo la
+// evaluación entera.
+//
+// La ventana de gracia es clave: la transición normal entre preguntas pasa ~300 ms
+// por ese mismo estado, así que solo se actúa si lleva más de STUCK_GRACE_MS ahí.
+
+const STUCK_GRACE_MS = 2500;
+const STUCK_CHECK_INTERVAL_MS = 1000;
+
+let lastAnswerContext = null;
+let lastQuizTransitionAt = 0;
+let stuckWatchdogId = null;
+
+function markQuizTransition() {
+    lastQuizTransitionAt = Date.now();
+}
+
+function safeConfetti(opts) {
+    // canvas-confetti viene de cdn.jsdelivr.net. En una red corporativa que lo
+    // bloquee, `confetti` es undefined y el ReferenceError reventaba a media
+    // respuesta correcta. Es decoración: nunca debe costar una pregunta.
+    try {
+        if (typeof confetti === 'function') confetti(opts);
+    } catch (err) {
+        debugWarn('confetti no disponible:', err);
+    }
+}
+
+function isHardSkillsQuizVisible() {
+    const quiz = document.getElementById('quiz-interface');
+    return !!quiz && !quiz.classList.contains('hidden');
+}
+
+/** ¿La pregunta quedó sin nada que tocar? */
+function isQuizStuck() {
+    if (!isHardSkillsQuizVisible()) return false;
+
+    const panel = document.getElementById('feedback-panel');
+    const container = document.getElementById('options-container');
+    if (!panel || !container) return false;
+
+    const feedbackClosed = panel.classList.contains('hidden');
+    if (!feedbackClosed) return false; // hay panel: se puede continuar
+
+    const optionsLocked = container.style.pointerEvents === 'none';
+    const noOptions = container.querySelectorAll('.btn-option').length === 0;
+    const dontKnow = document.getElementById('btn-dont-know');
+    const dontKnowHidden = !dontKnow || dontKnow.classList.contains('hidden');
+
+    // Opciones apagadas (ya respondió y el feedback nunca llegó)
+    // o directamente no hay opciones y tampoco "No lo sé".
+    return optionsLocked || (noOptions && dontKnowHidden);
+}
+
+/**
+ * Saca a la persona del estado muerto sin perder la sesión.
+ * Prioridad: reconstruir el panel de feedback (la respuesta ya está contada).
+ * Si no hay contexto de respuesta, se repinta la pregunta para poder contestarla.
+ */
+function recoverStuckQuiz() {
+    const container = document.getElementById('options-container');
+    const answered = container && container.style.pointerEvents === 'none';
+
+    if (answered && lastAnswerContext) {
+        console.error('[UiX Lingo] Pregunta colgada tras responder: se fuerza el feedback.');
+        forceFeedbackFallback(
+            lastAnswerContext.isCorrect,
+            lastAnswerContext.q,
+            lastAnswerContext.isTimeout
+        );
+        markQuizTransition();
+        return;
+    }
+
+    console.error('[UiX Lingo] Pregunta colgada sin respuesta: se repinta.');
+    try {
+        loadQuestion();
+    } catch (err) {
+        console.error('[UiX Lingo] No se pudo repintar la pregunta:', err);
+        try {
+            skipBrokenQuestion();
+        } catch (err2) {
+            console.error('[UiX Lingo] Tampoco se pudo saltar la pregunta:', err2);
+            bailOutOfQuiz();
+        }
+    }
+    markQuizTransition();
+}
+
+function checkQuizStuck() {
+    if (!isQuizStuck()) return;
+    if (Date.now() - lastQuizTransitionAt < STUCK_GRACE_MS) return; // transición normal
+    recoverStuckQuiz();
+}
+
+function startStuckWatchdog() {
+    if (stuckWatchdogId) return;
+    markQuizTransition();
+    stuckWatchdogId = setInterval(() => {
+        try {
+            checkQuizStuck();
+        } catch (err) {
+            debugWarn('watchdog:', err);
+        }
+    }, STUCK_CHECK_INTERVAL_MS);
+}
+
+function stopStuckWatchdog() {
+    if (!stuckWatchdogId) return;
+    clearInterval(stuckWatchdogId);
+    stuckWatchdogId = null;
+    lastAnswerContext = null;
+}
+
+// Un error no capturado durante el quiz es exactamente el escenario del bug:
+// se revisa de inmediato en vez de esperar al siguiente tick.
+window.addEventListener('error', (e) => {
+    if (!isHardSkillsQuizVisible()) return;
+    console.error('[UiX Lingo] Error no capturado durante el quiz:', e.error || e.message);
+    setTimeout(() => { try { checkQuizStuck(); } catch (_) { /* noop */ } }, STUCK_GRACE_MS);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+    if (!isHardSkillsQuizVisible()) return;
+    console.error('[UiX Lingo] Promesa rechazada durante el quiz:', e.reason);
+    setTimeout(() => { try { checkQuizStuck(); } catch (_) { /* noop */ } }, STUCK_GRACE_MS);
+});
 
 /**
  * Marca la opción correcta SOLO entre los botones de esta pregunta.
@@ -7236,12 +7475,30 @@ function checkStreakBonus() {
         document.getElementById('streak-msg-sub').innerText = T.quiz.streakSeguidas(streak);
         toast.style.opacity = '1';
         toast.style.transform = 'translate(-50%, 20px)';
-        confetti({ particleCount: 50, spread: 60, origin: { y: 0.2 } });
+        safeConfetti({ particleCount: 50, spread: 60, origin: { y: 0.2 } });
         setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translate(-50%, -20px)'; }, 2500);
     }
 }
 
+/**
+ * `nextQuestion` corre desde el onclick inline del botón SIGUIENTE. Si revienta,
+ * el botón se ve muerto y la persona queda encerrada en la misma pregunta, pero
+ * con `currentIndex` ya incrementado: volver a hacer clic se saltaba preguntas.
+ * Por eso el índice se restaura si el avance no llegó a buen puerto.
+ */
 function nextQuestion() {
+    const previousIndex = currentIndex;
+    markQuizTransition();
+    try {
+        advanceToNextQuestion();
+    } catch (err) {
+        console.error('[UiX Lingo] nextQuestion falló:', err);
+        currentIndex = previousIndex;
+        recoverStuckQuiz();
+    }
+}
+
+function advanceToNextQuestion() {
     currentIndex++;
     if (currentIndex < currentSession.length) {
         if (currentQuizMode === 'pills') {
@@ -7256,7 +7513,13 @@ function nextQuestion() {
             document.getElementById('feedback-panel').classList.add('hidden');
             document.getElementById('feedback-overlay').classList.add('hidden');
             document.getElementById('feedback-overlay').classList.add('opacity-0');
-            showBreakScreen();
+            // El descanso es un premio, no un requisito: si falla, a la pregunta.
+            try {
+                showBreakScreen();
+            } catch (err) {
+                console.error('[UiX Lingo] showBreakScreen falló, se salta el descanso:', err);
+                switchSection('quiz-interface', () => loadQuestion());
+            }
         } else {
             // Transición suave entre preguntas
             const qContent = document.getElementById('question-content');
@@ -7277,6 +7540,7 @@ function nextQuestion() {
                     loadQuestion();
                 } catch (err) {
                     console.error('[UiX Lingo] loadQuestion falló:', err);
+                    skipBrokenQuestion();
                 } finally {
                     qContent.classList.remove('animate-fade-out');
                     qHeader.classList.remove('animate-fade-out');
@@ -7293,7 +7557,20 @@ function nextQuestion() {
         document.getElementById('feedback-panel').classList.add('hidden');
         document.getElementById('feedback-overlay').classList.add('hidden');
         document.getElementById('feedback-overlay').classList.add('opacity-0');
-        showResults();
+        // Última pregunta ya respondida: las respuestas están contadas. Si la
+        // pantalla de resultados revienta, al menos no se queda en el limbo.
+        try {
+            showResults();
+        } catch (err) {
+            console.error('[UiX Lingo] showResults falló:', err);
+            showAppAlert({
+                title: 'Terminaste la sesión',
+                message: 'Tus respuestas quedaron registradas, pero no pudimos dibujar la pantalla de resultados. Vuelve al inicio y avísale al equipo.',
+                variant: 'warning',
+                confirmText: T.common.understood
+            });
+            returnToDashboard();
+        }
     }
 }
 
@@ -7534,7 +7811,16 @@ function showBreakScreen() {
 }
 
 function continueFromBreak() {
-    switchSection('quiz-interface', () => loadQuestion());
+    // El botón del descanso es la única salida de esa pantalla: si loadQuestion
+    // revienta aquí, la persona se queda encerrada en el descanso.
+    switchSection('quiz-interface', () => {
+        try {
+            loadQuestion();
+        } catch (err) {
+            console.error('[UiX Lingo] loadQuestion falló al volver del descanso:', err);
+            skipBrokenQuestion();
+        }
+    });
 }
 
 // --- FUNCIONES DE RANKING ---
@@ -8271,12 +8557,13 @@ async function showPillsResultsInScreen() {
     }
 
     if (!pillsSessionHadPriorAttempt && errCountPill <= 1) {
-        confetti({ particleCount: 120, spread: 65, origin: { y: 0.55 } });
+        safeConfetti({ particleCount: 120, spread: 65, origin: { y: 0.55 } });
     }
 }
 
 async function showResults() {
     isEvaluationSessionActive = false;
+    stopStuckWatchdog();
     window.scrollTo(0, 0);
     switchSection('results-screen', async () => {
         if (isPillsMode()) {
@@ -8454,7 +8741,7 @@ async function showResults() {
                     void content.offsetWidth; // Reflow
                     content.classList.remove('opacity-0');
                     content.classList.add('animate-slide-up');
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                    safeConfetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                 }, 2200);
             }, 500);
         }
