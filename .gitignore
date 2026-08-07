@@ -2,6 +2,10 @@
 .env
 .env.*
 *.local
+# Variantes mal escritas del nombre: `env.local.` (con punto final y sin punto
+# inicial) no caia en ninguno de los patrones de arriba y se subio vacio al repo.
+env.local*
+.env*
 
 # ─── Herramientas de administración (no deben ser públicas) ───────────────────
 _admin-tools/
