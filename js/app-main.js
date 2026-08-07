@@ -4180,6 +4180,11 @@ function formadorRoleBucket(raw) {
     if (!n) return '';
     if (n.includes('product designer')) return 'product';
     if (n.includes('customer success')) return 'customer';
+    // «Diseñador de presentaciones» no trae token UX/UI, así que sin esto se
+    // quedaba sin bucket y sin evaluación 360 de su formador. Va a UI Designer,
+    // que es el set de preguntas más cercano a su trabajo. Ningún puesto_1..6
+    // del banco dice «presentaciones», así que solo cambia el bucket propio.
+    if (n.includes('presentaciones')) return 'ui';
     const t = specialtyTokens(raw);
     if (t.includes('writer') || t.includes('writing')) return 'writer';
     const hasUx = t.includes('ux');
