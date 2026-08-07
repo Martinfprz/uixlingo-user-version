@@ -20,7 +20,7 @@ import {
     PUBLIC_APP_ORIGIN,
     TEST_MODE_ALLOWED_EMAILS,
     EVAL_UNBLOCK_ALLOWED_EMAILS,
-} from './constants.js?v=4';
+} from './constants.js?v=5';
 import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates } from './utils.js';
 import { supabase } from './supabase.js';
 import { showAppAlert, showAppConfirm } from './ui.js?v=2';
