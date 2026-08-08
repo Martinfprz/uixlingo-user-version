@@ -468,6 +468,14 @@ let currentIndex = 0;
 let score = 0;
 let streak = 0;
 let errors = [];
+/**
+ * Lo que la persona contestó, en orden: `[{ id, answer }]`.
+ * `score` sigue existiendo para pintar la UI durante la sesión, pero ya no es lo
+ * que se guarda: al terminar se manda esto a la Edge Function `submit-quiz`, que
+ * recalifica contra la base y decide el puntaje. El cliente informa QUÉ contestó,
+ * nunca CUÁNTO sacó.
+ */
+let sessionAnswers = [];
 let userName = "";
 let userEmail = "";
 let startTime = 0;
@@ -3231,11 +3239,13 @@ function normalize() {
         const optionB = getQuestionField(q, ['B', 'b']);
         const optionC = getQuestionField(q, ['C', 'c']);
 
-        // Mezclar opciones aleatoriamente
+        // Mezclar opciones aleatoriamente. `key` conserva la letra original (A/B/C)
+        // pese al barajado: es lo que se manda al servidor para que recalifique,
+        // y comparar letras aguanta cambios de copy que comparar textos no.
         const opts = [
-            { text: optionA, correct: correctKey === "A" },
-            { text: optionB, correct: correctKey === "B" },
-            { text: optionC, correct: correctKey === "C" },
+            { text: optionA, correct: correctKey === "A", key: "A" },
+            { text: optionB, correct: correctKey === "B", key: "B" },
+            { text: optionC, correct: correctKey === "C", key: "C" },
         ].filter(o => o.text).sort(() => Math.random() - 0.5);
 
         // Validación de seguridad: Verificar que existe una respuesta correcta
@@ -3246,6 +3256,9 @@ function normalize() {
         }
 
         return {
+            // El id viaja hasta el final de la sesión: sin él el servidor no puede
+            // saber qué pregunta se contestó y por tanto no puede recalificar.
+            id: getQuestionField(q, ['ID', 'Id', 'id']),
             category: normalizeCategoryLabel(getQuestionField(q, ['Cat', 'cat'])),
             seniority: getQuestionSeniority(q),
             seniorityRaw: getQuestionSeniorityRaw(q),
@@ -3324,15 +3337,15 @@ async function verifyEmail() {
     emailStatus.classList.add('is-visible');
 
     try {
-        const { data: rankingRow } = await supabase
-            .from('ranking_user')
-            .select('nombre, email')
-            .eq('email', email)
-            .maybeSingle();
+        // RPC en vez de SELECT directo: esta consulta corre sin sesión, y la tabla
+        // `ranking_user` ya no es legible por el rol anon (exponía email, emp_id e
+        // initial_password de toda la plantilla). El RPC devuelve sólo el nombre.
+        const { data: nombreRegistrado } = await supabase
+            .rpc('check_email_registered', { p_email: email });
 
         emailInput.disabled = false;
 
-        if (!rankingRow) {
+        if (!nombreRegistrado) {
             userEmail = '';
             emailVerified = false;
             emailStatus.classList.remove('is-visible');
@@ -3351,7 +3364,7 @@ async function verifyEmail() {
         emailStatus.innerHTML = T.auth.emailValidated;
         emailStatus.classList.add('is-success');
 
-        const firstName = (rankingRow.nombre || '').split(' ')[0];
+        const firstName = String(nombreRegistrado || '').split(' ')[0];
         document.getElementById('login-title').textContent = T.fmt.loginWelcome(firstName);
 
         document.getElementById('user-password').disabled = false;
@@ -3532,12 +3545,18 @@ async function doLogin() {
         const user = data.user;
         const role = user.app_metadata?.role || 'user';
 
-        // Obtener nombre e initial_password desde ranking_user en una sola consulta
-        const { data: rankingRow } = await supabase
-            .from('ranking_user')
-            .select('nombre, initial_password')
-            .eq('email', userEmail)
-            .maybeSingle();
+        // El nombre y la detección de primer login van por separado a propósito:
+        // `initial_password` ya no se puede leer desde el cliente (la columna quedó
+        // fuera del grant de `authenticated`), así que la comparación la hace el
+        // RPC en la base y sólo devuelve un booleano.
+        const [{ data: rankingRow }, { data: esPasswordInicial }] = await Promise.all([
+            supabase
+                .from('ranking_user')
+                .select('nombre')
+                .eq('email', userEmail)
+                .maybeSingle(),
+            supabase.rpc('is_initial_password', { p_password: password }),
+        ]);
 
         userName = rankingRow?.nombre || user.user_metadata?.nombre || (role === 'admin' ? 'Administrador' : 'Usuario');
 
@@ -3545,8 +3564,7 @@ async function doLogin() {
         //   1) Bandera en app_metadata (usuarios creados desde admin con flag explícito)
         //   2) O la contraseña usada coincide con initial_password en ranking_user (usuarios legacy)
         const forceByMetadata = user.app_metadata?.force_password_change === true;
-        const initialPass = String(rankingRow?.initial_password || '').trim();
-        const forceByInitialPass = initialPass.length > 0 && password === initialPass;
+        const forceByInitialPass = esPasswordInicial === true;
 
         if (forceByMetadata || forceByInitialPass) {
             promptChangePassword(user.id, password, role);
@@ -3722,12 +3740,9 @@ window.saveNewPassword = async function () {
             history.replaceState({}, document.title, '/');
         } else {
             // --- Flujo primer-login: limpiar initial_password y entrar al dashboard ---
-            if (userEmail) {
-                await supabase
-                    .from('ranking_user')
-                    .update({ initial_password: null })
-                    .eq('email', userEmail.toLowerCase());
-            }
+            // Vía RPC: la columna ya no está en el grant de UPDATE de `authenticated`.
+            // El RPC borra la fila de auth.uid(), así que tampoco hace falta el email.
+            await supabase.rpc('clear_initial_password');
             await showAppAlert({
                 title: T.auth.passwordCreatedTitle,
                 message: T.auth.passwordCreatedMessage,
@@ -6167,6 +6182,7 @@ window.startPillsQuiz = async function (pillId) {
         score = 0;
         streak = 0;
         errors = [];
+        sessionAnswers = [];
         startTime = new Date();
 
         switchSection('pills-quiz-interface', () => {
@@ -6239,6 +6255,9 @@ function handlePillsAnswer(userBool) {
     const q = currentSession[currentIndex];
     const correct = q.correctAnswer === true;
     const isCorrect = userBool === correct;
+
+    // Igual que en opción múltiple: lo que se guarda es la respuesta, no el acierto.
+    sessionAnswers.push({ id: q?.id, answer: userBool === true });
 
     if (isCorrect) {
         score++;
@@ -6538,6 +6557,7 @@ function startQuiz() {
     currentIndex = 0;
     score = 0;
     streak = 0;
+    sessionAnswers = [];
     document.getElementById('streak-counter').innerText = 0;
     stopSparkEngine();
     const flame = document.getElementById('streak-flame');
@@ -6760,7 +6780,10 @@ function loadQuestion() {
         span.className = 'option-text';
         span.textContent = opt?.text ?? '';
         btn.appendChild(span);
-        btn.onclick = () => handleAnswer(!!opt?.correct, btn);
+        // Se pasa el id de ESTA pregunta, no se lee de currentIndex al recibir el
+        // clic: el índice puede haber avanzado ya y la respuesta acabaría atribuida
+        // a la pregunta siguiente.
+        btn.onclick = () => handleAnswer(!!opt?.correct, btn, false, opt?.key, q?.id);
         container.appendChild(btn);
     });
 
@@ -6865,16 +6888,27 @@ function handleDontKnow() {
     handleAnswer(false, null, false);
 }
 
-function handleAnswer(isCorrect, btn, isTimeout = false) {
+function handleAnswer(isCorrect, btn, isTimeout = false, answerKey = '', questionId = null) {
     const feedbackOpen = document.getElementById('feedback-panel');
     if (feedbackOpen && !feedbackOpen.classList.contains('hidden')) return;
 
+    // Este guard de arriba es también lo que evita registrar la misma pregunta dos
+    // veces: si el panel ya está abierto, no se llega a `sessionAnswers.push`.
     stopQuestionTimer();
     const container = document.getElementById('options-container');
     container.style.pointerEvents = 'none';
     document.getElementById('btn-dont-know').classList.add('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const q = currentSession[currentIndex];
+
+    // Se registra tanto la respuesta elegida como el "No lo sé" y el timeout (que
+    // llegan con answerKey vacío): al servidor le tiene que constar que la pregunta
+    // se presentó, o no contaría para el total.
+    // `questionId` viene del mismo closure que `answerKey`, así que el par
+    // (pregunta, respuesta) es atómico. Los caminos sin botón —«No lo sé» y el
+    // timeout— no lo traen y sí pueden usar el índice, porque en ellos no hay
+    // closure previo que se pueda desincronizar.
+    sessionAnswers.push({ id: questionId ?? q?.id, answer: answerKey || '' });
 
     // Contexto para el vigilante: desde aquí las opciones ya están apagadas, así que
     // si algo sale mal necesita saber qué panel reconstruir.
@@ -7932,23 +7966,22 @@ async function flushEvalScorePending() {
     }
     if (!pendiente) return;
 
-    try {
-        const { data, error } = await supabase
-            .from('user_scores')
-            .select('tests_points_q2')
-            .eq('user_id', userId)
-            .maybeSingle();
-        if (error) throw error;
+    // Los respaldos del esquema anterior guardaban `score` ya calificado. El servidor
+    // no acepta puntajes del cliente, así que ese formato ya no se puede reenviar:
+    // se descarta para que no quede reintentando en cada arranque para siempre.
+    if (!Array.isArray(pendiente.answers)) {
+        localStorage.removeItem(evalScorePendingKey(userId));
+        return;
+    }
 
-        if (data?.tests_points_q2 == null) {
-            await conReintentos('flushEvalScore', () => supabase.from('user_scores').upsert({
-                user_id: userId,
-                tests_points_q2: Number(pendiente.score || 0),
-                puntos: Number(pendiente.score || 0),
-                tiempo: Number(pendiente.tiempo || 0),
-                fecha: pendiente.fecha || new Date().toISOString(),
-            }, { onConflict: 'user_id' }));
-        }
+    try {
+        await enviarSesionAlServidor({
+            mode: 'evaluation',
+            answers: pendiente.answers,
+            timeSeconds: Number(pendiente.tiempo || 0),
+        });
+        // Para evaluación la función sólo escribe si no había intento previo, así que
+        // reenviar un respaldo ya aplicado no pisa la calificación original.
         localStorage.removeItem(evalScorePendingKey(userId));
         userProfile.evalCompleted = true;
     } catch (e) {
@@ -7956,32 +7989,48 @@ async function flushEvalScorePending() {
     }
 }
 
+/**
+ * Manda la sesión a la Edge Function `submit-quiz`, que la califica contra la base
+ * y decide si cuenta. Lanza si no hay sesión válida o si la función responde error.
+ *
+ * @param {{mode: string, pillId?: string, answers: Array, timeSeconds: number}} payload
+ * @returns {Promise<{ok: boolean, score: number, total: number, persisted: boolean, sealGranted: boolean, errors: Array}>}
+ */
+async function enviarSesionAlServidor({ mode, pillId, answers, timeSeconds }) {
+    // `functions.invoke` adjunta solo el access token de la sesión actual: el servidor
+    // resuelve la identidad desde ahí, nunca desde el cuerpo de la petición.
+    const { data, error } = await supabase.functions.invoke('submit-quiz', {
+        body: {
+            mode,
+            pillId: pillId || undefined,
+            answers: Array.isArray(answers) ? answers : [],
+            timeSeconds: Number(timeSeconds || 0),
+        },
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error(data?.error || 'submit-quiz respondió sin ok');
+    return data;
+}
+
+/**
+ * Cierra la sesión de quiz contra el servidor.
+ *
+ * Ya NO califica ni escribe puntajes: manda lo contestado y aplica a la UI lo que el
+ * servidor decida. El cliente perdió INSERT/UPDATE sobre `user_scores`, así que este
+ * es el único camino de persistencia.
+ *
+ * `finalScore` sigue en la firma porque las dos pantallas de resultado lo pasan, pero
+ * ya no se usa para guardar: el número que cuenta es el que devuelve `submit-quiz`.
+ *
+ * @returns {Promise<boolean>} true si el intento quedó registrado (nuevo récord / primer intento).
+ */
 async function saveScoreToCloud(finalScore, timeSeconds) {
     evalScoreSaveFailed = false;
     // Test Mode: solo preview, no se persisten puntajes ni resultados.
     if (isTestModeActive()) { debugWarn('saveScoreToCloud: omitido por Test Mode'); return false; }
     if (!supabase || !userEmail) return false;
 
-    const pointsFieldByMode = {
-        practice: 'quest_points',
-        evaluation: 'tests_points_q2',
-        pills: 'pills_points'
-    };
-    const pointsField = pointsFieldByMode[currentQuizMode] || 'quest_points';
-    const profileFieldByMode = {
-        practice: 'questPoints',
-        evaluation: 'testsPoints',
-        pills: 'pillsPoints'
-    };
-    const profileField = profileFieldByMode[currentQuizMode] || 'questPoints';
-    // Columnas reales de `user_profiles` (distintas de las de `user_scores`).
-    const profileColumnByMode = {
-        practice: 'quest_points',
-        evaluation: 'tests_points',
-        pills: 'pills_points'
-    };
     let userId = supabaseSession?.user?.id || '';
-
     if (!userId) {
         const { data: authData } = await supabase.auth.getUser();
         userId = authData?.user?.id || '';
@@ -7991,277 +8040,66 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         return false;
     }
 
+    const profileFieldByMode = {
+        practice: 'questPoints',
+        evaluation: 'testsPoints',
+        pills: 'pillsPoints'
+    };
+    const profileField = profileFieldByMode[currentQuizMode] || 'questPoints';
+
     try {
-        let existingPillAttempt = null;
-        let hasValidExistingPillAttempt = false;
-        let isPillFirstAttempt = true;
-        let pillAttemptQueryFailed = false;
-        const currentPillScore = Number(finalScore || 0);
-        const currentPillAttemptQualifies = currentPillScore > 0;
-        const selectedPill = currentQuizMode === 'pills'
-            ? pillsCatalog.find((p) => String(p.id || '') === String(selectedPillId || ''))
-            : null;
-        const sealWindowState = getPillSealWindowState(selectedPill);
-        const canAwardSealByTime = !sealWindowState.isExpired;
-        if (currentQuizMode === 'pills' && selectedPillId) {
-            let firstAttemptRow = null;
-            let firstAttemptErr = null;
-            ({ data: firstAttemptRow, error: firstAttemptErr } = await supabase
-                .from('user_pill_scores')
-                .select('pill_id, score, total, errors, sticker_granted')
-                .eq('user_id', userId)
-                .eq('pill_id', selectedPillId)
-                .maybeSingle());
-            if (firstAttemptErr) {
-                // Fallback legado sin columnas nuevas.
-                ({ data: firstAttemptRow, error: firstAttemptErr } = await supabase
-                    .from('user_pill_scores')
-                    .select('pill_id, score, total')
-                    .eq('user_id', userId)
-                    .eq('pill_id', selectedPillId)
-                    .maybeSingle());
-            }
-            if (firstAttemptErr) {
-                // No bloquear guardado en ranking_user por errores de tabla auxiliar.
-                pillAttemptQueryFailed = true;
-                if (DEBUG) debugWarn('saveScoreToCloud: pill attempt lookup fallback failed', firstAttemptErr);
-            }
-            existingPillAttempt = firstAttemptRow || null;
-            hasValidExistingPillAttempt = isValidPillFirstAttemptRow(existingPillAttempt);
-            if (hasValidExistingPillAttempt) isPillFirstAttempt = false;
+        const resultado = await enviarSesionAlServidor({
+            mode: currentQuizMode,
+            pillId: currentQuizMode === 'pills' ? selectedPillId : undefined,
+            answers: sessionAnswers,
+            timeSeconds,
+        });
+
+        // Espejo local de lo que el servidor decidió. Si el intento no contó
+        // (reintento de evaluación, pill ya rankeada) no se toca el estado.
+        if (resultado.persisted) {
+            userProfile[profileField] = currentQuizMode === 'practice'
+                ? Math.max(Number(userProfile[profileField] || 0), Number(resultado.score || 0))
+                : Number(resultado.score || 0);
         }
 
-        // Leer ranking actual
-        const [{ data: rankingData }, { data: scoresData }] = await Promise.all([
-            supabase.from('ranking_user').select('user_id, nombre, email, seniority, especialidad, formador').eq('email', userEmail.toLowerCase()).single(),
-            supabase.from('user_scores').select('quest_points, tests_points_q2, pills_points, pills_rank_pill_id, pills_rank_tiempo, puntos, tiempo, fecha').eq('user_id', userId).maybeSingle(),
-        ]);
-        const existing = { ...(rankingData || {}), ...(scoresData || {}) };
-
-        const latestPill = getLatestPublishedPill();
-        const isLatestPillSession =
-            currentQuizMode === 'pills' && latestPill && selectedPillId === latestPill.id;
-        const rankingHasValidPillScore = Number(existing.pills_points || 0) > 0;
-        const pillsRankingLockedByRanking =
-            isLatestPillSession &&
-            rankingHasValidPillScore &&
-            String(existing.pills_rank_pill_id || '') === String(selectedPillId);
-        if (pillsRankingLockedByRanking) isPillFirstAttempt = false;
-        const pillsRankingLocked =
-            currentQuizMode === 'pills' && selectedPillId && (pillsRankingLockedByRanking || !isPillFirstAttempt);
-
-        const rankingMerge = {
-            user_id: userId,
-            nombre: userName,
-            email: userEmail.toLowerCase(),
-        };
-        const scoresMerge = {
-            user_id: userId,
-            fecha: new Date().toISOString(),
-        };
-        let shouldUpdate = false;
-
-        if (currentQuizMode === 'practice') {
-            const cur = Number(existing.quest_points || 0);
-            const next = Number(finalScore || 0);
-            scoresMerge.quest_points = Math.max(cur, next);
-            shouldUpdate = next > cur;
-        } else if (currentQuizMode === 'evaluation') {
-            const isFirstEvalAttempt = existing.tests_points_q2 == null;
-            if (isFirstEvalAttempt) {
-                scoresMerge.tests_points_q2 = Number(finalScore || 0);
-            }
-        } else if (currentQuizMode === 'pills') {
-            if (isLatestPillSession && !pillsRankingLockedByRanking && currentPillAttemptQualifies) {
-                scoresMerge.pills_points = currentPillScore;
-                scoresMerge.pills_rank_pill_id = selectedPillId;
-                scoresMerge.pills_rank_tiempo = Number(timeSeconds || 0);
-            }
-        } else {
-            const cur = Number(existing[pointsField] || 0);
-            scoresMerge[pointsField] = Math.max(cur, Number(finalScore || 0));
-        }
-
-        await conReintentos('ranking_user upsert', () => supabase
-            .from('ranking_user')
-            .upsert(rankingMerge, { onConflict: 'email' }));
-
-        await conReintentos('user_scores upsert', () => supabase
-            .from('user_scores')
-            .upsert(scoresMerge, { onConflict: 'user_id' }));
-
-        // Verificación defensiva para práctica: confirmar que quedó persistido el mejor récord.
-        if (currentQuizMode === 'practice') {
-            const expectedBest = Number(scoresMerge.quest_points || 0);
-            const { data: persistedRow, error: persistedReadError } = await supabase
-                .from('user_scores')
-                .select('quest_points')
-                .eq('user_id', userId)
-                .single();
-            if (persistedReadError) throw persistedReadError;
-            const persistedBest = Number(persistedRow?.quest_points || 0);
-            if (persistedBest < expectedBest) {
-                const { error: forceUpdateError } = await supabase
-                    .from('user_scores')
-                    .update({ quest_points: expectedBest, fecha: new Date().toISOString() })
-                    .eq('user_id', userId);
-                if (forceUpdateError) throw forceUpdateError;
-            }
-        }
-
-        if (currentQuizMode === 'evaluation') {
-            const newScore = Number(finalScore || 0);
-            const newTime = Number(timeSeconds || 0);
-            const isFirstEvalAttempt = existing.tests_points_q2 == null;
-
-            shouldUpdate = isFirstEvalAttempt;
-
-            if (shouldUpdate) {
-                await conReintentos('user_scores eval upsert', () => supabase.from('user_scores').upsert({
-                    user_id: userId,
-                    puntos: newScore,
-                    tiempo: newTime,
-                    fecha: new Date().toISOString()
-                }, { onConflict: 'user_id' }));
-
-                // Guardar errores en localStorage para que el usuario pueda estudiarlos después
-                try {
-                    const evalErrorsKey = `uixlingo_eval_errors:${userId}`;
-                    const errorsToSave = errors.map(e => ({ question: e.question, studyTag: e.studyTag }));
-                    localStorage.setItem(evalErrorsKey, JSON.stringify(errorsToSave));
-                } catch (lsErr) {
-                    debugWarn('saveScoreToCloud: no se pudieron guardar errores en localStorage', lsErr);
-                }
-
-                userProfile.evalCompleted = true;
-            }
-        }
-
-        // Guardar puntaje por modo en user_profiles
-        if (userId) {
-            const currentValue = Number(userProfile[profileField] || 0);
-            let scoreToSave = currentQuizMode === 'practice'
-                ? Math.max(currentValue, Number(finalScore || 0))
-                : Number(finalScore || 0);
-            if (currentQuizMode === 'pills' && !currentPillAttemptQualifies) {
-                scoreToSave = currentValue;
-            }
-            if (currentQuizMode === 'pills' && pillsRankingLocked) {
-                scoreToSave = currentValue;
-            }
-            // Para evaluación: solo guardar en user_profiles si es el primer intento
-            if (currentQuizMode === 'evaluation' && !shouldUpdate) {
-                scoreToSave = currentValue;
-            }
-
-            // OJO: `user_profiles` NO tiene las mismas columnas que `user_scores`.
-            // La evaluación va a `tests_points` aquí y a `tests_points_q2` allá; mandar
-            // el nombre de la otra tabla hacía que PostgREST rechazara el upsert entero.
-            const profilePayload = {
-                id: userId,
-                [profileColumnByMode[currentQuizMode] || 'quest_points']: scoreToSave,
-                seniority: userProfile.seniority,
-                nombre: userName,
-                email: userEmail
-            };
-
-            // Espejo secundario: la verdad ya quedó en `user_scores`. Se reintenta, pero un
-            // fallo aquí no debe abortar lo que falta (p. ej. el score de pills, más abajo).
+        if (currentQuizMode === 'evaluation' && resultado.persisted) {
+            userProfile.evalCompleted = true;
+            // Errores guardados para que la persona pueda estudiarlos después. Vienen
+            // del servidor: es la única fuente que conoce las respuestas correctas.
             try {
-                await conReintentos('user_profiles upsert', () => supabase
-                    .from('user_profiles')
-                    .upsert(profilePayload, { onConflict: 'id' }));
-            } catch (perfilErr) {
-                debugWarn('saveScoreToCloud: no se pudo espejar el puntaje en user_profiles', perfilErr);
+                const errorsToSave = (resultado.errors || [])
+                    .map(e => ({ question: e.question, studyTag: e.studyTag }));
+                localStorage.setItem(`uixlingo_eval_errors:${userId}`, JSON.stringify(errorsToSave));
+            } catch (lsErr) {
+                debugWarn('saveScoreToCloud: no se pudieron guardar errores en localStorage', lsErr);
             }
+        }
 
-            // Guardar pill scores en tabla separada
-            const canPersistFirstAttemptAux =
-                currentQuizMode === 'pills' &&
-                selectedPillId &&
-                currentPillAttemptQualifies &&
-                isPillFirstAttempt &&
-                !hasValidExistingPillAttempt &&
-                !pillAttemptQueryFailed;
-            if (canPersistFirstAttemptAux) {
-                const totalQs = Math.max(Number(currentSession?.length || 0), 0);
-                const errCount = Math.max(totalQs - Number(finalScore || 0), 0);
-                const stickerGranted = totalQs > 0 && errCount <= 1 && canAwardSealByTime;
-                const pillScore = {
-                    user_id: userId,
-                    pill_id: selectedPillId,
-                    score: Number(finalScore || 0),
-                    total: totalQs,
-                    errors: errCount,
-                    sticker_granted: stickerGranted
-                };
-                let upsertErr = null;
-                ({ error: upsertErr } = await supabase
-                    .from('user_pill_scores')
-                    .upsert(pillScore, { onConflict: 'user_id,pill_id' }));
-                if (upsertErr) {
-                    // Fallback legado sin columnas nuevas: guardar score/total para registrar intento.
-                    const legacyPillScore = {
-                        user_id: userId,
-                        pill_id: selectedPillId,
-                        score: Number(finalScore || 0),
-                        total: totalQs
-                    };
-                    const { error: legacyErr } = await supabase
-                        .from('user_pill_scores')
-                        .upsert(legacyPillScore, { onConflict: 'user_id,pill_id' });
-                    if (legacyErr) throw legacyErr;
-                }
-                userProfile.pillScores[selectedPillId] = {
-                    score: pillScore.score,
-                    total: pillScore.total,
-                    errors: pillScore.errors,
-                    stickerGranted: pillScore.sticker_granted
-                };
-            } else if (currentQuizMode === 'pills' && selectedPillId && hasValidExistingPillAttempt && existingPillAttempt) {
-                const legacyTotal = Number(existingPillAttempt.total || 0);
-                const legacyScore = Number(existingPillAttempt.score || 0);
-                const legacyErrors = Math.max(legacyTotal - legacyScore, 0);
-                const resolvedErrors =
-                    existingPillAttempt.errors === undefined || existingPillAttempt.errors === null
-                        ? legacyErrors
-                        : Number(existingPillAttempt.errors || 0);
-                const resolvedSticker =
-                    existingPillAttempt.sticker_granted === undefined || existingPillAttempt.sticker_granted === null
-                        ? (legacyTotal > 0 && resolvedErrors <= 1)
-                        : Boolean(existingPillAttempt.sticker_granted);
-                userProfile.pillScores[selectedPillId] = {
-                    score: legacyScore,
-                    total: legacyTotal,
-                    errors: resolvedErrors,
-                    stickerGranted: resolvedSticker
-                };
-            }
-
-            // Actualizar estado local
-            userProfile[profileField] = scoreToSave;
-            if (
-                currentQuizMode === 'pills' &&
-                isLatestPillSession &&
-                !pillsRankingLockedByRanking &&
-                currentPillAttemptQualifies
-            ) {
+        if (currentQuizMode === 'pills' && selectedPillId) {
+            const total = Number(resultado.total || 0);
+            userProfile.pillScores[selectedPillId] = {
+                score: Number(resultado.score || 0),
+                total,
+                errors: Math.max(total - Number(resultado.score || 0), 0),
+                stickerGranted: Boolean(resultado.sealGranted)
+            };
+            if (resultado.persisted) {
                 userProfile.latestPillRankId = String(selectedPillId || '').trim();
             }
-            if (currentQuizMode === 'pills') {
-                await loadUserSeals(userId);
-            }
-            renderProfile();
-            updatePracticeRankUI();
+            await loadUserSeals(userId);
         }
 
-        return shouldUpdate;
+        renderProfile();
+        updatePracticeRankUI();
+        return Boolean(resultado.persisted);
     } catch (e) {
         debugWarn('saveScoreToCloud error:', e);
-        // La evaluación es de un solo intento: su puntaje no se puede perder en silencio.
+        // La evaluación es de un solo intento: no se puede perder en silencio. Se
+        // respalda lo CONTESTADO (no el puntaje) para reenviarlo tal cual al servidor.
         if (currentQuizMode === 'evaluation') {
             stashEvalScorePending(userId, {
-                score: Number(finalScore || 0),
+                answers: sessionAnswers,
                 tiempo: Number(timeSeconds || 0),
                 fecha: new Date().toISOString(),
             });
