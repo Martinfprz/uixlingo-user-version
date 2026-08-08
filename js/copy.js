@@ -138,6 +138,12 @@ export const UI_TEXT = {
         pillsChooseAreaMessage: 'Elige un área en la lista de Pills y usa «Contestar preguntas».',
         evaluationBlockedTitle: 'Evaluación bloqueada',
         evaluationBlockedMessage: 'La prueba fue bloqueada por conductas no permitidas.',
+        evaluationStartFailedTitle: 'No pudimos abrir la evaluación',
+        evaluationStartFailedMessage:
+            'Hubo un problema de conexión al preparar tu evaluación. No se consumió tu intento: revisa tu conexión y vuelve a empezarla.',
+        answerFailedTitle: 'No pudimos registrar tu respuesta',
+        answerFailedMessage:
+            'Hubo un problema de conexión. Tu respuesta no se guardó: vuelve a elegir para continuar.',
         noQuestionsTitle: 'Sin preguntas disponibles',
         noQuestionsEvaluationMessage:
             'No hay preguntas de UI Design o UX Research / UX Researcher que coincidan con tu nivel para armar la evaluación UX/UI.',

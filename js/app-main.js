@@ -25,7 +25,7 @@ import { esc, safeIconClass, safeTalentImageUrl, safeHttpUrl, shuffleFisherYates
 import { supabase } from './supabase.js';
 import { showAppAlert, showAppConfirm } from './ui.js?v=2';
 import { exposeToWindow } from './global-handlers.js';
-import { UI_TEXT as T } from './copy.js';
+import { UI_TEXT as T } from './copy.js?v=2';
 
 const debugWarn = DEBUG ? console.warn.bind(console) : () => {};
 const debugError = DEBUG ? console.error.bind(console) : () => {};
@@ -150,7 +150,10 @@ async function loadPracticeQuestions() {
 async function loadEvaluationQuestions() {
     if (!supabase) return;
     try {
-        const { data, error } = await supabase.from('preguntas_evaluacion').select('*').eq('active', true);
+        // Vista sin `correcta` ni `expl`: el navegador nunca llega a tener las
+        // respuestas de la evaluación. Quien califica es la Edge Function
+        // `quiz-session`, que devuelve el veredicto pregunta a pregunta.
+        const { data, error } = await supabase.from('preguntas_evaluacion_publico').select('*').eq('active', true);
         if (error) throw error;
         evaluationData = data || [];
         if (currentQuizMode === 'evaluation') {
@@ -476,6 +479,14 @@ let errors = [];
  * nunca CUÁNTO sacó.
  */
 let sessionAnswers = [];
+/**
+ * Id de la sesión abierta en el servidor (`quiz_sessions`), o null si el modo se
+ * califica en cliente. Lo usan evaluación y pills, cuyos bancos ya no exponen la
+ * respuesta correcta: el veredicto de cada pregunta lo da la Edge Function
+ * `quiz-session`, y sólo después de haber contestado.
+ * Práctica no lo usa: conserva su banco abierto y su feedback local.
+ */
+let serverQuizSessionId = null;
 let userName = "";
 let userEmail = "";
 let startTime = 0;
@@ -5763,8 +5774,10 @@ async function fetchPillQuestions(pillId) {
     const parent = pillsCatalog.find((p) => p.id === pillId);
     const parentCategory = String(parent?.category || '').trim();
 
+    // Vista sin `correct_answer` ni `explanation`: las pills alimentan el ranking
+    // por primer intento, así que la respuesta la guarda sólo el servidor.
     const { data, error } = await supabase
-        .from('pill_questions')
+        .from('pill_questions_publico')
         .select('*')
         .eq('pill_id', pillId)
         .eq('active', true);
@@ -5796,7 +5809,7 @@ async function fetchPillQuestionsBatch(pillIds) {
     if (!supabase || !ids.length) return new Map();
 
     const { data, error } = await supabase
-        .from('pill_questions')
+        .from('pill_questions_publico')
         .select('id, pill_id, question, type, active')
         .in('pill_id', ids)
         .eq('active', true);
@@ -6185,6 +6198,11 @@ window.startPillsQuiz = async function (pillId) {
         sessionAnswers = [];
         startTime = new Date();
 
+        // Igual que la evaluación: pills alimenta el ranking por primer intento, así
+        // que se califica en servidor y la sesión se abre antes de la primera carta.
+        serverQuizSessionId = null;
+        await abrirSesionEnServidor('pills', pillId);
+
         switchSection('pills-quiz-interface', () => {
             document.getElementById('main-header').classList.remove('hidden');
             loadPillsQuestion();
@@ -6235,7 +6253,7 @@ function loadPillsQuestion() {
     }
 }
 
-function handlePillsAnswer(userBool) {
+async function handlePillsAnswer(userBool) {
     if (pillsAnswerLocked) return;
     const panel = document.getElementById('feedback-panel');
     if (panel && !panel.classList.contains('hidden')) return;
@@ -6253,11 +6271,40 @@ function handlePillsAnswer(userBool) {
     });
 
     const q = currentSession[currentIndex];
-    const correct = q.correctAnswer === true;
-    const isCorrect = userBool === correct;
 
     // Igual que en opción múltiple: lo que se guarda es la respuesta, no el acierto.
     sessionAnswers.push({ id: q?.id, answer: userBool === true });
+
+    let isCorrect;
+    if (serverQuizSessionId) {
+        // El banco que ve el navegador no trae `correct_answer`: el veredicto y la
+        // explicación los da el servidor, ya con la respuesta sellada.
+        try {
+            const veredicto = await llamarQuizSession('answer', {
+                sessionId: serverQuizSessionId,
+                questionId: q?.id,
+                answer: userBool === true,
+            });
+            q.explanation = veredicto.explanation || '';
+            q.__correctBool = veredicto.correctBool;
+            isCorrect = Boolean(veredicto.correct);
+        } catch (e) {
+            debugWarn('handlePillsAnswer: el servidor no registró la respuesta', e);
+            // Devolver el control: en el servidor esta pregunta sigue sin respuesta.
+            pillsAnswerLocked = false;
+            sessionAnswers.pop();
+            document.querySelectorAll('.pills-drop-zone').forEach((z) => { z.style.pointerEvents = ''; });
+            showAppAlert({
+                title: T.alerts.answerFailedTitle,
+                message: T.alerts.answerFailedMessage,
+                variant: 'error',
+                confirmText: T.common.understood,
+            });
+            return;
+        }
+    } else {
+        isCorrect = userBool === (q.correctAnswer === true);
+    }
 
     if (isCorrect) {
         score++;
@@ -6289,7 +6336,10 @@ function showFeedbackPills(isCorrect, q, userAnswer) {
     panel.classList.add('animate-slide-up');
 
     const userLabel = userAnswer ? T.feedback.true : T.feedback.false;
-    const correctLabel = q.correctAnswer === true ? T.feedback.true : T.feedback.false;
+    // Con sesión de servidor `correctAnswer` no existe (la vista no la trae): el
+    // veredicto crudo llega del servidor y la etiqueta la pone el copy de aquí.
+    const correctBool = typeof q.__correctBool === 'boolean' ? q.__correctBool : q.correctAnswer === true;
+    const correctLabel = correctBool ? T.feedback.true : T.feedback.false;
     const expl = q.explanation || '';
 
     if (isCorrect) {
@@ -6481,7 +6531,7 @@ function initPillsQuizInteractions() {
     window.addEventListener('resize', pillsUpdateCardDraggable);
 }
 
-function startQuiz() {
+async function startQuiz() {
     if (currentQuizMode === 'pills') {
         showAppAlert({
             title: T.alerts.pillsChooseAreaTitle,
@@ -6572,6 +6622,25 @@ function startQuiz() {
     if (levelBar) {
         levelBar.style.transition = 'none';
         levelBar.style.height = '0%';
+    }
+
+    // La evaluación se califica en servidor: hay que abrir la sesión ANTES de
+    // enseñar la primera pregunta. Si falla, no se arranca — dejar contestar una
+    // evaluación de un solo intento que después no se puede guardar sería peor.
+    serverQuizSessionId = null;
+    if (currentQuizMode === 'evaluation') {
+        try {
+            await abrirSesionEnServidor('evaluation');
+        } catch (e) {
+            debugWarn('startQuiz: no se pudo abrir la sesión de evaluación', e);
+            showAppAlert({
+                title: T.alerts.evaluationStartFailedTitle,
+                message: T.alerts.evaluationStartFailedMessage,
+                variant: 'error',
+                confirmText: T.common.understood,
+            });
+            return;
+        }
     }
 
     startStuckWatchdog();
@@ -6780,10 +6849,10 @@ function loadQuestion() {
         span.className = 'option-text';
         span.textContent = opt?.text ?? '';
         btn.appendChild(span);
-        // Se pasa el id de ESTA pregunta, no se lee de currentIndex al recibir el
-        // clic: el índice puede haber avanzado ya y la respuesta acabaría atribuida
-        // a la pregunta siguiente.
-        btn.onclick = () => handleAnswer(!!opt?.correct, btn, false, opt?.key, q?.id);
+        // Se pasa `q` entero, no se lee de currentIndex al recibir el clic: el
+        // índice puede haber avanzado ya y la respuesta acabaría atribuida a la
+        // pregunta siguiente.
+        btn.onclick = () => responderPregunta(opt, btn, q);
         container.appendChild(btn);
     });
 
@@ -6885,10 +6954,83 @@ function bailOutOfQuiz() {
 }
 
 function handleDontKnow() {
-    handleAnswer(false, null, false);
+    // Se registra igual que una respuesta: al servidor le tiene que constar que la
+    // pregunta se presentó, o no contaría para el total.
+    responderPregunta(null, null, currentSession[currentIndex], false);
 }
 
-function handleAnswer(isCorrect, btn, isTimeout = false, answerKey = '', questionId = null) {
+/** Evita mandar dos respuestas mientras la primera viaja al servidor. */
+let esperandoVeredicto = false;
+
+/**
+ * Punto de entrada de una respuesta.
+ *
+ * En práctica el veredicto es local y todo sigue siendo síncrono. En evaluación y
+ * pills el banco que ve el navegador no trae la respuesta correcta, así que hay
+ * que pedirle el veredicto al servidor ANTES de pintar el feedback. El servidor
+ * sella la respuesta al primer envío, de modo que reintentar no revela nada.
+ *
+ * @param {object|null} opt Opción pulsada, o null en «No lo sé» / timeout.
+ */
+async function responderPregunta(opt, btn, q, isTimeout = false) {
+    if (!q) {
+        debugWarn('responderPregunta: sin pregunta, se ignora el clic');
+        return;
+    }
+    if (!serverQuizSessionId) {
+        handleAnswer(!!opt?.correct, btn, isTimeout, opt?.key, q);
+        return;
+    }
+
+    if (esperandoVeredicto) return;
+    const panel = document.getElementById('feedback-panel');
+    if (panel && !panel.classList.contains('hidden')) return;
+
+    esperandoVeredicto = true;
+    // Apagar las opciones de inmediato: la respuesta ya viaja y no se puede cambiar.
+    const container = document.getElementById('options-container');
+    if (container) container.style.pointerEvents = 'none';
+    stopQuestionTimer();
+    // Reiniciar la gracia del vigilante: desde aquí y hasta que conteste el servidor,
+    // la pregunta está en el mismo estado que él considera «colgada» (opciones
+    // apagadas, sin panel). Sin esto rescataba una respuesta que iba en camino.
+    markQuizTransition();
+
+    try {
+        const veredicto = await llamarQuizSession('answer', {
+            sessionId: serverQuizSessionId,
+            questionId: q?.id,
+            answer: opt ? opt.key : '',
+        });
+        // La explicación y cuál era la correcta llegan del servidor: la vista
+        // `_publico` que consume el cliente no las tiene.
+        q.explanation = veredicto.explanation || '';
+        q.studyTag = veredicto.studyTag || '';
+        q.__correctText = veredicto.correctText || '';
+        handleAnswer(Boolean(veredicto.correct), btn, isTimeout, opt?.key, q);
+    } catch (e) {
+        debugWarn('responderPregunta: el servidor no registró la respuesta', e);
+        // Se devuelve el control para que pueda reintentar. No se pierde el intento:
+        // en el servidor esta pregunta sigue sin respuesta registrada.
+        if (container) container.style.pointerEvents = 'auto';
+        showAppAlert({
+            title: T.alerts.answerFailedTitle,
+            message: T.alerts.answerFailedMessage,
+            variant: 'error',
+            confirmText: T.common.understood,
+        });
+    } finally {
+        esperandoVeredicto = false;
+    }
+}
+
+/**
+ * @param {object|null} pregunta La pregunta que se contestó. Se pasa explícitamente
+ *   en vez de releer `currentSession[currentIndex]`: en evaluación y pills hay un
+ *   `await` al servidor de por medio, y para cuando vuelve el índice puede haber
+ *   avanzado. Releerlo atribuía la respuesta —o el feedback— a otra pregunta.
+ */
+function handleAnswer(isCorrect, btn, isTimeout = false, answerKey = '', pregunta = null) {
     const feedbackOpen = document.getElementById('feedback-panel');
     if (feedbackOpen && !feedbackOpen.classList.contains('hidden')) return;
 
@@ -6899,16 +7041,16 @@ function handleAnswer(isCorrect, btn, isTimeout = false, answerKey = '', questio
     container.style.pointerEvents = 'none';
     document.getElementById('btn-dont-know').classList.add('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    const q = currentSession[currentIndex];
+    const q = pregunta ?? currentSession[currentIndex];
+    if (!q) {
+        debugWarn('handleAnswer: sin pregunta que calificar, se ignora');
+        return;
+    }
 
     // Se registra tanto la respuesta elegida como el "No lo sé" y el timeout (que
     // llegan con answerKey vacío): al servidor le tiene que constar que la pregunta
     // se presentó, o no contaría para el total.
-    // `questionId` viene del mismo closure que `answerKey`, así que el par
-    // (pregunta, respuesta) es atómico. Los caminos sin botón —«No lo sé» y el
-    // timeout— no lo traen y sí pueden usar el índice, porque en ellos no hay
-    // closure previo que se pueda desincronizar.
-    sessionAnswers.push({ id: questionId ?? q?.id, answer: answerKey || '' });
+    sessionAnswers.push({ id: q?.id, answer: answerKey || '' });
 
     // Contexto para el vigilante: desde aquí las opciones ya están apagadas, así que
     // si algo sale mal necesita saber qué panel reconstruir.
@@ -7053,6 +7195,10 @@ function isHardSkillsQuizVisible() {
 /** ¿La pregunta quedó sin nada que tocar? */
 function isQuizStuck() {
     if (!isHardSkillsQuizVisible()) return false;
+    // Esperando el veredicto del servidor la pregunta se ve igual que colgada
+    // (opciones apagadas, sin panel) pero no lo está: la respuesta va en camino.
+    // Rescatarla aquí abortaba respuestas legítimas.
+    if (esperandoVeredicto) return false;
 
     const panel = document.getElementById('feedback-panel');
     const container = document.getElementById('options-container');
@@ -7156,8 +7302,14 @@ window.addEventListener('unhandledrejection', (e) => {
 function highlightCorrect(q) {
     const container = document.getElementById('options-container');
     if (!container) return;
+    // En evaluación y pills ninguna opción trae `correct`: la correcta llega del
+    // servidor como texto (`__correctText`) y se localiza comparando.
+    const textoCorrecto = String(q.__correctText || '').trim();
     container.querySelectorAll('.btn-option').forEach((b, idx) => {
-        if (q.options[idx]?.correct) b.classList.add('option-correct');
+        const opcion = q.options[idx];
+        const esLaCorrecta = opcion?.correct ||
+            (textoCorrecto && String(opcion?.text || '').trim() === textoCorrecto);
+        if (esLaCorrecta) b.classList.add('option-correct');
     });
 }
 
@@ -7814,7 +7966,7 @@ function resetQuestionTimer() {
             stopQuestionTimer();
             const dontKnowBtn = document.getElementById('btn-dont-know');
             if (!dontKnowBtn || dontKnowBtn.classList.contains('hidden')) return;
-            handleAnswer(false, null, true);
+            responderPregunta(null, null, currentSession[currentIndex], true);
         }
     }, 1000);
 }
@@ -7969,17 +8121,25 @@ async function flushEvalScorePending() {
     // Los respaldos del esquema anterior guardaban `score` ya calificado. El servidor
     // no acepta puntajes del cliente, así que ese formato ya no se puede reenviar:
     // se descarta para que no quede reintentando en cada arranque para siempre.
-    if (!Array.isArray(pendiente.answers)) {
+    if (!pendiente.sessionId && !Array.isArray(pendiente.answers)) {
         localStorage.removeItem(evalScorePendingKey(userId));
         return;
     }
 
     try {
-        await enviarSesionAlServidor({
-            mode: 'evaluation',
-            answers: pendiente.answers,
-            timeSeconds: Number(pendiente.tiempo || 0),
-        });
+        if (pendiente.sessionId) {
+            // Las respuestas ya estaban en el servidor: sólo faltaba cerrar.
+            await llamarQuizSession('finish', {
+                sessionId: pendiente.sessionId,
+                timeSeconds: Number(pendiente.tiempo || 0),
+            });
+        } else {
+            await enviarSesionAlServidor({
+                mode: 'evaluation',
+                answers: pendiente.answers,
+                timeSeconds: Number(pendiente.tiempo || 0),
+            });
+        }
         // Para evaluación la función sólo escribe si no había intento previo, así que
         // reenviar un respaldo ya aplicado no pisa la calificación original.
         localStorage.removeItem(evalScorePendingKey(userId));
@@ -7996,6 +8156,43 @@ async function flushEvalScorePending() {
  * @param {{mode: string, pillId?: string, answers: Array, timeSeconds: number}} payload
  * @returns {Promise<{ok: boolean, score: number, total: number, persisted: boolean, sealGranted: boolean, errors: Array}>}
  */
+/**
+ * Llama a `quiz-session`. Lanza si no hay sesión válida o si responde error.
+ * @param {'start'|'answer'|'finish'} action
+ */
+async function llamarQuizSession(action, payload = {}) {
+    const { data, error } = await supabase.functions.invoke('quiz-session', {
+        body: { action, ...payload },
+    });
+    if (error) throw error;
+    if (!data?.ok) throw new Error(data?.error || `quiz-session ${action} respondió sin ok`);
+    return data;
+}
+
+/**
+ * Abre la sesión en el servidor y fija el set de preguntas. A partir de aquí el
+ * conjunto no se puede cambiar, y cada respuesta se sella al primer envío.
+ * @returns {Promise<boolean>} true si quedó abierta.
+ */
+async function abrirSesionEnServidor(mode, pillId = null) {
+    serverQuizSessionId = null;
+    const ids = currentSession.map((q) => q?.id).filter(Boolean);
+    if (ids.length !== currentSession.length) {
+        // Sin id no hay forma de que el servidor califique. Mejor no arrancar que
+        // dejar a la persona contestar una evaluación que no se va a poder guardar.
+        throw new Error('Hay preguntas sin id: no se puede abrir la sesión');
+    }
+    const res = await llamarQuizSession('start', {
+        mode, pillId: pillId || undefined,
+        candidateIds: ids, limit: ids.length,
+        // El orden ya lo decidió el cliente: en evaluación el balanceo UX/UI
+        // intercala a propósito y rebarajar lo rompería.
+        preserveOrder: true,
+    });
+    serverQuizSessionId = res.sessionId;
+    return true;
+}
+
 async function enviarSesionAlServidor({ mode, pillId, answers, timeSeconds }) {
     // `functions.invoke` adjunta solo el access token de la sesión actual: el servidor
     // resuelve la identidad desde ahí, nunca desde el cuerpo de la petición.
@@ -8048,12 +8245,17 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
     const profileField = profileFieldByMode[currentQuizMode] || 'questPoints';
 
     try {
-        const resultado = await enviarSesionAlServidor({
-            mode: currentQuizMode,
-            pillId: currentQuizMode === 'pills' ? selectedPillId : undefined,
-            answers: sessionAnswers,
-            timeSeconds,
-        });
+        // Con sesión de servidor abierta, el puntaje sale de lo que el servidor ya
+        // tiene registrado: no se le manda nada de lo que guardó el navegador.
+        const resultado = serverQuizSessionId
+            ? await llamarQuizSession('finish', { sessionId: serverQuizSessionId, timeSeconds })
+            : await enviarSesionAlServidor({
+                mode: currentQuizMode,
+                pillId: currentQuizMode === 'pills' ? selectedPillId : undefined,
+                answers: sessionAnswers,
+                timeSeconds,
+            });
+        serverQuizSessionId = null;
 
         // Espejo local de lo que el servidor decidió. Si el intento no contó
         // (reintento de evaluación, pill ya rankeada) no se toca el estado.
@@ -8095,14 +8297,14 @@ async function saveScoreToCloud(finalScore, timeSeconds) {
         return Boolean(resultado.persisted);
     } catch (e) {
         debugWarn('saveScoreToCloud error:', e);
-        // La evaluación es de un solo intento: no se puede perder en silencio. Se
-        // respalda lo CONTESTADO (no el puntaje) para reenviarlo tal cual al servidor.
+        // La evaluación es de un solo intento: no se puede perder en silencio.
         if (currentQuizMode === 'evaluation') {
-            stashEvalScorePending(userId, {
-                answers: sessionAnswers,
-                tiempo: Number(timeSeconds || 0),
-                fecha: new Date().toISOString(),
-            });
+            // Con sesión de servidor las respuestas YA están guardadas allá: basta
+            // con reintentar el cierre. Sin ella se respalda lo contestado (nunca el
+            // puntaje) para reenviarlo tal cual.
+            stashEvalScorePending(userId, serverQuizSessionId
+                ? { sessionId: serverQuizSessionId, tiempo: Number(timeSeconds || 0), fecha: new Date().toISOString() }
+                : { answers: sessionAnswers, tiempo: Number(timeSeconds || 0), fecha: new Date().toISOString() });
             evalScoreSaveFailed = true;
         }
     }

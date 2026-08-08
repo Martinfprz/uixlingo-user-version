@@ -101,8 +101,12 @@ async function actionStart(admin: SupabaseClient, userId: string, body: Record<s
   const limit = Math.min(Math.max(1, Number(body.limit || candidateIds.length)), MAX_QUESTIONS);
 
   // El cliente propone el universo (ya filtrado por seniority/especialidad, que es
-  // lógica de producto suya); el servidor decide el orden y el recorte, y lo fija.
-  const chosen = shuffle(candidateIds).slice(0, limit);
+  // lógica de producto suya). Con `preserveOrder` respetamos su orden — lo usa la
+  // evaluación, donde el balanceo UX/UI intercala las preguntas a propósito y
+  // rebarajar aquí lo destruiría. Sin el flag, el servidor decide el orden.
+  // En ambos casos el conjunto queda FIJADO aquí: es lo que impide cambiar de
+  // preguntas a mitad de sesión.
+  const chosen = (body.preserveOrder === true ? candidateIds : shuffle(candidateIds)).slice(0, limit);
 
   const { data: rows, error } = isEval(mode)
     ? await admin.from("preguntas_evaluacion")
@@ -155,6 +159,9 @@ async function actionAnswer(admin: SupabaseClient, userId: string, body: Record<
   let correctText: string;
   let explanation: string;
   let studyTag = "";
+  // Sólo en pills: el veredicto crudo, para que el cliente lo etiquete con su
+  // propio copy en vez de que el servidor mande texto en duro.
+  let correctBool: boolean | null = null;
 
   if (isEval(sesion.mode)) {
     const correcta = norm(row.correcta);
@@ -164,7 +171,8 @@ async function actionAnswer(admin: SupabaseClient, userId: string, body: Record<
     ok = norm(body.answer) === correcta;
   } else {
     const esperado = Boolean(row.correct_answer);
-    correctText = esperado ? "Verdadero" : "Falso";
+    correctBool = esperado;
+    correctText = "";
     explanation = String(row.explanation || "");
     ok = (typeof body.answer === "boolean"
       ? body.answer
@@ -176,7 +184,7 @@ async function actionAnswer(admin: SupabaseClient, userId: string, body: Record<
   // cuál era la correcta — para cuando la sabes, tu respuesta ya está sellada.
   if (previa) {
     return {
-      correct: Boolean(previa.ok), correctText, explanation, studyTag, alreadyAnswered: true,
+      correct: Boolean(previa.ok), correctText, correctBool, explanation, studyTag, alreadyAnswered: true,
     };
   }
 
@@ -185,7 +193,7 @@ async function actionAnswer(admin: SupabaseClient, userId: string, body: Record<
     .from("quiz_sessions").update({ answers }).eq("id", sessionId);
   if (updErr) throw new Error(`quiz_sessions update: ${updErr.message}`);
 
-  return { correct: ok, correctText, explanation, studyTag, alreadyAnswered: false };
+  return { correct: ok, correctText, correctBool, explanation, studyTag, alreadyAnswered: false };
 }
 
 async function actionFinish(admin: SupabaseClient, userId: string, body: Record<string, unknown>) {
@@ -229,7 +237,8 @@ async function actionFinish(admin: SupabaseClient, userId: string, body: Record<
       }
       return {
         id: String(r.id), question: String(r.question || ""),
-        correct: r.correct_answer ? "Verdadero" : "Falso",
+        // Igual que en `answer`: el crudo, el copy lo pone el cliente.
+        correct: "", correctBool: String(Boolean(r.correct_answer)),
         explanation: String(r.explanation || ""), studyTag: "",
       };
     });
